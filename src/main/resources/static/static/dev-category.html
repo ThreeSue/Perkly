@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>商家分类 · 开发调试</title>
+<style>
+body{font:16px system-ui;background:#f5f7fa;color:#243044;max-width:920px;margin:40px auto;padding:0 20px}section{background:white;padding:24px;border-radius:12px;margin:20px 0}h1{font-size:26px}h2{font-size:19px}label{display:inline-flex;flex-direction:column;gap:6px;margin:8px 12px 8px 0}input,select,button{font:inherit;padding:9px;border:1px solid #cbd5e1;border-radius:6px}button{cursor:pointer;background:#eef4ff}button:disabled{opacity:.5;cursor:wait}img{vertical-align:middle;width:150px;height:50px}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:10px;border-bottom:1px solid #eee}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf1f7;padding:14px}#status{min-height:24px}small{color:#64748b}
+</style>
+<h1>商家分类 · 开发调试</h1><p>登录 → 新增分类 → 查询数据库记录。请求会真实写入当前后端连接的数据库。</p>
+<section><h2>1. 管理账号登录</h2><form id="loginForm">
+<label>账号<input id="username" value="admin" autocomplete="username" required></label>
+<label>密码<input id="password" type="password" autocomplete="current-password" required></label>
+<label>验证码<input id="verifyCode" autocomplete="off" required></label>
+<img id="captchaImage" alt="点击刷新按钮获取验证码"><button type="button" id="refresh">刷新验证码</button>
+<p><button>登录</button> <button type="button" id="clear">清除本页登录状态</button> <span id="loginState">未登录</span></p>
+</form><small>密码与 Token 不写入浏览器存储；关闭或刷新页面后需要重新登录。</small></section>
+<section><h2>2. 新增商家分类</h2><form id="addForm">
+<label>分类名称<input id="name" maxlength="50" required></label>
+<label>上级分类 ID（顶级留空）<input id="parentId" inputmode="numeric" pattern="[0-9]+"></label>
+<label>排序<input id="sort" type="number" step="1" value="0" required></label>
+<label>前台展示<select id="showOnFront"><option value="1">是</option><option value="0">否</option></select></label>
+<label>状态<select id="state"><option value="1">启用</option><option value="0">停用</option></select></label>
+<p><button>保存分类</button></p></form></section>
+<section><h2>3. 分类列表</h2><button id="query">查询列表</button><p><small>当前调用 list 接口，展示接口返回的记录。</small></p><table><thead><tr><th>ID</th><th>名称</th><th>上级 ID</th><th>排序</th><th>展示</th><th>状态</th></tr></thead><tbody id="rows"></tbody></table></section>
+<p id="status" role="status"></p><details open><summary>最近一次业务请求与响应（不显示密码或 Token）</summary><pre id="output">等待操作</pre></details>
+<script>
+const $=id=>document.getElementById(id);let token='',captchaId='';
+async function request(path,method='GET',body,show=false){
+ const headers={};if(body!==undefined)headers['Content-Type']='application/json';if(token)headers.Authorization=token;
+ const response=await fetch(path,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
+ const raw=await response.text();let result;try{result=JSON.parse(raw)}catch{throw Error('服务器未返回 JSON，请确认后端已启动。')}
+ if(show)$('output').textContent=JSON.stringify({path,method,request:body,httpStatus:response.status,response:result},null,2);
+ if(!response.ok||String(result.code)!=='1000')throw Error(result.message||'请求失败：'+response.status);
+ return result.data;
+}
+async function run(action){try{$('status').textContent='请求中…';await action()}catch(e){$('status').textContent=e.message}}
+async function captcha(){const data=await request('/admin/base/open/captcha?type=base64&width=150&height=50');captchaId=data.captchaId;$('captchaImage').src=data.data;$('verifyCode').value=''}
+async function query(){if(!token)throw Error('请先登录');const data=await request('/admin/merchant/category/list','POST',{},true);const list=Array.isArray(data)?data:(data?.list||[]);$('rows').replaceChildren();for(const item of list){const tr=document.createElement('tr');for(const value of [item.id,item.name,item.parentId??'—',item.sort,item.showOnFront===1?'是':'否',item.status===1?'启用':'停用']){const td=document.createElement('td');td.textContent=String(value??'');tr.append(td)}$('rows').append(tr)}$('status').textContent='查询成功，共 '+list.length+' 条记录'}
+$('refresh').onclick=()=>run(async()=>{await captcha();$('status').textContent='验证码已刷新'});
+$('loginForm').onsubmit=e=>{e.preventDefault();run(async()=>{if(!captchaId)throw Error('请先获取验证码');try{const data=await request('/admin/base/open/login','POST',{username:$('username').value,password:$('password').value,captchaId,verifyCode:$('verifyCode').value});if(!data?.token)throw Error('登录响应未包含 Token');token=data.token;$('password').value='';$('loginState').textContent='已登录';$('status').textContent='登录成功，可以新增和查询分类'}catch(err){await captcha().catch(()=>{});throw err}})};
+$('clear').onclick=()=>{token='';$('loginState').textContent='未登录';$('status').textContent='已清除本页登录状态'};
+$('addForm').onsubmit=e=>{e.preventDefault();run(async()=>{if(!token)throw Error('请先登录');const name=$('name').value.trim();if(!name)throw Error('分类名称不能为空白');const body={name,parentId:$('parentId').value||null,sort:Number($('sort').value),showOnFront:Number($('showOnFront').value),status:Number($('state').value)};await request('/admin/merchant/category/add','POST',body,true);$('status').textContent='分类已保存，点击查询列表查看结果';$('name').value=''})};
+$('query').onclick=()=>run(query);run(async()=>{await captcha();$('status').textContent='验证码已加载，请填写账号密码登录'});
+</script>
+</html>

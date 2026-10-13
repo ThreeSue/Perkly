@@ -1,0 +1,43 @@
+# 本地数据库环境
+# 数据存放在当前目录下的 data里
+# 推荐使用安装了docker扩展的vscode打开目录 在本文件上右键可以快速启动，停止
+# 如不需要相关容器开机自启动，可注释掉 restart: always
+# 如遇端口冲突 可调整ports下 :前面的端口号
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql  # 使用官方 MySQL 镜像，你可以根据需要选择版本
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"  # 设置 root 用户密码
+      MYSQL_DATABASE: "cool"         # 创建一个初始数据库
+    networks:
+      - backend
+    ports:
+      - "3306:3306"                       # 将主机的 3306 端口映射到容器的 3306 端口
+    volumes:
+      - mysql-data:/var/lib/mysql         # 挂载数据卷以持久化数据
+
+  redis:
+    image: redis:latest
+    # command: --requirepass "12345678"  # Uncomment if you need a password
+    restart: always
+    environment:
+      TZ: Asia/Shanghai # 指定时区
+    volumes:
+      - ./data/redis/:/data/
+    networks:
+      - backend
+    ports:
+      - 6379:6379
+
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local
