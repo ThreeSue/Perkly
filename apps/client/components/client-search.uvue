@@ -1,0 +1,72 @@
+<template>
+	<view class="client-search">
+		<cl-input
+			class="client-search-input"
+			:model-value="value"
+			:pt="{ inner: { className: 'client-search-native' } }"
+			placeholder="搜索商家、优惠"
+			confirm-type="search"
+			:border="false"
+			:maxlength="60"
+			clearable
+			@update:model-value="updateValue"
+			@confirm="$emit('submit')"
+			@clear="$emit('clear')"
+		></cl-input>
+		<cl-button
+			class="client-search-submit"
+			type="warn"
+			:pt="{ label: { color: '#242424', className: 'font-semibold' } }"
+			:style="{ backgroundColor: '#ffe23f', borderColor: '#ffe23f' }"
+			@tap="$emit('submit')"
+		>
+			搜索
+		</cl-button>
+	</view>
+</template>
+<script setup lang="ts">
+import { computed } from "vue";
+const props = defineProps<{ modelValue: string }>();
+const emit = defineEmits(["update:modelValue", "submit", "clear"]);
+const value = computed({
+	get: () => props.modelValue,
+	set: (value: string) => emit("update:modelValue", value)
+});
+function updateValue(value: string) {
+	emit("update:modelValue", value);
+}
+</script>
+<style lang="scss" scoped>
+.client-search {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	background: white;
+	border-radius: 24px;
+	padding: 6px 6px 6px 16px;
+	height: 48px;
+	box-sizing: border-box;
+}
+.client-search-input {
+	flex: 1;
+	min-width: 0;
+	font-size: 15px;
+	height: 36px;
+	padding: 0 4px;
+	background: transparent;
+}
+.client-search-submit {
+	margin: 0;
+	border-radius: 20px;
+}
+// #ifdef H5
+.client-search-submit {
+	cursor: pointer;
+}
+.client-search-input:focus-within,
+.client-search-submit:focus-visible {
+	outline: 2px solid #785c00;
+	outline-offset: 2px;
+}
+// #endif
+</style>

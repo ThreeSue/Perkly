@@ -1,0 +1,129 @@
+<template>
+	<cl-page :back-top="false"
+		><view class="discovery-page">
+			<view class="discovery-content">
+				<client-search v-model="keyword" @submit="search" @clear="search" />
+				<view class="discovery-chips">
+					<button
+						class="discovery-action discovery-chip"
+						:class="{ 'discovery-chip-selected': category === '' }"
+						@tap="selectCategory('')"
+						hover-class="discovery-pressed"
+					>
+						全部
+					</button>
+					<button
+						v-for="item in categories"
+						:key="item.id"
+						class="discovery-action discovery-chip"
+						:class="{ 'discovery-chip-selected': category === item.id }"
+						@tap="selectCategory(item.id)"
+						hover-class="discovery-pressed"
+					>
+						{{ item.name }}
+					</button>
+				</view>
+				<view class="discovery-toolbar">
+					<text class="discovery-caption">示例商品 · {{ merchants.length }} 件</text>
+				</view>
+				<view v-if="loading" class="discovery-state" role="status"
+					><text>商品加载中…</text></view
+				>
+				<view v-else-if="error" class="discovery-state"
+					><text>{{ error }}</text
+					><button
+						class="discovery-action discovery-retry"
+						@tap="search"
+						hover-class="discovery-pressed"
+					>
+						重试
+					</button></view
+				>
+				<view v-else-if="merchants.length === 0" class="discovery-state">
+					<text>没有找到相关商品</text
+					><text class="discovery-caption">换个关键词或选择其他分类试试</text>
+					<button
+						class="discovery-action discovery-retry"
+						@tap="reset"
+						hover-class="discovery-pressed"
+					>
+						查看全部商品
+					</button>
+				</view>
+				<view v-else class="discovery-grid"
+					><view v-for="merchant in merchants" :key="merchant.id" class="discovery-cell"
+						><client-merchant-card :merchant="merchant" @purchase="purchase" /></view
+				></view>
+			</view> </view
+	></cl-page>
+</template>
+<script setup lang="ts">
+import { computed, ref, onUnmounted } from "vue";
+import { onLoad, onShow } from "@dcloudio/uni-app";
+import { categories, listMerchants } from "@/api/discovery";
+import type { Merchant } from "@/types/discovery";
+import ClientSearch from "@/components/client-search.uvue";
+import ClientMerchantCard from "@/components/client-merchant-card.uvue";
+import { addToCart } from "@/api/cart";
+const keyword = ref("");
+const category = ref("");
+const title = computed(
+	() => categories.find((item) => item.id === category.value)?.name ?? "发现商品"
+);
+const merchants = ref<Merchant[]>([]);
+const loading = ref(false);
+const error = ref("");
+let requestId = 0;
+async function search() {
+	uni.hideKeyboard();
+	uni.setNavigationBarTitle({ title: title.value });
+	const id = ++requestId;
+	loading.value = true;
+	error.value = "";
+	try {
+		const result = await listMerchants({ keyword: keyword.value, category: category.value });
+		if (id === requestId) merchants.value = result;
+	} catch {
+		if (id === requestId) error.value = "商家加载失败，请重试";
+	} finally {
+		if (id === requestId) loading.value = false;
+	}
+}
+function selectCategory(value: string) {
+	category.value = value;
+	search();
+}
+function reset() {
+	keyword.value = "";
+	category.value = "";
+	search();
+}
+function purchase(merchant: Merchant) {
+	const count = addToCart(merchant);
+	uni.showToast({ title: `已加入购物车（${count}）`, icon: "none" });
+}
+onLoad((options) => {
+	category.value = categories.some((item) => item.id === options?.category)
+		? options!.category!
+		: "";
+	try {
+		keyword.value = decodeURIComponent(options?.keyword ?? "");
+	} catch {
+		keyword.value = options?.keyword ?? "";
+	}
+});
+onShow(search);
+onUnmounted(() => {
+	requestId++;
+});
+</script>
+<style lang="scss" scoped>
+@import "@/styles/discovery.scss";
+.discovery-toolbar {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	margin: 6px 0 12px;
+}
+</style>

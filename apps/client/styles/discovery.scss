@@ -1,0 +1,156 @@
+$discovery-yellow: #ffe23f;
+$discovery-ink: #242424;
+$discovery-muted: #707070;
+$discovery-bg: #f5f5f5;
+$discovery-offer: #a83e0a;
+.discovery-page {
+	min-height: 100vh;
+	background: $discovery-bg;
+	color: $discovery-ink;
+	padding-bottom: 28px;
+}
+.discovery-content {
+	width: 100%;
+	box-sizing: border-box;
+	max-width: 680px;
+	margin: 0 auto;
+	padding: 16px 12px;
+}
+.discovery-action {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	line-height: 1.4;
+	color: inherit;
+	font-size: 14px;
+	text-align: left;
+}
+.discovery-action::after {
+	border: 0;
+}
+.discovery-pressed {
+	opacity: 0.7;
+}
+.discovery-search {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	background: white;
+	border-radius: 28px;
+	padding: 6px;
+	height: 48px;
+	box-sizing: border-box;
+}
+.discovery-search-button {
+	background: $discovery-yellow;
+	border-radius: 22px;
+	padding: 10px 20px;
+	font-size: 15px;
+	font-weight: 600;
+	flex-shrink: 0;
+}
+.discovery-section-head {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	margin: 8px 2px 14px;
+}
+.discovery-heading {
+	font-size: 20px;
+	font-weight: 700;
+}
+.discovery-caption {
+	font-size: 12px;
+	color: $discovery-muted;
+}
+.discovery-link {
+	color: #5b5b5b;
+	min-height: 40px;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+.discovery-grid {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	margin-top: 12px;
+}
+.discovery-cell {
+	width: calc(50% - 6px);
+	margin-bottom: 12px;
+}
+.discovery-state {
+	background: white;
+	border-radius: 16px;
+	padding: 30px 16px;
+	text-align: center;
+	margin: 12px 0;
+}
+.discovery-retry {
+	display: inline-block;
+	background: $discovery-yellow;
+	padding: 10px 20px;
+	border-radius: 22px;
+	margin-top: 14px;
+}
+.discovery-detail-card {
+	background: white;
+	border-radius: 16px;
+	padding: 20px;
+	margin-bottom: 12px;
+}
+.discovery-detail-title {
+	font-size: 24px;
+	font-weight: 700;
+	margin: 12px 0;
+	display: block;
+}
+.discovery-body {
+	display: block;
+	font-size: 14px;
+	line-height: 1.7;
+	margin-top: 10px;
+}
+.discovery-money {
+	font-size: 24px;
+	font-weight: 700;
+	color: $discovery-offer;
+}
+.discovery-chips {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	margin: 14px 0;
+}
+.discovery-chip {
+	padding: 10px 14px;
+	border-radius: 22px;
+	background: white;
+	margin: 0 6px 8px 0;
+	font-size: 13px;
+}
+.discovery-chip-selected {
+	background: $discovery-yellow;
+	font-weight: 600;
+}
+// #ifdef H5
+.discovery-action {
+	cursor: pointer;
+}
+.discovery-action:hover {
+	opacity: 0.85;
+}
+.discovery-action:focus-visible {
+	outline: 3px solid #785c00;
+	outline-offset: 3px;
+}
+.discovery-page {
+	scrollbar-color: #aaa #f5f5f5;
+	scrollbar-width: thin;
+}
+// #endif

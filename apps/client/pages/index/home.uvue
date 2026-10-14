@@ -1,0 +1,223 @@
+<template>
+	<cl-page :back-top="false">
+		<view class="discovery-page home-page">
+			<view class="home-header">
+				<cl-topbar
+					:show-back="false"
+					safe-area-top
+					:height="isMp() ? 32 : 8"
+					background-color="#ffe23f"
+					><view
+				/></cl-topbar>
+				<view class="home-header-inner">
+					<view class="home-brand-row">
+						<text class="home-brand">券管家</text>
+						<cl-button
+							class="home-location"
+							type="light"
+							rounded
+							icon="map-pin-line"
+							size="normal"
+							:pt="{
+								label: { color: '#242424' },
+								icon: { color: '#242424', size: 15 }
+							}"
+							:style="{
+								backgroundColor: 'rgba(255,255,255,0.7)',
+								borderColor: 'rgba(255,255,255,0.8)'
+							}"
+							:disabled="selectingLocation"
+							@tap="choosePlace"
+						>
+							{{ place || "选择地点" }} ▾
+						</cl-button>
+					</view>
+					<client-search v-model="keyword" @submit="search" />
+				</view>
+			</view>
+			<view class="home-services"
+				><view class="home-services-inner">
+					<navigator
+						v-for="category in categories"
+						:key="category.id"
+						class="home-service"
+						:url="'/pages/discover/list?category=' + category.id"
+					>
+						<button class="home-service-button">{{ category.name }}</button>
+					</navigator>
+				</view></view
+			>
+			<view class="discovery-content">
+				<view class="discovery-section-head">
+					<view
+						><text class="discovery-heading">发现好物</text
+						><text class="home-sample-label">本地示例商品</text></view
+					>
+					<navigator class="discovery-link" url="/pages/discover/list"
+						>查看全部 ›</navigator
+					>
+				</view>
+				<view v-if="loading" class="discovery-state" role="status"
+					><text>商品加载中…</text></view
+				>
+				<view v-else-if="error" class="discovery-state"
+					><text>{{ error }}</text
+					><button @tap="load">重试</button></view
+				>
+				<view v-else-if="merchants.length === 0" class="discovery-state"
+					><text>暂无商品</text></view
+				>
+				<view v-else class="discovery-grid"
+					><view v-for="merchant in merchants" :key="merchant.id" class="discovery-cell"
+						><client-merchant-card :merchant="merchant" @purchase="purchase" /></view
+				></view>
+			</view>
+		</view>
+	</cl-page>
+</template>
+<script setup lang="ts">
+import { ref, onUnmounted } from "vue";
+import { onShow } from "@dcloudio/uni-app";
+import { isH5, isMp } from "@/.cool";
+import { categories, listMerchants } from "@/api/discovery";
+import type { Merchant } from "@/types/discovery";
+import ClientSearch from "@/components/client-search.uvue";
+import ClientMerchantCard from "@/components/client-merchant-card.uvue";
+import { addToCart } from "@/api/cart";
+const keyword = ref("");
+const place = ref("");
+const selectingLocation = ref(false);
+const merchants = ref<Merchant[]>([]);
+const loading = ref(false);
+const error = ref("");
+let requestId = 0;
+async function load() {
+	const id = ++requestId;
+	loading.value = true;
+	error.value = "";
+	try {
+		const result = await listMerchants({ limit: 6 });
+		if (id === requestId) merchants.value = result;
+	} catch {
+		if (id === requestId) error.value = "商家加载失败，请重试";
+	} finally {
+		if (id === requestId) loading.value = false;
+	}
+}
+function search() {
+	uni.hideKeyboard();
+	uni.navigateTo({
+		url: "/pages/discover/list?keyword=" + encodeURIComponent(keyword.value.trim())
+	});
+}
+function purchase(merchant: Merchant) {
+	const count = addToCart(merchant);
+	uni.showToast({ title: `已加入购物车（${count}）`, icon: "none" });
+}
+function choosePlace() {
+	if (selectingLocation.value) return;
+	if (isH5()) {
+		uni.showToast({
+			title: "H5预览未配置地图服务，请在微信小程序中选址",
+			icon: "none"
+		});
+		return;
+	}
+	selectingLocation.value = true;
+	uni.chooseLocation({
+		success(result) {
+			place.value = result.name || result.address || "已选地点";
+		},
+		fail(error) {
+			if ((error.errMsg ?? "").toLowerCase().includes("cancel")) return;
+			uni.showToast({
+				title: isMp() ? "请检查小程序定位权限" : "请在微信小程序中选择地点",
+				icon: "none"
+			});
+		},
+		complete() {
+			selectingLocation.value = false;
+		}
+	});
+}
+onShow(load);
+onUnmounted(() => {
+	requestId++;
+});
+</script>
+<style lang="scss" scoped>
+@import "@/styles/discovery.scss";
+.home-page {
+	padding-bottom: 24px;
+}
+.home-header {
+	background: $discovery-yellow;
+}
+.home-header-inner {
+	width: 100%;
+	box-sizing: border-box;
+	max-width: 680px;
+	margin: 0 auto;
+	padding: 10px 16px 24px;
+}
+.home-brand-row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 16px;
+}
+.home-brand {
+	font-size: 23px;
+	font-weight: 800;
+	letter-spacing: 1px;
+}
+.home-location {
+	margin: 0;
+	max-width: 62%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 13px;
+}
+.home-services {
+	background: white;
+	border-radius: 20px 20px 0 0;
+	margin-top: -8px;
+	position: relative;
+}
+.home-services-inner {
+	width: 100%;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	max-width: 680px;
+	margin: 0 auto;
+	padding: 22px 12px;
+}
+.home-service {
+	width: calc(25% - 9px);
+	min-width: 0;
+}
+.home-service-button {
+	width: 100%;
+	height: 64px;
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	white-space: nowrap;
+	background: #fff6cc;
+	border-radius: 12px;
+	padding: 0;
+	line-height: 64px;
+}
+.home-service-button::after {
+	border: 0;
+}
+.home-sample-label {
+	font-size: 11px;
+	color: $discovery-muted;
+	margin-left: 8px;
+}
+</style>

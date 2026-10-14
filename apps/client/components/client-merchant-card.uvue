@@ -1,0 +1,120 @@
+<template>
+	<view class="merchant-entry">
+		<navigator class="merchant-link" :url="'/pages/discover/merchant?id=' + merchant.id">
+			<view class="merchant-photo">
+				<image
+					v-if="!imageFailed"
+					class="merchant-image"
+					:src="merchant.image"
+					mode="aspectFill"
+					@error="imageFailed = true"
+				/>
+				<text v-else class="merchant-photo-fallback">{{ merchant.name }}</text>
+			</view>
+			<view class="merchant-info">
+				<text class="merchant-name">{{ merchant.name }}</text>
+				<text class="merchant-offer">{{ merchant.offer }}</text>
+				<view class="merchant-price-row"
+					><text class="merchant-price">¥{{ merchant.price }}</text
+					><text class="merchant-unit">{{ merchant.unit }}</text></view
+				>
+			</view>
+		</navigator>
+		<cl-button
+			class="merchant-buy"
+			type="warn"
+			size="small"
+			:pt="{ label: { color: '#242424', className: 'font-semibold' } }"
+			:style="{ backgroundColor: '#ffe23f', borderColor: '#ffe23f' }"
+			@tap.stop="emit('purchase', merchant)"
+			>购买</cl-button
+		>
+	</view>
+</template>
+<script setup lang="ts">
+import type { Merchant } from "@/types/discovery";
+import { ref } from "vue";
+defineProps<{ merchant: Merchant }>();
+const emit = defineEmits(["purchase"]);
+const imageFailed = ref(false);
+</script>
+<style lang="scss" scoped>
+.merchant-entry {
+	position: relative;
+	width: 100%;
+	height: 300px;
+	border-radius: 14px;
+	overflow: hidden;
+	background: #fff;
+}
+
+.merchant-link {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+}
+
+.merchant-photo {
+	width: 100%;
+	height: 70%;
+	flex-shrink: 0;
+	background: #ede8dd;
+	align-items: center;
+	justify-content: center;
+}
+.merchant-image {
+	width: 100%;
+	height: 100%;
+}
+.merchant-photo-fallback {
+	font-size: 17px;
+	color: #707070;
+}
+.merchant-info {
+	width: 100%;
+	height: 30%;
+	flex-shrink: 0;
+	padding: 9px 10px;
+	box-sizing: border-box;
+	justify-content: space-between;
+	padding-right: 62px;
+}
+.merchant-name {
+	display: block;
+	font-size: 15px;
+	font-weight: 700;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.merchant-offer {
+	display: block;
+	font-size: 12px;
+	color: #707070;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.merchant-price-row {
+	flex-direction: row;
+	align-items: baseline;
+}
+.merchant-price {
+	font-size: 20px;
+	font-weight: 700;
+	color: #a83e0a;
+}
+.merchant-unit {
+	font-size: 11px;
+	color: #707070;
+	margin-left: 4px;
+}
+
+.merchant-buy {
+	position: absolute;
+	right: 8px;
+	bottom: 9px;
+	margin: 0;
+}
+</style>
