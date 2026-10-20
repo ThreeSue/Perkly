@@ -1,12 +1,12 @@
 <template>
 	<cl-page :back-top="false">
-		<view class="discovery-page home-page">
+		<view class="discovery-page home-page" :class="{ 'is-dark': isDark }">
 			<view class="home-header">
 				<cl-topbar
 					:show-back="false"
 					safe-area-top
 					:height="isMp() ? 32 : 8"
-					background-color="#eef2f6"
+					:background-color="isDark ? '#191919' : '#eef2f6'"
 					><view
 				/></cl-topbar>
 				<view class="home-header-inner">
@@ -19,12 +19,12 @@
 							icon="map-pin-line"
 							size="normal"
 							:pt="{
-								label: { color: '#26313b' },
-								icon: { color: '#526d88', size: 15 }
+								label: { color: isDark ? '#f1f5f9' : '#26313b' },
+								icon: { color: isDark ? '#abc6e3' : '#526d88', size: 15 }
 							}"
 							:style="{
-								backgroundColor: '#ffffff',
-								borderColor: '#dce4ec'
+								backgroundColor: isDark ? '#262629' : '#ffffff',
+								borderColor: isDark ? '#41414a' : '#dce4ec'
 							}"
 							:disabled="selectingLocation"
 							@tap="choosePlace"
@@ -95,7 +95,7 @@
 </template>
 <script setup lang="ts">
 import { ref, onUnmounted } from "vue";
-import { isH5, isMp } from "@/.cool";
+import { isDark, isH5, isMp } from "@/.cool";
 import { getApiErrorMessage, listCoupons, listStores } from "@/api/discovery";
 import type { Coupon, Store } from "@/types/discovery";
 import ClientSearch from "@/components/client-search.uvue";

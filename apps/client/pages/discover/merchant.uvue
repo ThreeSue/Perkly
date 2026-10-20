@@ -1,6 +1,6 @@
 <template>
 	<cl-page :back-top="false">
-		<view class="discovery-page">
+		<view class="discovery-page" :class="{ 'is-dark': isDark }">
 			<view class="discovery-content">
 				<view v-if="loading" class="discovery-state" role="status">
 					<text>门店信息加载中…</text>
@@ -76,6 +76,7 @@
 </template>
 
 <script setup lang="ts">
+import { isDark } from "@/.cool";
 import { onUnmounted, ref } from "vue";
 import { getApiErrorMessage, getStore, listCoupons } from "@/api/discovery";
 import type { ApiId, Coupon, PageResult, StoreDetail } from "@/types/discovery";

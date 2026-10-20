@@ -1,5 +1,5 @@
 <template>
-	<view class="merchant-entry">
+	<view class="merchant-entry" :class="{ 'is-dark': isDark }">
 		<navigator class="merchant-link" :url="'/pages/discover/merchant?id=' + store.id">
 			<view class="merchant-photo">
 				<image
@@ -21,10 +21,12 @@
 <script setup lang="ts">
 import type { Store } from "@/types/discovery";
 import { ref } from "vue";
+import { isDark } from "@/.cool";
 defineProps<{ store: Store }>();
 const imageFailed = ref(false);
 </script>
 <style lang="scss" scoped>
+@import "@/styles/discovery-palette.scss";
 .merchant-entry {
 	position: relative;
 	width: 100%;
@@ -83,5 +85,19 @@ const imageFailed = ref(false);
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
+}
+.merchant-entry.is-dark {
+	background: $discovery-dark-surface;
+	color: $discovery-dark-ink;
+	.merchant-name {
+		color: $discovery-dark-ink;
+	}
+	.merchant-photo {
+		background: $discovery-dark-raised;
+	}
+	.merchant-offer,
+	.merchant-photo-fallback {
+		color: $discovery-dark-muted;
+	}
 }
 </style>

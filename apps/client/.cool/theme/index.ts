@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import uniTheme from "@/theme.json";
 import { router } from "../router";
 import { ctx } from "../ctx";
@@ -178,6 +178,25 @@ export const setH5 = () => {
 	const tabbar = document.querySelector(".uni-tabbar");
 	if (tabbar) {
 		(tabbar as HTMLElement).style.backgroundColor = tabBgColor;
+		// H5原生tabbar不会随自定义主题状态重算文字颜色，需要同时更新其主题配置。
+		uni.setTabBarStyle({
+			color: getConfig("tabColor"),
+			selectedColor: getConfig("tabSelectedColor"),
+			backgroundColor: tabBgColor,
+			borderStyle: getConfig("tabBorderStyle") as "black" | "white",
+			// H5根路径别名有时未被标为tabbar页，下面统一同步可见标签。
+			fail: () => undefined
+		});
+		nextTick(() => {
+			const labels = tabbar.querySelectorAll(".uni-tabbar__label");
+			const currentPath = router.path();
+			const activePath = currentPath == "" || currentPath == "/" ? router.defaultPath("home") : currentPath;
+			(ctx.tabBar.list ?? []).forEach((item, index) => {
+				const label = labels[index] as HTMLElement | undefined;
+				const path = item.pagePath.startsWith("/") ? item.pagePath : `/${item.pagePath}`;
+				if (label) label.style.setProperty("color", getConfig(path == activePath ? "tabSelectedColor" : "tabColor"), "important");
+			});
+		});
 	}
 
 	// 设置页面头部背景色和文字颜色

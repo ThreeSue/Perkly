@@ -1,8 +1,4 @@
-$discovery-primary: #526d88;
-$discovery-ink: #26313b;
-$discovery-muted: #71808d;
-$discovery-bg: #eef2f6;
-$discovery-border: #dce4ec;
+@import "./discovery-palette.scss";
 .discovery-page {
 	min-height: 100vh;
 	background: $discovery-bg;
@@ -138,6 +134,61 @@ $discovery-border: #dce4ec;
 	border-color: $discovery-primary;
 	color: #ffffff;
 	font-weight: 600;
+}
+.discovery-page.is-dark {
+	background: $discovery-dark-bg;
+	color: $discovery-dark-ink;
+	.home-header,
+	.home-services {
+		background: $discovery-dark-bg;
+	}
+	.discovery-search,
+	.discovery-state,
+	.discovery-detail-card,
+	.discovery-chip,
+	.home-service-button,
+	.category-error,
+	.store-detail-card,
+	.coupon-detail-card {
+		background: $discovery-dark-surface;
+		color: $discovery-dark-ink;
+		border-color: $discovery-dark-border;
+	}
+	.home-brand,
+	.discovery-heading,
+	.discovery-detail-title,
+	.discovery-body {
+		color: $discovery-dark-ink;
+	}
+	.discovery-caption,
+	.category-level-label,
+	.category-error,
+	.coupon-state,
+	.store-detail-image-fallback {
+		color: $discovery-dark-muted;
+	}
+	.discovery-link,
+	.discovery-load-more,
+	.store-status,
+	.coupon-detail-image-fallback {
+		color: $discovery-dark-primary;
+	}
+	.store-detail-image,
+	.coupon-detail-image {
+		background: $discovery-dark-raised;
+	}
+	.discovery-chip-selected {
+		background: $discovery-primary;
+		border-color: $discovery-primary;
+		color: #ffffff;
+	}
+	.coupon-price {
+		color: $discovery-dark-price;
+	}
+	.coupon-store-row,
+	.coupon-content-row {
+		border-bottom-color: $discovery-dark-border;
+	}
 }
 // #ifdef H5
 .discovery-action {

@@ -4,10 +4,10 @@
 			:show-back="false"
 			safe-area-top
 			title="我的券"
-			background-color="#eef2f6"
+			:background-color="isDark ? '#191919' : '#eef2f6'"
 		></cl-topbar>
-		<view class="voucher-state">
-			<cl-icon name="coupon-line" :size="36" color="#526d88"></cl-icon>
+		<view class="voucher-state" :class="{ 'is-dark': isDark }">
+			<cl-icon name="coupon-line" :size="36" :color="isDark ? '#abc6e3' : '#526d88'"></cl-icon>
 			<cl-text :size="16" :pt="{ className: 'mt-4 font-bold' }">券包接口待接入</cl-text>
 			<cl-text color="info" :pt="{ className: 'mt-2 text-center' }">
 				后端尚未提供顾客券包接口，当前不会展示示例券或模拟核销状态。
@@ -16,7 +16,15 @@
 	</cl-page>
 </template>
 
+<script setup lang="ts">
+import { isDark } from "@/.cool";
+</script>
+
 <style lang="scss" scoped>
+@import "@/styles/discovery-palette.scss";
+.voucher-state.is-dark {
+	background: $discovery-dark-surface;
+}
 .voucher-state {
 	min-height: 52vh;
 	display: flex;

@@ -6,11 +6,11 @@
 			:show-back="false"
 			safe-area-top
 			title="我的"
-			background-color="#eef2f6"
+			:background-color="isDark ? '#191919' : '#eef2f6'"
 		>
 		</cl-topbar>
 
-		<view class="profile-card">
+		<view class="profile-card" :class="{ 'is-dark': isDark }">
 			<cl-avatar
 				:src="userInfo?.avatarUrl"
 				:size="76"
@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { router, userInfo, useStore } from "@/.cool";
+import { isDark, router, userInfo, useStore } from "@/.cool";
 import CustomTabbar from "./components/tabbar.uvue";
 
 const { user } = useStore();
@@ -99,6 +99,10 @@ onReady(() => {
 </script>
 
 <style lang="scss" scoped>
+@import "@/styles/discovery-palette.scss";
+.profile-card.is-dark {
+	background: $discovery-dark-surface;
+}
 .profile-card {
 	margin: 20px 16px 16px;
 	padding: 24px 20px;

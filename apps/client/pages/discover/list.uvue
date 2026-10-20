@@ -1,6 +1,6 @@
 <template>
 	<cl-page :back-top="false">
-		<view class="discovery-page">
+		<view class="discovery-page" :class="{ 'is-dark': isDark }">
 			<view class="discovery-content">
 				<client-search v-model="keyword" @submit="search" @clear="search" />
 				<view v-if="categoryError" class="category-error">
@@ -121,6 +121,7 @@
 </template>
 
 <script setup lang="ts">
+import { isDark } from "@/.cool";
 import { computed, onUnmounted, ref } from "vue";
 import { getApiErrorMessage, listCoupons, listIndustryCategories, listStores } from "@/api/discovery";
 import type { ApiId, Coupon, IndustryCategory, Store } from "@/types/discovery";
