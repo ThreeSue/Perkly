@@ -1,0 +1,194 @@
+<template>
+	<cl-page :back-top="false">
+		<view class="discovery-page">
+			<view class="discovery-content">
+				<view v-if="loading" class="discovery-state" role="status">
+					<text>优惠券详情加载中…</text>
+				</view>
+				<view v-else-if="error" class="discovery-state">
+					<text>{{ error }}</text>
+					<button class="discovery-action discovery-retry" @tap="load">重试</button>
+				</view>
+				<template v-else-if="coupon">
+					<view class="coupon-detail-card">
+						<image
+							v-if="coupon.cover && !imageFailed"
+							class="coupon-detail-image"
+							:src="coupon.cover"
+							mode="aspectFill"
+							@error="imageFailed = true"
+						/>
+						<view v-else class="coupon-detail-image coupon-detail-image-fallback">
+							<text>{{ coupon.typeText }}</text>
+						</view>
+						<text class="discovery-detail-title">{{ coupon.name }}</text>
+						<text class="discovery-caption">{{ coupon.merchantName }} · {{ coupon.categoryName }}</text>
+						<view class="coupon-price-row">
+							<text class="coupon-price">¥{{ formatMoney(coupon.salePrice) }}</text>
+							<text class="coupon-state">{{ coupon.saleStateText }}</text>
+						</view>
+						<text class="discovery-body">{{ coupon.description || "暂无详细说明" }}</text>
+					</view>
+					<view class="discovery-detail-card">
+						<text class="discovery-heading">优惠规则</text>
+						<text v-if="coupon.minSpend != null" class="discovery-body">
+							使用门槛：满 ¥{{ formatMoney(coupon.minSpend) }} 可用
+						</text>
+						<text v-if="coupon.discountAmount != null" class="discovery-body">
+							满减金额：¥{{ formatMoney(coupon.discountAmount) }}
+						</text>
+						<text v-if="coupon.deductAmount != null" class="discovery-body">
+							抵扣金额：¥{{ formatMoney(coupon.deductAmount) }}
+						</text>
+						<text v-if="coupon.discountRate != null" class="discovery-body">
+							折扣：{{ coupon.discountRate }} 折
+						</text>
+						<text v-if="coupon.maxDiscount != null" class="discovery-body">
+							最高优惠：¥{{ formatMoney(coupon.maxDiscount) }}
+						</text>
+						<text class="discovery-body">
+							适用范围：{{ coupon.scopeType === 0 ? "商家全部营业门店" : "指定门店" }}
+						</text>
+						<text class="discovery-body">
+							可叠加其他优惠：{{ coupon.allowCombine === 1 ? "可以" : "不可以" }}
+						</text>
+						<text v-if="coupon.perCustomerLimit != null" class="discovery-body">
+							每位顾客限量：{{ coupon.perCustomerLimit }} 张
+						</text>
+						<text v-if="coupon.remainingStock != null" class="discovery-body">
+							剩余数量：{{ coupon.remainingStock }}
+						</text>
+					</view>
+					<view class="discovery-detail-card">
+						<text class="discovery-heading">时间说明</text>
+						<text class="discovery-body">可领购时间：{{ coupon.saleStartTime || "不限" }} 至 {{ coupon.saleEndTime || "不限" }}</text>
+						<text class="discovery-body">有效期：{{ validityText }}</text>
+					</view>
+					<view class="discovery-detail-card">
+						<text class="discovery-heading">适用门店</text>
+						<view v-if="coupon.stores.length === 0" class="discovery-body">
+							<text>暂无适用门店信息</text>
+						</view>
+						<navigator
+							v-for="store in coupon.stores"
+							:key="String(store.id)"
+							class="coupon-store-row"
+							:url="'/pages/discover/merchant?id=' + encodeURIComponent(String(store.id))"
+						>
+							<text>{{ store.name }}</text>
+							<text class="discovery-caption">{{ store.address }} ›</text>
+						</navigator>
+					</view>
+					<view v-if="coupon.contents.length > 0" class="discovery-detail-card">
+						<text class="discovery-heading">适用商品或套餐</text>
+						<view v-for="item in coupon.contents" :key="String(item.productId) + '-' + item.relationType" class="coupon-content-row">
+							<text>{{ item.relationType === 1 ? "适用范围" : "套餐内容" }} · {{ item.quantity }} 份</text>
+							<text class="discovery-caption">{{ item.description }}</text>
+						</view>
+					</view>
+				</template>
+			</view>
+		</view>
+	</cl-page>
+</template>
+
+<script setup lang="ts">
+import { computed, onUnmounted, ref } from "vue";
+import { formatMoney, getApiErrorMessage, getCoupon } from "@/api/discovery";
+import type { ApiId, CouponDetail } from "@/types/discovery";
+
+const coupon = ref<CouponDetail | null>(null);
+const loading = ref(false);
+const error = ref("");
+const imageFailed = ref(false);
+let couponId: ApiId | "" = "";
+let requestId = 0;
+const validityText = computed(() => {
+	if (!coupon.value) return "—";
+	if (coupon.value.validityType === "FIXED") {
+		return `${coupon.value.validFrom || "不限"} 至 ${coupon.value.validTo || "不限"}`;
+	}
+	return `发券后 ${coupon.value.validDays ?? "—"} 天`;
+});
+
+async function load() {
+	if (couponId === "") {
+		error.value = "缺少优惠券模板ID，无法加载详情";
+		return;
+	}
+	const id = ++requestId;
+	loading.value = true;
+	error.value = "";
+	try {
+		const result = await getCoupon(couponId);
+		if (id === requestId) {
+			coupon.value = result;
+			uni.setNavigationBarTitle({ title: result.name });
+		}
+	} catch (err) {
+		if (id === requestId) {
+			error.value = getApiErrorMessage(err, "优惠券详情暂不可用");
+		}
+	} finally {
+		if (id === requestId) loading.value = false;
+	}
+}
+
+onLoad((options) => {
+	couponId = options?.id ?? "";
+	load();
+});
+
+onUnmounted(() => {
+	requestId++;
+});
+</script>
+
+<style lang="scss" scoped>
+@import "@/styles/discovery.scss";
+.coupon-detail-card {
+	background: #ffffff;
+	border-radius: 16px;
+	padding: 16px;
+	margin-bottom: 12px;
+}
+.coupon-detail-image {
+	width: 100%;
+	height: 190px;
+	border-radius: 12px;
+	background: #e6ebf1;
+}
+.coupon-detail-image-fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #526d88;
+}
+.coupon-price-row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 14px;
+}
+.coupon-price {
+	font-size: 22px;
+	font-weight: 700;
+	color: #b35332;
+}
+.coupon-state {
+	font-size: 13px;
+	color: #71808d;
+}
+.coupon-store-row,
+.coupon-content-row {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 12px 0;
+	border-bottom: 1px solid #eef2f6;
+}
+.coupon-content-row:last-child {
+	border-bottom: 0;
+}
+</style>

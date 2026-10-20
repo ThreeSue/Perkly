@@ -38,12 +38,12 @@
 			<view class="home-services"
 				><view class="home-services-inner">
 					<navigator
-						v-for="category in categories"
-						:key="category.id"
+					v-for="service in homeServices"
+					:key="service.id"
 						class="home-service"
-						:url="'/pages/discover/list?category=' + category.id"
+					:url="service.id === 'group-buy' ? '/pages/discover/coupons' : '/pages/discover/list'"
 					>
-						<button class="home-service-button">{{ category.name }}</button>
+					<button class="home-service-button">{{ service.name }}</button>
 					</navigator>
 				</view></view
 			>
@@ -55,21 +55,40 @@
 					>
 				</view>
 				<view v-if="loading" class="discovery-state" role="status"
-					><text>商家加载中…</text></view
+					><text>门店加载中…</text></view
 				>
 				<view v-else-if="error" class="discovery-state"
 					><text>{{ error }}</text
-					><button v-if="error !== DISCOVERY_API_NOT_READY" @tap="load">
-						重试
-					</button></view
+					><button @tap="loadStores">重试</button></view
 				>
-				<view v-else-if="merchants.length === 0" class="discovery-state"
-					><text>暂无商家</text></view
+				<view v-else-if="stores.length === 0" class="discovery-state"
+					><text>暂无可展示门店</text></view
 				>
 				<view v-else class="discovery-grid"
-					><view v-for="merchant in merchants" :key="merchant.id" class="discovery-cell"
-						><client-merchant-card :merchant="merchant" /></view
+					><view v-for="store in stores" :key="String(store.id)" class="discovery-cell"
+						><client-merchant-card :store="store" /></view
 				></view>
+				<view class="discovery-section-head coupon-section-head">
+					<view><text class="discovery-heading">优惠券</text></view>
+					<navigator class="discovery-link" url="/pages/discover/coupons"
+						>查看全部 ›</navigator
+					>
+				</view>
+				<view v-if="couponLoading" class="discovery-state" role="status">
+					<text>优惠券加载中…</text>
+				</view>
+				<view v-else-if="couponError" class="discovery-state">
+					<text>{{ couponError }}</text>
+					<button @tap="loadCoupons">重试</button>
+				</view>
+				<view v-else-if="coupons.length === 0" class="discovery-state">
+					<text>暂无可展示优惠券</text>
+				</view>
+				<view v-else class="coupon-grid">
+					<view v-for="coupon in coupons" :key="String(coupon.id)" class="coupon-cell">
+						<client-coupon-card :coupon="coupon" />
+					</view>
+				</view>
 			</view>
 		</view>
 	</cl-page>
@@ -77,31 +96,61 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from "vue";
 import { isH5, isMp } from "@/.cool";
-import { categories, DISCOVERY_API_NOT_READY, listMerchants } from "@/api/discovery";
-import type { Merchant } from "@/types/discovery";
+import { getApiErrorMessage, listCoupons, listStores } from "@/api/discovery";
+import type { Coupon, Store } from "@/types/discovery";
 import ClientSearch from "@/components/client-search.uvue";
 import ClientMerchantCard from "@/components/client-merchant-card.uvue";
+import ClientCouponCard from "@/components/client-coupon-card.uvue";
+const homeServices = [
+	{ id: "takeaway", name: "外卖" },
+	{ id: "group-buy", name: "团购" },
+	{ id: "shows", name: "电影演出" },
+	{ id: "stays", name: "民宿" }
+];
 const keyword = ref("");
 const place = ref("");
 const selectingLocation = ref(false);
-const merchants = ref<Merchant[]>([]);
+const stores = ref<Store[]>([]);
+const coupons = ref<Coupon[]>([]);
 const loading = ref(false);
 const error = ref("");
-let requestId = 0;
-async function load() {
-	const id = ++requestId;
+const couponLoading = ref(false);
+const couponError = ref("");
+let storeRequestId = 0;
+let couponRequestId = 0;
+async function loadStores() {
+	const id = ++storeRequestId;
 	loading.value = true;
 	error.value = "";
 	try {
-		const result = await listMerchants();
-		if (id === requestId) merchants.value = result;
+		const result = await listStores({ page: 1, size: 4 });
+		if (id === storeRequestId) stores.value = result.list;
 	} catch (err) {
-		if (id === requestId) {
-			error.value = err instanceof Error ? err.message : "商家加载失败，请重试";
+		if (id === storeRequestId) {
+			error.value = getApiErrorMessage(err, "门店加载失败，请重试");
 		}
 	} finally {
-		if (id === requestId) loading.value = false;
+		if (id === storeRequestId) loading.value = false;
 	}
+}
+async function loadCoupons() {
+	const id = ++couponRequestId;
+	couponLoading.value = true;
+	couponError.value = "";
+	try {
+		const result = await listCoupons({ page: 1, size: 4 });
+		if (id === couponRequestId) coupons.value = result.list;
+	} catch (err) {
+		if (id === couponRequestId) {
+			couponError.value = getApiErrorMessage(err, "优惠券加载失败，请重试");
+		}
+	} finally {
+		if (id === couponRequestId) couponLoading.value = false;
+	}
+}
+function load() {
+	loadStores();
+	loadCoupons();
 }
 function search() {
 	uni.hideKeyboard();
@@ -137,13 +186,25 @@ function choosePlace() {
 }
 onShow(load);
 onUnmounted(() => {
-	requestId++;
+	storeRequestId++;
+	couponRequestId++;
 });
 </script>
 <style lang="scss" scoped>
 @import "@/styles/discovery.scss";
 .home-page {
 	padding-bottom: 24px;
+}
+.coupon-section-head {
+	margin-top: 24px;
+}
+.coupon-grid {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.coupon-cell {
+	width: 100%;
 }
 .home-header {
 	background: $discovery-bg;

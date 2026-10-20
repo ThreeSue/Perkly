@@ -3,35 +3,71 @@
 		<view class="discovery-page">
 			<view class="discovery-content">
 				<view v-if="loading" class="discovery-state" role="status">
-					<text>商家加载中…</text>
+					<text>门店信息加载中…</text>
 				</view>
 				<view v-else-if="error" class="discovery-state">
 					<text>{{ error }}</text>
-					<button v-if="error !== DISCOVERY_API_NOT_READY" @tap="load">重试</button>
+					<button class="discovery-action discovery-retry" @tap="loadStore">重试</button>
 				</view>
-				<template v-else-if="merchant">
-					<view class="discovery-detail-card">
-						<text class="discovery-detail-title">{{ merchant.name }}</text>
-						<text class="discovery-caption">{{ merchant.description }}</text>
+				<template v-else-if="store">
+					<view class="store-detail-card">
+						<image
+							v-if="store.cover && !imageFailed"
+							class="store-detail-image"
+							:src="store.cover"
+							mode="aspectFill"
+							@error="imageFailed = true"
+						/>
+						<view v-else class="store-detail-image store-detail-image-fallback">
+							<text>{{ store.merchantName }}</text>
+						</view>
+						<text class="discovery-detail-title">{{ store.name }}</text>
+						<text class="discovery-caption">{{ store.merchantName }} · {{ store.categoryName }}</text>
+						<text class="store-status">{{ store.statusText }}</text>
+						<text v-if="store.merchantIntroduction" class="discovery-body">{{ store.merchantIntroduction }}</text>
 					</view>
 					<view class="discovery-detail-card">
-						<text class="discovery-heading">优惠说明</text>
-						<text class="discovery-body">{{ merchant.offer }}</text>
+						<text class="discovery-heading">门店信息</text>
+						<text class="discovery-body">地址：{{ store.address || "暂未提供" }}</text>
+						<text class="discovery-body">电话：{{ store.phone || "暂未提供" }}</text>
+						<text class="discovery-body">营业时间：{{ store.businessHours || "暂未提供" }}</text>
 					</view>
-					<view class="discovery-detail-card">
-						<text class="discovery-heading">商家信息</text>
-						<text class="discovery-body">
-							分类：{{
-								categories.find((item) => item.id === merchant.category)?.name
-							}}
-						</text>
-						<text class="discovery-body">{{ merchant.address }}</text>
+					<view class="discovery-section-head">
+						<view><text class="discovery-heading">适用优惠券</text></view>
+						<text v-if="couponPage" class="discovery-caption">共 {{ couponPage.pagination.total }} 张</text>
 					</view>
+					<view v-if="couponLoading" class="discovery-state" role="status">
+						<text>优惠券加载中…</text>
+					</view>
+					<view v-else-if="couponError" class="discovery-state">
+						<text>{{ couponError }}</text>
+						<button class="discovery-action discovery-retry" @tap="loadStoreCoupons">重试</button>
+					</view>
+					<view v-else-if="coupons.length === 0" class="discovery-state">
+						<text>当前没有可展示的优惠券</text>
+					</view>
+					<view v-else class="coupon-grid">
+						<view v-for="coupon in coupons" :key="String(coupon.id)" class="coupon-cell">
+							<client-coupon-card :coupon="coupon" />
+						</view>
+					</view>
+					<view v-if="couponMoreError" class="discovery-state">
+						<text>{{ couponMoreError }}</text>
+						<button class="discovery-action discovery-retry" @tap="loadMoreStoreCoupons">重试</button>
+					</view>
+					<button
+						v-else-if="hasMoreCoupons && !couponLoading"
+						class="discovery-action discovery-load-more"
+						:disabled="couponLoadingMore"
+						@tap="loadMoreStoreCoupons"
+					>
+						{{ couponLoadingMore ? "加载中…" : "加载更多优惠券" }}
+					</button>
 					<navigator
 						class="discovery-link"
-						:url="'/pages/discover/list?category=' + merchant.category"
+						:url="'/pages/discover/list?categoryId=' + encodeURIComponent(String(store.categoryId))"
 					>
-						浏览同类商家 ›
+						浏览同类门店 ›
 					</navigator>
 				</template>
 			</view>
@@ -40,45 +76,148 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from "vue";
-import { categories, DISCOVERY_API_NOT_READY, getMerchant } from "@/api/discovery";
-import type { Merchant } from "@/types/discovery";
+import { onUnmounted, ref } from "vue";
+import { getApiErrorMessage, getStore, listCoupons } from "@/api/discovery";
+import type { ApiId, Coupon, PageResult, StoreDetail } from "@/types/discovery";
+import ClientCouponCard from "@/components/client-coupon-card.uvue";
 
-const merchant = ref<Merchant | null>(null);
+const store = ref<StoreDetail | null>(null);
+const coupons = ref<Coupon[]>([]);
+const couponPage = ref<PageResult<Coupon> | null>(null);
 const loading = ref(false);
+const couponLoading = ref(false);
+const couponLoadingMore = ref(false);
 const error = ref("");
-let merchantId = "";
-let requestId = 0;
+const couponError = ref("");
+const couponMoreError = ref("");
+const imageFailed = ref(false);
+let storeId: ApiId | "" = "";
+let storeRequestId = 0;
+let couponRequestId = 0;
+const hasMoreCoupons = ref(false);
 
-async function load() {
-	const id = ++requestId;
+async function loadStore() {
+	if (storeId === "") {
+		error.value = "缺少门店ID，无法加载门店详情";
+		return;
+	}
+	const id = ++storeRequestId;
 	loading.value = true;
 	error.value = "";
 	try {
-		const result = await getMerchant(merchantId);
-		if (id === requestId) {
-			merchant.value = result;
+		const result = await getStore(storeId);
+		if (id === storeRequestId) {
+			store.value = result;
 			uni.setNavigationBarTitle({ title: result.name });
 		}
 	} catch (err) {
-		if (id === requestId) {
-			error.value = err instanceof Error ? err.message : "商家详情暂不可用";
+		if (id === storeRequestId) {
+			error.value = getApiErrorMessage(err, "门店详情暂不可用");
 		}
 	} finally {
-		if (id === requestId) loading.value = false;
+		if (id === storeRequestId) loading.value = false;
+	}
+}
+
+async function loadStoreCoupons() {
+	if (storeId === "") return;
+	const id = ++couponRequestId;
+	couponLoading.value = true;
+	couponLoadingMore.value = false;
+	couponError.value = "";
+	couponMoreError.value = "";
+	try {
+		const result = await listCoupons({ page: 1, size: 20, storeId });
+		if (id === couponRequestId) {
+			couponPage.value = result;
+			coupons.value = result.list;
+			hasMoreCoupons.value = result.list.length < result.pagination.total;
+		}
+	} catch (err) {
+		if (id === couponRequestId) {
+			couponError.value = getApiErrorMessage(err, "门店优惠券加载失败");
+		}
+	} finally {
+		if (id === couponRequestId) couponLoading.value = false;
+	}
+}
+
+async function loadMoreStoreCoupons() {
+	if (couponLoadingMore.value || !hasMoreCoupons.value || !couponPage.value || storeId === "") return;
+	const id = couponRequestId;
+	couponLoadingMore.value = true;
+	couponMoreError.value = "";
+	try {
+		const result = await listCoupons({
+			page: couponPage.value.pagination.page + 1,
+			size: couponPage.value.pagination.size,
+			storeId
+		});
+		if (id === couponRequestId) {
+			coupons.value = coupons.value.concat(result.list);
+			couponPage.value = result;
+			hasMoreCoupons.value = coupons.value.length < result.pagination.total;
+		}
+	} catch (err) {
+		if (id === couponRequestId) {
+			couponMoreError.value = getApiErrorMessage(err, "加载更多优惠券失败，请重试");
+		}
+	} finally {
+		if (id === couponRequestId) couponLoadingMore.value = false;
 	}
 }
 
 onLoad((options) => {
-	merchantId = options?.id ?? "";
-	load();
+	storeId = options?.id ?? "";
+	loadStore();
+	loadStoreCoupons();
 });
 
 onUnmounted(() => {
-	requestId++;
+	storeRequestId++;
+	couponRequestId++;
 });
 </script>
 
 <style lang="scss" scoped>
 @import "@/styles/discovery.scss";
+.store-detail-card {
+	background: #ffffff;
+	border-radius: 16px;
+	padding: 16px;
+	margin-bottom: 12px;
+}
+.store-detail-image {
+	width: 100%;
+	height: 190px;
+	border-radius: 12px;
+	background: #e6ebf1;
+}
+.store-detail-image-fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #71808d;
+}
+.store-status {
+	display: inline-block;
+	margin-top: 10px;
+	font-size: 13px;
+	color: #526d88;
+}
+.coupon-grid {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.coupon-cell {
+	width: 100%;
+}
+.discovery-load-more {
+	display: block;
+	width: 100%;
+	padding: 12px;
+	text-align: center;
+	color: #526d88;
+}
 </style>

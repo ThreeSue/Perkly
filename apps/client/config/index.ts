@@ -5,8 +5,14 @@ import { prod } from "./prod";
 // 判断当前是否为开发环境
 export const isDev = process.env.NODE_ENV == "development";
 
-// 忽略 token 校验的接口路径
-export const ignoreTokens: string[] = [];
+// 公开浏览接口允许游客访问，不发送 token，也不触发过期 token 刷新。
+export const ignoreTokens: string[] = [
+	"/app/merchant/category/list",
+	"/app/merchant/store/page",
+	"/app/merchant/store/info",
+	"/app/coupon/page",
+	"/app/coupon/info"
+];
 
 // 根据环境导出最终配置
 export const config = {

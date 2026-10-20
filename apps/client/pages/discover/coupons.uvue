@@ -1,0 +1,180 @@
+<template>
+	<cl-page :back-top="false">
+		<view class="discovery-page">
+			<view class="discovery-content">
+				<client-search v-model="keyword" @submit="search" @clear="search" />
+				<view class="discovery-chips">
+					<button
+						class="discovery-action discovery-chip"
+						:class="{ 'discovery-chip-selected': selectedType === '' }"
+						@tap="selectType('')"
+						hover-class="discovery-pressed"
+					>
+						全部
+					</button>
+					<button
+						v-for="item in couponTypes"
+						:key="item.value"
+						class="discovery-action discovery-chip"
+						:class="{ 'discovery-chip-selected': selectedType === item.value }"
+						@tap="selectType(item.value)"
+						hover-class="discovery-pressed"
+					>
+						{{ item.label }}
+					</button>
+				</view>
+				<view v-if="loading" class="discovery-state" role="status">
+					<text>优惠券加载中…</text>
+				</view>
+				<view v-else-if="error" class="discovery-state">
+					<text>{{ error }}</text>
+					<button class="discovery-action discovery-retry" @tap="search">重试</button>
+				</view>
+				<view v-else-if="coupons.length === 0" class="discovery-state">
+					<text>没有找到可展示的优惠券</text>
+					<text class="discovery-caption">优惠券需已通过平台审核并上架</text>
+				</view>
+				<view v-else class="coupon-grid">
+					<view v-for="coupon in coupons" :key="String(coupon.id)" class="coupon-cell">
+						<client-coupon-card :coupon="coupon" />
+					</view>
+				</view>
+				<view v-if="moreError" class="discovery-state">
+					<text>{{ moreError }}</text>
+					<button class="discovery-action discovery-retry" @tap="loadMore">重试</button>
+				</view>
+				<button
+					v-else-if="hasMore && !loading"
+					class="discovery-action discovery-load-more"
+					:disabled="loadingMore"
+					@tap="loadMore"
+				>
+					{{ loadingMore ? "加载中…" : "加载更多" }}
+				</button>
+			</view>
+		</view>
+	</cl-page>
+</template>
+
+<script setup lang="ts">
+import { onUnmounted, ref } from "vue";
+import { getApiErrorMessage, listCoupons } from "@/api/discovery";
+import type { Coupon, CouponType } from "@/types/discovery";
+import ClientSearch from "@/components/client-search.uvue";
+import ClientCouponCard from "@/components/client-coupon-card.uvue";
+
+const couponTypes: { value: CouponType; label: string }[] = [
+	{ value: "FULL_REDUCTION", label: "满减券" },
+	{ value: "DISCOUNT", label: "折扣券" },
+	{ value: "CASH", label: "代金券" },
+	{ value: "PACKAGE", label: "套餐券" },
+	{ value: "EXPERIENCE", label: "体验券" },
+	{ value: "EXCHANGE", label: "兑换券" }
+];
+
+const keyword = ref("");
+const selectedType = ref<CouponType | "">("");
+const coupons = ref<Coupon[]>([]);
+const loading = ref(false);
+const loadingMore = ref(false);
+const error = ref("");
+const moreError = ref("");
+const hasMore = ref(false);
+let page = 1;
+let requestId = 0;
+
+async function search() {
+	uni.hideKeyboard();
+	const id = ++requestId;
+	page = 1;
+	coupons.value = [];
+	error.value = "";
+	moreError.value = "";
+	loadingMore.value = false;
+	hasMore.value = false;
+	loading.value = true;
+	try {
+		const result = await listCoupons({
+			page,
+			size: 20,
+			keyword: keyword.value,
+			type: selectedType.value || undefined
+		});
+		if (id === requestId) {
+			coupons.value = result.list;
+			page = result.pagination.page;
+			hasMore.value = coupons.value.length < result.pagination.total;
+		}
+	} catch (err) {
+		if (id === requestId) {
+			error.value = getApiErrorMessage(err, "优惠券加载失败，请重试");
+		}
+	} finally {
+		if (id === requestId) loading.value = false;
+	}
+}
+
+async function loadMore() {
+	if (loadingMore.value || !hasMore.value) return;
+	const id = requestId;
+	loadingMore.value = true;
+	moreError.value = "";
+	try {
+		const result = await listCoupons({
+			page: page + 1,
+			size: 20,
+			keyword: keyword.value,
+			type: selectedType.value || undefined
+		});
+		if (id === requestId) {
+			coupons.value = coupons.value.concat(result.list);
+			page = result.pagination.page;
+			hasMore.value = coupons.value.length < result.pagination.total;
+		}
+	} catch (err) {
+		if (id === requestId) {
+			moreError.value = getApiErrorMessage(err, "加载更多优惠券失败，请重试");
+		}
+	} finally {
+		if (id === requestId) loadingMore.value = false;
+	}
+}
+
+function selectType(type: CouponType | "") {
+	selectedType.value = type;
+	search();
+}
+
+onLoad((options) => {
+	const rawKeyword = String(options?.keyword ?? "");
+	try {
+		keyword.value = decodeURIComponent(rawKeyword);
+	} catch {
+		keyword.value = rawKeyword;
+	}
+});
+
+onShow(search);
+onUnmounted(() => {
+	requestId++;
+});
+</script>
+
+<style lang="scss" scoped>
+@import "@/styles/discovery.scss";
+.coupon-grid {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.coupon-cell {
+	width: 100%;
+}
+.discovery-load-more {
+	display: block;
+	width: 100%;
+	padding: 12px;
+	text-align: center;
+	color: #526d88;
+}
+</style>

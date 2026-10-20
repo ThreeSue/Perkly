@@ -29,14 +29,28 @@
 				{
 					"path": "list",
 					"style": {
-						"navigationBarTitleText": "发现商家",
+						"navigationBarTitleText": "发现好店",
 						"navigationBarBackgroundColor": "#eef2f6"
 					}
 				},
 				{
 					"path": "merchant",
 					"style": {
-						"navigationBarTitleText": "商家详情",
+						"navigationBarTitleText": "门店详情",
+						"navigationBarBackgroundColor": "#eef2f6"
+					}
+				},
+				{
+					"path": "coupons",
+					"style": {
+						"navigationBarTitleText": "优惠券",
+						"navigationBarBackgroundColor": "#eef2f6"
+					}
+				},
+				{
+					"path": "coupon",
+					"style": {
+						"navigationBarTitleText": "优惠券详情",
 						"navigationBarBackgroundColor": "#eef2f6"
 					}
 				}

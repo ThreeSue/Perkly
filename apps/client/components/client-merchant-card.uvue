@@ -1,27 +1,27 @@
 <template>
 	<view class="merchant-entry">
-		<navigator class="merchant-link" :url="'/pages/discover/merchant?id=' + merchant.id">
+		<navigator class="merchant-link" :url="'/pages/discover/merchant?id=' + store.id">
 			<view class="merchant-photo">
 				<image
-					v-if="merchant.image && !imageFailed"
+					v-if="store.cover && !imageFailed"
 					class="merchant-image"
-					:src="merchant.image"
+					:src="store.cover"
 					mode="aspectFill"
 					@error="imageFailed = true"
 				/>
-				<text v-else class="merchant-photo-fallback">{{ merchant.name }}</text>
+				<text v-else class="merchant-photo-fallback">{{ store.merchantName }}</text>
 			</view>
 			<view class="merchant-info">
-				<text class="merchant-name">{{ merchant.name }}</text>
-				<text class="merchant-offer">{{ merchant.offer }}</text>
+				<text class="merchant-name">{{ store.name }}</text>
+				<text class="merchant-offer">{{ store.merchantName }} · {{ store.categoryName }}</text>
 			</view>
 		</navigator>
 	</view>
 </template>
 <script setup lang="ts">
-import type { Merchant } from "@/types/discovery";
+import type { Store } from "@/types/discovery";
 import { ref } from "vue";
-defineProps<{ merchant: Merchant }>();
+defineProps<{ store: Store }>();
 const imageFailed = ref(false);
 </script>
 <style lang="scss" scoped>
