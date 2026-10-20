@@ -80,7 +80,9 @@ public final class AppDiscoveryQueries {
     private static QueryWrapper storeBase() {
         return select(col(STORE, "id"), col(STORE, "name"),
                 field(STORE, "merchant_id", "merchantId"), field(MERCHANT, "name", "merchantName"),
-                field(MERCHANT, "logo", "merchantLogo"), field(MERCHANT, "logo", "cover"),
+                field(MERCHANT, "logo", "merchantLogo"),
+                case_().when(col(STORE, "cover").isNull(true).or(trim(col(STORE, "cover")).eq("")))
+                        .then(col(MERCHANT, "logo")).else_(col(STORE, "cover")).end().as("cover"),
                 field(MERCHANT, "category_id", "categoryId"), field(CATEGORY, "name", "categoryName"),
                 col(STORE, "address"), col(STORE, "phone"),
                 field(STORE, "business_hours", "businessHours"), col(STORE, "longitude"),

@@ -76,6 +76,7 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
 
     private void normalize(MerchantStoreEntity entity) {
         if (entity.getName() != null) entity.setName(entity.getName().trim());
+        if (entity.getCover() != null) entity.setCover(entity.getCover().trim());
         if (entity.getAddress() != null) entity.setAddress(entity.getAddress().trim());
         if (entity.getPhone() != null) entity.setPhone(entity.getPhone().trim());
         if (entity.getBusinessHours() != null) entity.setBusinessHours(entity.getBusinessHours().trim());
@@ -109,6 +110,7 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
             throw new CoolException("门店状态只能为0或1");
         }
         MerchantValidation.phone(entity.getPhone(), "门店电话");
+        if (entity.getCover() != null && entity.getCover().length() > 500) throw new CoolException("门店封面地址不能超过500个字符");
         if (entity.getBusinessHours() != null && entity.getBusinessHours().length() > 4000) throw new CoolException("营业时间不能超过4000个字符");
         if ((entity.getLongitude() == null) != (entity.getLatitude() == null)) throw new CoolException("经度和纬度需要同时填写或同时留空");
         validateCoordinate(entity.getLongitude(), "经度", new BigDecimal("-180"), new BigDecimal("180"));

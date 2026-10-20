@@ -23,6 +23,9 @@ public class MerchantStoreEntity extends BaseEntity<MerchantStoreEntity> {
     @ColumnDefine(comment = "门店名称", length = 100, notNull = true)
     private String name;
 
+    @ColumnDefine(comment = "门店封面图片地址", length = 500)
+    private String cover;
+
     @ColumnDefine(comment = "门店详细地址", length = 500, notNull = true)
     private String address;
 
