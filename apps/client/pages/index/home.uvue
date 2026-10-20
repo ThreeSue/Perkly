@@ -49,9 +49,8 @@
 			>
 			<view class="discovery-content">
 				<view class="discovery-section-head">
-					<view
-						><text class="discovery-heading">发现好物</text
-						><text class="home-sample-label">本地示例商品</text></view
+						<view
+						><text class="discovery-heading">发现好店</text></view
 					>
 					<navigator class="discovery-link" url="/pages/discover/list"
 						>查看全部 ›</navigator
@@ -62,14 +61,14 @@
 				>
 				<view v-else-if="error" class="discovery-state"
 					><text>{{ error }}</text
-					><button @tap="load">重试</button></view
+					><button v-if="error !== DISCOVERY_API_NOT_READY" @tap="load">重试</button></view
 				>
 				<view v-else-if="merchants.length === 0" class="discovery-state"
 					><text>暂无商品</text></view
 				>
 				<view v-else class="discovery-grid"
 					><view v-for="merchant in merchants" :key="merchant.id" class="discovery-cell"
-						><client-merchant-card :merchant="merchant" @purchase="purchase" /></view
+						><client-merchant-card :merchant="merchant" /></view
 				></view>
 			</view>
 		</view>
@@ -79,11 +78,10 @@
 import { ref, onUnmounted } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { isH5, isMp } from "@/.cool";
-import { categories, listMerchants } from "@/api/discovery";
+import { categories, DISCOVERY_API_NOT_READY, listMerchants } from "@/api/discovery";
 import type { Merchant } from "@/types/discovery";
 import ClientSearch from "@/components/client-search.uvue";
 import ClientMerchantCard from "@/components/client-merchant-card.uvue";
-import { addToCart } from "@/api/cart";
 const keyword = ref("");
 const place = ref("");
 const selectingLocation = ref(false);
@@ -96,10 +94,12 @@ async function load() {
 	loading.value = true;
 	error.value = "";
 	try {
-		const result = await listMerchants({ limit: 6 });
+		const result = await listMerchants();
 		if (id === requestId) merchants.value = result;
-	} catch {
-		if (id === requestId) error.value = "商家加载失败，请重试";
+	} catch (err) {
+		if (id === requestId) {
+			error.value = err instanceof Error ? err.message : "商家加载失败，请重试";
+		}
 	} finally {
 		if (id === requestId) loading.value = false;
 	}
@@ -109,10 +109,6 @@ function search() {
 	uni.navigateTo({
 		url: "/pages/discover/list?keyword=" + encodeURIComponent(keyword.value.trim())
 	});
-}
-function purchase(merchant: Merchant) {
-	const count = addToCart(merchant);
-	uni.showToast({ title: `已加入购物车（${count}）`, icon: "none" });
 }
 function choosePlace() {
 	if (selectingLocation.value) return;
@@ -214,10 +210,5 @@ onUnmounted(() => {
 }
 .home-service-button::after {
 	border: 0;
-}
-.home-sample-label {
-	font-size: 11px;
-	color: $discovery-muted;
-	margin-left: 8px;
 }
 </style>

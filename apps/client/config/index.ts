@@ -12,7 +12,6 @@ export const ignoreTokens: string[] = [];
 export const config = {
 	name: "券管家",
 	locale: "zh-cn",
-	website: "https://cool-js.com",
 	showDarkButton: false,
 	isCustomTabBar: false,
 	backTop: true,

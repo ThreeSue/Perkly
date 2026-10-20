@@ -12,4 +12,4 @@ export type Merchant = {
 	hours: string;
 	tags: string[];
 };
-export type MerchantQuery = { keyword?: string; category?: string; limit?: number };
+export type MerchantQuery = { keyword?: string; category?: string };

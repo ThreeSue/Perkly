@@ -3,17 +3,8 @@
 		<cl-topbar safe-area-top background-color="transparent"></cl-topbar>
 
 		<view class="px-10">
-			<!-- Logo -->
-			<view class="flex flex-col items-center justify-center py-20">
-				<view class="p-3 bg-white rounded-2xl">
-					<cl-image
-						src="/static/logo.png"
-						mode="widthFix"
-						:width="60"
-						:height="60"
-					></cl-image>
-				</view>
-
+			<!-- 项目名称 -->
+			<view class="flex flex-col items-center justify-center py-12">
 				<cl-text :size="18" :pt="{ className: 'font-bold mt-4' }">{{
 					config.name
 				}}</cl-text>
@@ -35,9 +26,6 @@
 					{{ t("手机号注册") }}
 				</cl-button>
 			</view>
-
-			<!-- 微信登录 -->
-			<login-wx :ref="refs.set('loginWx')"></login-wx>
 
 			<!-- 协议 -->
 			<view class="mt-6 flex flex-row flex-wrap items-center justify-center">
@@ -73,46 +61,27 @@
 					《{{ t("隐私政策") }}》
 				</cl-text>
 			</view>
-
-			<!-- 第三方登录 -->
-			<view class="flex flex-row justify-center mt-10 px-10">
-				<view
-					class="login-item"
-					:class="{
-						'is-dark': isDark
-					}"
-					@tap="refs.callMethod('loginWx', 'login')"
-				>
-					<cl-icon name="wechat-fill" :size="18" color="#00b223"></cl-icon>
-				</view>
-
-				<view class="login-item" :class="{ 'is-dark': isDark }">
-					<cl-icon name="apple-fill" :size="18"></cl-icon>
-				</view>
-			</view>
 		</view>
 	</cl-page>
 </template>
 
 <script setup lang="ts">
 import { config } from "@/config";
-import { isDark, parse, router, useRefs, useStore, type Token, t } from "@/.cool";
+import { parse, router, useStore, type Token, t } from "@/.cool";
 import { provide, reactive, ref } from "vue";
 import type { LoginForm } from "./types";
 import { useUi } from "@/uni_modules/cool-ui";
 import LoginPhone from "./components/login/phone.uvue";
 import LoginPassword from "./components/login/password.uvue";
-import LoginWx from "./components/login/wx.uvue";
 
 const { user } = useStore();
 const ui = useUi();
-const refs = useRefs();
 const loginMode = ref<"sms" | "password">("sms");
 
 // 表单
 const form = reactive<LoginForm>({
-	phone: "18000000000",
-	smsCode: "6666",
+	phone: "",
+	smsCode: "",
 	password: ""
 });
 
@@ -131,7 +100,10 @@ async function toLogin(res: any) {
 }
 
 // 跳转文档
-function toDoc(name: string, path: string) {}
+function toDoc(name: string, path: string) {
+	void path;
+	ui.showToast({ message: `${name}页面尚未提供` });
+}
 
 // 是否同意
 function isAgree() {
@@ -148,13 +120,3 @@ function isAgree() {
 
 provide("isAgree", isAgree);
 </script>
-
-<style lang="scss" scoped>
-.login-item {
-	@apply mx-2 p-2 flex items-center justify-center rounded-full bg-white border border-solid border-surface-100;
-
-	&.is-dark {
-		@apply border-surface-600 bg-surface-700;
-	}
-}
-</style>

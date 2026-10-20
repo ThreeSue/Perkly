@@ -1,5 +1,5 @@
 import { computed, ref } from "vue";
-import { forInObject, isNull, isObject, parse, storage } from "../utils";
+import { isNull, parse, storage } from "../utils";
 import { router } from "../router";
 import { request } from "../service";
 import type { UserInfo } from "../types";
@@ -16,6 +16,8 @@ export class User {
 	 * 用户信息，响应式对象
 	 */
 	info = ref<UserInfo | null>(null);
+	profileLoading = ref(false);
+	profileLoadFailed = ref(false);
 
 	/**
 	 * 当前token，字符串或null
@@ -23,43 +25,40 @@ export class User {
 	token: string | null = null;
 
 	constructor() {
-		// 获取本地用户信息
-		const userInfo = storage.get("userInfo");
+		// 身份资料以服务端为准；清理旧版曾持久化的资料快照。
+		storage.remove("userInfo");
 
-		// 获取本地token
+		// Token 是请求授权凭据，由客户端保留以恢复会话。
 		const token = storage.get("token") as string | null;
 
 		// 如果token为空字符串则置为null
 		this.token = token == "" ? null : token;
-
-		// 初始化用户信息
-		if (userInfo != null && isObject(userInfo)) {
-			this.set(userInfo);
-		}
 	}
 
 	/**
-	 * 获取用户信息（从服务端拉取最新信息并更新本地）
+	 * 获取用户信息（从服务端拉取并保存在当前运行内存）
 	 * @returns Promise<void>
 	 */
 	async get() {
-		if (this.token != null) {
-			await request({
-				url: "/app/user/info/person"
-			})
-				.then((res) => {
-					if (res != null) {
-						this.set(res);
-					}
-				})
-				.catch(() => {
-					// this.logout();
-				});
+		if (this.token == null || this.profileLoading.value) return;
+		const requestToken = this.token;
+		this.profileLoading.value = true;
+		this.profileLoadFailed.value = false;
+
+		try {
+			const result = await request({ url: "/app/user/info/person" });
+			if (this.token !== requestToken) return;
+			if (result == null) throw new Error("资料暂时无法加载");
+			this.set(result);
+		} catch {
+			if (this.token === requestToken) this.profileLoadFailed.value = true;
+		} finally {
+			if (this.token === requestToken) this.profileLoading.value = false;
 		}
 	}
 
 	/**
-	 * 设置用户信息并存储到本地
+	 * 设置当前运行中的用户信息
 	 * @param data 用户信息对象
 	 */
 	set(data: any) {
@@ -69,39 +68,40 @@ export class User {
 
 		// 设置
 		this.info.value = parse<UserInfo>(data)!;
-
-		// 持久化到本地存储
-		storage.set("userInfo", data, 0);
+		this.profileLoadFailed.value = false;
 	}
 
 	/**
-	 * 更新用户信息（本地与服务端同步）
+	 * 更新文档允许的资料字段，服务端确认后重新读取
 	 * @param data 新的用户信息
 	 */
 	async update(data: any) {
 		if (isNull(data) || isNull(this.info.value)) {
-			return;
+			throw new Error("请重新登录后修改资料");
 		}
 
-		// 本地同步更新
-		forInObject(data, (value, key) => {
-			this.info.value![key] = value;
-		});
-
-		// 同步到服务端
-		await request({
+		const current = this.info.value!;
+		const payload = {
+			nickName: data.nickName ?? current.nickName,
+			avatarUrl: data.avatarUrl ?? current.avatarUrl ?? "",
+			gender: data.gender ?? current.gender
+		};
+		const result = await request({
 			url: "/app/user/info/updatePerson",
 			method: "POST",
-			data
+			data: payload
 		});
+		if (result !== true) throw new Error("资料保存失败，请重试");
+		const latest = await request({ url: "/app/user/info/person" });
+		if (latest != null) this.set(latest);
 	}
 
 	/**
-	 * 移除用户信息
+	 * 清除当前运行中的用户信息
 	 */
 	remove() {
 		this.info.value = null;
-		storage.remove("userInfo");
+		this.profileLoadFailed.value = false;
 	}
 
 	/**
@@ -120,6 +120,7 @@ export class User {
 		storage.remove("token");
 		storage.remove("refreshToken");
 		this.token = null;
+		this.profileLoading.value = false;
 		this.remove();
 	}
 

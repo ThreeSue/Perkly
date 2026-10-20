@@ -20,22 +20,12 @@
 				>
 			</view>
 		</navigator>
-		<cl-button
-			class="merchant-buy"
-			type="warn"
-			size="small"
-			:pt="{ label: { color: '#242424', className: 'font-semibold' } }"
-			:style="{ backgroundColor: '#ffe23f', borderColor: '#ffe23f' }"
-			@tap.stop="emit('purchase', merchant)"
-			>购买</cl-button
-		>
 	</view>
 </template>
 <script setup lang="ts">
 import type { Merchant } from "@/types/discovery";
 import { ref } from "vue";
 defineProps<{ merchant: Merchant }>();
-const emit = defineEmits(["purchase"]);
 const imageFailed = ref(false);
 </script>
 <style lang="scss" scoped>
@@ -78,7 +68,6 @@ const imageFailed = ref(false);
 	padding: 9px 10px;
 	box-sizing: border-box;
 	justify-content: space-between;
-	padding-right: 62px;
 }
 .merchant-name {
 	display: block;
@@ -109,12 +98,5 @@ const imageFailed = ref(false);
 	font-size: 11px;
 	color: #707070;
 	margin-left: 4px;
-}
-
-.merchant-buy {
-	position: absolute;
-	right: 8px;
-	bottom: 9px;
-	margin: 0;
 }
 </style>

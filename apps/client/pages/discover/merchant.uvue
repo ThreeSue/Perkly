@@ -1,64 +1,58 @@
 <template>
-	<cl-page :back-top="false"
-		><view class="discovery-page"
-			><view class="discovery-content">
-				<view v-if="loading" class="discovery-state" role="status"
-					><text>商品加载中…</text></view
-				>
-				<view v-else-if="error" class="discovery-state"
-					><text>{{ error }}</text
-					><button @tap="load">重试</button></view
-				>
+	<cl-page :back-top="false">
+		<view class="discovery-page">
+			<view class="discovery-content">
+				<view v-if="loading" class="discovery-state" role="status">
+					<text>商品加载中…</text>
+				</view>
+				<view v-else-if="error" class="discovery-state">
+					<text>{{ error }}</text>
+					<button v-if="error !== DISCOVERY_API_NOT_READY" @tap="load">重试</button>
+				</view>
 				<template v-else-if="merchant">
-					<view class="discovery-detail-card"
-						><text class="discovery-detail-title">{{ merchant.name }}</text
-						><text class="discovery-caption"
-							>本地示例商品 · {{ merchant.description }}</text
-						></view
-					>
-					<view class="discovery-detail-card"
-						><text class="discovery-heading">商品说明</text
-						><text class="discovery-body">{{ merchant.offer }}</text
-						><text class="discovery-money">¥{{ merchant.price }}</text
-						><text class="discovery-caption">{{ merchant.unit }}</text
-						><text class="discovery-body discovery-caption"
-							>示例商品仅加入本地购物车，不会创建订单或发起支付。</text
-						></view
-					>
-					<view class="discovery-detail-card"
-						><text class="discovery-heading">商品信息</text
-						><text class="discovery-body"
-							>分类：{{
-								categories.find((item) => item.id === merchant.category)?.name
-							}}</text
-						><text class="discovery-body">{{ merchant.address }}</text></view
-					>
-					<view class="product-actions">
-						<cl-button type="warn" @tap="purchase">加入购物车</cl-button>
+					<view class="discovery-detail-card">
+						<text class="discovery-detail-title">{{ merchant.name }}</text>
+						<text class="discovery-caption">{{ merchant.description }}</text>
+					</view>
+					<view class="discovery-detail-card">
+						<text class="discovery-heading">商品说明</text>
+						<text class="discovery-body">{{ merchant.offer }}</text>
+						<view class="price-row">
+							<text class="discovery-money">¥{{ merchant.price }}</text>
+							<text class="discovery-caption">{{ merchant.unit }}</text>
+						</view>
+					</view>
+					<view class="discovery-detail-card">
+						<text class="discovery-heading">商品信息</text>
+						<text class="discovery-body">
+							分类：{{ categories.find((item) => item.id === merchant.category)?.name }}
+						</text>
+						<text class="discovery-body">{{ merchant.address }}</text>
 					</view>
 					<navigator
 						class="discovery-link"
 						:url="'/pages/discover/list?category=' + merchant.category"
-						>浏览同类商品 ›</navigator
 					>
+						浏览同类商品 ›
+					</navigator>
 				</template>
-			</view></view
-		></cl-page
-	>
+			</view>
+		</view>
+	</cl-page>
 </template>
+
 <script setup lang="ts">
 import { ref, onUnmounted } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
-import { categories, getMerchant } from "@/api/discovery";
-import { addToCart } from "@/api/cart";
-import { useUi } from "@/uni_modules/cool-ui";
+import { categories, DISCOVERY_API_NOT_READY, getMerchant } from "@/api/discovery";
 import type { Merchant } from "@/types/discovery";
+
 const merchant = ref<Merchant | null>(null);
 const loading = ref(false);
 const error = ref("");
-const ui = useUi();
 let merchantId = "";
 let requestId = 0;
+
 async function load() {
 	const id = ++requestId;
 	loading.value = true;
@@ -69,32 +63,35 @@ async function load() {
 			merchant.value = result;
 			uni.setNavigationBarTitle({ title: result.name });
 		}
-	} catch {
-		if (id === requestId) error.value = "未找到该商品，请返回列表选择商品";
+	} catch (err) {
+		if (id === requestId) {
+			error.value = err instanceof Error ? err.message : "商品详情暂不可用";
+		}
 	} finally {
 		if (id === requestId) loading.value = false;
 	}
 }
-function purchase() {
-	if (!merchant.value) return;
-	const count = addToCart(merchant.value);
-	ui.showToast({ message: `已加入购物车（${count}）` });
-}
+
 onLoad((options) => {
 	merchantId = options?.id ?? "";
 	load();
 });
+
 onUnmounted(() => {
 	requestId++;
 });
 </script>
+
 <style lang="scss" scoped>
 @import "@/styles/discovery.scss";
-.product-actions {
+
+.price-row {
 	display: flex;
 	flex-direction: row;
-	align-items: center;
-	justify-content: flex-start;
-	margin: 16px 0;
+	align-items: baseline;
+}
+
+.price-row .discovery-caption {
+	margin-left: 6px;
 }
 </style>
