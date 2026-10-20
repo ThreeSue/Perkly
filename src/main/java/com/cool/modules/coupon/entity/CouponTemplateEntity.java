@@ -107,5 +107,13 @@ public class CouponTemplateEntity extends BaseEntity<CouponTemplateEntity> {
     @Ignore
     @Column(ignore = true)
     private List<String> storeNames;
+
+    @Ignore
+    @Column(ignore = true)
+    private List<com.cool.modules.coupon.controller.admin.params.CouponContentParam> contentItems;
+
+    @Ignore
+    @Column(ignore = true)
+    private java.util.Map<String, Object> publication;
 }
 

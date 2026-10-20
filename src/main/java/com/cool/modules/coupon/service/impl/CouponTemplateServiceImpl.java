@@ -5,6 +5,7 @@ import cn.hutool.json.JSONObject;
 import com.cool.core.base.BaseServiceImpl;
 import com.cool.core.exception.CoolException;
 import com.cool.modules.coupon.entity.CouponTemplateEntity;
+import com.cool.modules.coupon.controller.admin.params.CouponContentParam;
 import com.cool.modules.coupon.mapper.CouponTemplateMapper;
 import com.cool.modules.coupon.mapper.CouponTemplateRelationsMapper;
 import com.cool.modules.coupon.service.CouponTemplateService;
@@ -36,6 +37,28 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
     private final CouponTemplateRelationsMapper relations;
 
     @Override
+    public List<Map<String, Object>> productOptions(Long merchantId) {
+        if (merchantId == null || merchants.selectOneById(merchantId) == null) throw new CoolException("请选择存在的商家");
+        return relations.products(merchantId);
+    }
+
+    @Override
+    public CouponTemplateEntity validateForPublication(Long id, Integer version) {
+        CouponTemplateEntity e = lock(id);
+        if (version == null || !version.equals(e.getRuleVersion())) throw new CoolException("券规则版本已变化，请刷新后重新操作");
+        if (!Integer.valueOf(1).equals(e.getStatus())) throw new CoolException("请先启用优惠券模板");
+        enrich(List.of(e));
+        CouponTemplateRules.validate(e);
+        validateMerchant(e);
+        validateStores(e, e.getStoreIds());
+        validateContents(e);
+        if (relations.usableStoreCount(e.getMerchantId(), e.getScopeType(), e.getStoreIds()) == 0) {
+            throw new CoolException("没有营业中的适用门店，不能提交审核或上架");
+        }
+        return e;
+    }
+
+    @Override
     public Long add(CouponTemplateEntity e) {
         e.setId(null);
         e.setIssuedCount(0L);
@@ -46,14 +69,20 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         validateContents(e);
         Long id = super.add(e);
         saveStores(e);
+        relations.replaceContents(e.getMerchantId(), id, e.getContentItems());
         return id;
     }
 
     @Override
     public boolean update(CouponTemplateEntity e) {
         CouponTemplateEntity old = lock(e.getId());
+        if (!Integer.valueOf(1).equals(e.getStatus()) && relations.activePublications(e.getId()) > 0) {
+            throw new CoolException("此券正在审核或已上架，请先撤回审核或下架后停用");
+        }
         if (!Objects.equals(old.getMerchantId(), e.getMerchantId())) throw new CoolException("优惠券创建后不能更换所属商家");
         List<Long> oldStores = storeIds(e.getId());
+        List<CouponContentParam> oldContents = contentItems(e.getId());
+        if (e.getContentItems() == null) e.setContentItems(oldContents);
         if (e.getStoreIds() == null) e.setStoreIds(oldStores);
         e.setIssuedCount(old.getIssuedCount());
         e.setCreateTime(old.getCreateTime());
@@ -62,14 +91,18 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         validateStores(e, oldStores);
         validateContents(e);
         old.setStoreIds(oldStores);
-        boolean changed = !ruleFields(old).equals(ruleFields(e)) || !new HashSet<>(oldStores).equals(new HashSet<>(e.getStoreIds()));
+        boolean changed = !ruleFields(old).equals(ruleFields(e)) || !new HashSet<>(oldStores).equals(new HashSet<>(e.getStoreIds()))
+                || !oldContents.equals(e.getContentItems());
         if (changed && relations.activePublications(e.getId()) > 0) {
             throw new CoolException("此券正在审核或已上架，请先撤回审核或下架后修改规则");
         }
         e.setRuleVersion(old.getRuleVersion() + (changed ? 1 : 0));
         // false表示把已清空的旧类型金额、旧有效期字段也写入NULL。
         boolean updated = mapper.update(e, false) > 0;
-        if (updated) saveStores(e);
+        if (updated) {
+            saveStores(e);
+            relations.replaceContents(e.getMerchantId(), e.getId(), e.getContentItems());
+        }
         return updated;
     }
 
@@ -137,14 +170,45 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
     }
 
     private void validateContents(CouponTemplateEntity e) {
-        if (e.getStatus() == 1 && Set.of("PACKAGE", "EXPERIENCE", "EXCHANGE").contains(e.getType())) {
-            long count = e.getId() == null ? 0L : relations.validContents(e.getId(), e.getMerchantId());
-            if (count == 0) throw new CoolException("套餐、体验和兑换券须先配置商品或服务内容，目前请保存草稿");
+        List<CouponContentParam> items = e.getContentItems() == null ? new ArrayList<>() : e.getContentItems();
+        if (items.size() > 100) throw new CoolException("每张券最多配置100个内容项目");
+        boolean contentType = Set.of("PACKAGE", "EXPERIENCE", "EXCHANGE").contains(e.getType());
+        if (!contentType && !items.isEmpty()) throw new CoolException("满减、折扣和代金券不配置套餐内容，请先移除内容或更换券类型");
+        if (contentType && e.getStatus() == 1 && items.isEmpty()) throw new CoolException("请先配置套餐或服务内容，再启用优惠券");
+        Set<Long> ids = new HashSet<>();
+        Set<String> newNames = new HashSet<>();
+        for (CouponContentParam item : items) {
+            if (item == null || item.getQuantity() == null || item.getQuantity() < 1) throw new CoolException("项目数量必须为正整数");
+            String note = item.getItemDescription();
+            item.setItemDescription(note == null || note.isBlank() ? null : note.trim());
+            if (item.getItemDescription() != null && item.getItemDescription().length() > 500) throw new CoolException("项目说明不能超过500字");
+            if (item.getProductId() != null) {
+                if (!ids.add(item.getProductId())) throw new CoolException("相同项目请合并数量，不要重复选择");
+                Map<String, Object> p = relations.product(item.getProductId());
+                if (p == null || !Objects.equals(number(p.get("merchant_id")), e.getMerchantId())) throw new CoolException("内容项目必须属于所选商家");
+                if (((Number)p.get("status")).intValue() != 1) throw new CoolException("内容项目已停用，请调整后保存");
+                item.setName((String)p.get("name")); item.setType((String)p.get("type"));
+            } else {
+                if (item.getName() == null || item.getName().isBlank() || item.getName().trim().length() > 100) throw new CoolException("项目名称必填且不能超过100字");
+                item.setName(item.getName().trim());
+                if (!Set.of("GOODS", "SERVICE", "EXPERIENCE").contains(item.getType() == null ? "" : item.getType())) throw new CoolException("请选择菜品商品、服务或体验项目");
+                if (!newNames.add(item.getType() + ":" + item.getName().toLowerCase(Locale.ROOT))) throw new CoolException("相同的新项目请合并数量");
+            }
         }
-        if (e.getId() != null && !Set.of("PACKAGE", "EXPERIENCE", "EXCHANGE").contains(e.getType())
-                && relations.contents(e.getId()) > 0) {
-            throw new CoolException("请先解除套餐或兑换内容关联，再修改为金额优惠券");
-        }
+        e.setContentItems(items);
+    }
+
+    private List<CouponContentParam> contentItems(Long id) {
+        return relations.contentRows(id).stream().map(this::contentItem).collect(Collectors.toList());
+    }
+
+    private CouponContentParam contentItem(Map<String, Object> row) {
+            var item = new CouponContentParam();
+            item.setProductId(number(row.get("product_id")));
+            item.setName((String) row.get("name")); item.setType((String) row.get("type"));
+            item.setQuantity(((Number)row.get("quantity")).intValue());
+            item.setItemDescription((String) row.get("item_description"));
+            return item;
     }
 
     private void saveStores(CouponTemplateEntity e) {
@@ -160,7 +224,7 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
 
     private Map<String, Object> ruleFields(CouponTemplateEntity e) {
         Map<String, Object> result = BeanUtil.beanToMap(e);
-        for (String key : List.of("id", "createTime", "updateTime", "issuedCount", "ruleVersion", "status", "merchantName", "storeIds", "storeNames", "queryWrapper")) result.remove(key);
+        for (String key : List.of("id", "createTime", "updateTime", "issuedCount", "ruleVersion", "status", "merchantName", "storeIds", "storeNames", "contentItems", "publication", "queryWrapper")) result.remove(key);
         return result;
     }
 
@@ -175,13 +239,29 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
             e.setMerchantName(names.getOrDefault(e.getMerchantId(), "商家资料已失效"));
             e.setStoreIds(new ArrayList<>());
             e.setStoreNames(new ArrayList<>());
+            e.setContentItems(new ArrayList<>());
         });
+        relations.contentRows(byId.keySet()).forEach(row -> byId.get(number(row.get("coupon_template_id")))
+                .getContentItems().add(contentItem(row)));
         relations.storeNames(byId.keySet())
                 .forEach(row -> {
                     CouponTemplateEntity e = byId.get(number(row.get("coupon_template_id")));
                     e.getStoreIds().add(number(row.get("store_id")));
                     e.getStoreNames().add(row.get("name") == null ? "门店资料已失效" : (String) row.get("name"));
                 });
+        Map<Long, Map<String, Object>> publications = new HashMap<>();
+        relations.publications(byId.keySet()).forEach(row -> {
+            Map<String, Object> state = new LinkedHashMap<>();
+            state.put("auditStatus", row.get("audit_status"));
+            state.put("publishStatus", row.get("publish_status"));
+            state.put("submittedVersion", row.get("submitted_version"));
+            state.put("publishedVersion", row.get("published_version"));
+            state.put("submittedAt", row.get("submitted_at"));
+            state.put("publishedAt", row.get("published_at"));
+            publications.put(number(row.get("coupon_template_id")), state);
+        });
+        rows.forEach(e -> e.setPublication(publications.getOrDefault(e.getId(),
+                Map.of("auditStatus", 0, "publishStatus", 0))));
     }
 
     private static Long number(Object value) { return value == null ? null : ((Number)value).longValue(); }

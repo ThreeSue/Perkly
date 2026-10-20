@@ -25,6 +25,7 @@ public final class AppDiscoveryQueries {
     private static final QueryTable PUBLICATION = new QueryTable("coupon_publication").as("p");
     private static final QueryTable COUPON_STORE = new QueryTable("coupon_store").as("cs");
     private static final QueryTable CONTENT = new QueryTable("coupon_product").as("cp");
+    private static final QueryTable PRODUCT = new QueryTable("product").as("pr");
 
     private AppDiscoveryQueries() {}
 
@@ -70,10 +71,13 @@ public final class AppDiscoveryQueries {
     public static QueryWrapper contents(Long id) {
         return select(field(CONTENT, "product_id", "productId"),
                 field(CONTENT, "relation_type", "relationType"), col(CONTENT, "quantity"),
-                field(CONTENT, "item_description", "description"))
+                field(CONTENT, "item_description", "description"), col(PRODUCT, "name"),
+                field(PRODUCT, "type", "productType"))
                 .from(CONTENT).innerJoin(COUPON)
                 .on(col(COUPON, "id").eq(col(CONTENT, "coupon_template_id"))
                         .and(col(COUPON, "merchant_id").eq(col(CONTENT, "merchant_id"))))
+                .leftJoin(PRODUCT).on(col(PRODUCT, "id").eq(col(CONTENT, "product_id"))
+                        .and(col(PRODUCT, "merchant_id").eq(col(CONTENT, "merchant_id"))))
                 .where(col(COUPON, "id").eq(id)).orderBy(col(CONTENT, "id").asc());
     }
 

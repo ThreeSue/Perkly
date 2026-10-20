@@ -13,5 +13,7 @@ import com.cool.modules.coupon.entity.CouponTemplateEntity;
  * @Time: 10:12:39
  */
 public interface CouponTemplateService extends BaseService<CouponTemplateEntity> {
+    java.util.List<java.util.Map<String, Object>> productOptions(Long merchantId);
+    CouponTemplateEntity validateForPublication(Long id, Integer version);
 }
 
