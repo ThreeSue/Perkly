@@ -1,8 +1,13 @@
 <template>
 	<cl-page>
-		<cl-topbar :show-back="false" safe-area-top title="我的券"></cl-topbar>
+		<cl-topbar
+			:show-back="false"
+			safe-area-top
+			title="我的券"
+			background-color="#eef2f6"
+		></cl-topbar>
 		<view class="voucher-state">
-			<cl-icon name="coupon-line" :size="36" color="#9aa3aa"></cl-icon>
+			<cl-icon name="coupon-line" :size="36" color="#526d88"></cl-icon>
 			<cl-text :size="16" :pt="{ className: 'mt-4 font-bold' }">券包接口待接入</cl-text>
 			<cl-text color="info" :pt="{ className: 'mt-2 text-center' }">
 				后端尚未提供顾客券包接口，当前不会展示示例券或模拟核销状态。
@@ -13,12 +18,15 @@
 
 <style lang="scss" scoped>
 .voucher-state {
-	min-height: 55vh;
+	min-height: 52vh;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	padding: 24px;
+	margin: 18px 16px;
+	padding: 28px 24px;
 	box-sizing: border-box;
+	border-radius: 18px;
+	background: #ffffff;
 }
 </style>

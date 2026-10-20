@@ -13,6 +13,7 @@ type primaryColor =
 	| "cyan"
 	| "sky"
 	| "blue"
+	| "bluegray"
 	| "indigo"
 	| "violet"
 	| "purple"
@@ -182,6 +183,22 @@ export const PRIMARY_COLOR_PALETTES = [
 			800: "#1e40af",
 			900: "#1e3a8a",
 			950: "#172554"
+		}
+	},
+	{
+		name: "bluegray",
+		palette: {
+			50: "#f3f6f9",
+			100: "#e6ebf1",
+			200: "#cbd5e0",
+			300: "#a8b7c8",
+			400: "#71869f",
+			500: "#526d88",
+			600: "#435d76",
+			700: "#384d63",
+			800: "#303f50",
+			900: "#273542",
+			950: "#1c2833"
 		}
 	},
 	{
@@ -452,7 +469,7 @@ export default {
 	theme: {
 		extend: {
 			colors: {
-				...getPrimary("teal"),
+				...getPrimary("bluegray"),
 				...getSurface("zinc")
 			},
 			fontSize: {

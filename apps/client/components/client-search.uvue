@@ -15,9 +15,8 @@
 		></cl-input>
 		<cl-button
 			class="client-search-submit"
-			type="warn"
-			:pt="{ label: { color: '#242424', className: 'font-semibold' } }"
-			:style="{ backgroundColor: '#ffe23f', borderColor: '#ffe23f' }"
+			type="primary"
+			:pt="{ label: { className: 'font-semibold' } }"
 			@tap="$emit('submit')"
 		>
 			搜索
@@ -65,7 +64,7 @@ function updateValue(value: string) {
 }
 .client-search-input:focus-within,
 .client-search-submit:focus-visible {
-	outline: 2px solid #785c00;
+	outline: 2px solid #526d88;
 	outline-offset: 2px;
 }
 // #endif

@@ -1,6 +1,14 @@
 <template>
 	<cl-page>
-		<cl-topbar fixed :height="44" :show-back="false" safe-area-top title="我的"> </cl-topbar>
+		<cl-topbar
+			fixed
+			:height="44"
+			:show-back="false"
+			safe-area-top
+			title="我的"
+			background-color="#eef2f6"
+		>
+		</cl-topbar>
 
 		<view class="profile-card">
 			<cl-avatar
@@ -50,7 +58,7 @@
 			</view>
 		</view>
 
-		<cl-list v-if="!user.isNull()" :pt="{ className: 'mx-3' }">
+		<cl-list v-if="!user.isNull()" :pt="{ className: 'mx-4' }">
 			<cl-list-item label="个人资料" icon="user-line" arrow hoverable @tap="toEdit">
 			</cl-list-item>
 			<cl-list-item label="设置" icon="settings-line" arrow hoverable @tap="toSet">
@@ -92,9 +100,9 @@ onReady(() => {
 
 <style lang="scss" scoped>
 .profile-card {
-	margin: 20px 12px 16px;
-	padding: 22px 18px;
-	border-radius: 16px;
+	margin: 20px 16px 16px;
+	padding: 24px 20px;
+	border-radius: 18px;
 	background: #fff;
 	display: flex;
 	flex-direction: row;

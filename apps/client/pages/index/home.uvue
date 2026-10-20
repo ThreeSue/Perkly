@@ -6,7 +6,7 @@
 					:show-back="false"
 					safe-area-top
 					:height="isMp() ? 32 : 8"
-					background-color="#ffe23f"
+					background-color="#eef2f6"
 					><view
 				/></cl-topbar>
 				<view class="home-header-inner">
@@ -19,12 +19,12 @@
 							icon="map-pin-line"
 							size="normal"
 							:pt="{
-								label: { color: '#242424' },
-								icon: { color: '#242424', size: 15 }
+								label: { color: '#26313b' },
+								icon: { color: '#526d88', size: 15 }
 							}"
 							:style="{
-								backgroundColor: 'rgba(255,255,255,0.7)',
-								borderColor: 'rgba(255,255,255,0.8)'
+								backgroundColor: '#ffffff',
+								borderColor: '#dce4ec'
 							}"
 							:disabled="selectingLocation"
 							@tap="choosePlace"
@@ -49,22 +49,22 @@
 			>
 			<view class="discovery-content">
 				<view class="discovery-section-head">
-						<view
-						><text class="discovery-heading">发现好店</text></view
-					>
+					<view><text class="discovery-heading">发现好店</text></view>
 					<navigator class="discovery-link" url="/pages/discover/list"
 						>查看全部 ›</navigator
 					>
 				</view>
 				<view v-if="loading" class="discovery-state" role="status"
-					><text>商品加载中…</text></view
+					><text>商家加载中…</text></view
 				>
 				<view v-else-if="error" class="discovery-state"
 					><text>{{ error }}</text
-					><button v-if="error !== DISCOVERY_API_NOT_READY" @tap="load">重试</button></view
+					><button v-if="error !== DISCOVERY_API_NOT_READY" @tap="load">
+						重试
+					</button></view
 				>
 				<view v-else-if="merchants.length === 0" class="discovery-state"
-					><text>暂无商品</text></view
+					><text>暂无商家</text></view
 				>
 				<view v-else class="discovery-grid"
 					><view v-for="merchant in merchants" :key="merchant.id" class="discovery-cell"
@@ -76,7 +76,6 @@
 </template>
 <script setup lang="ts">
 import { ref, onUnmounted } from "vue";
-import { onShow } from "@dcloudio/uni-app";
 import { isH5, isMp } from "@/.cool";
 import { categories, DISCOVERY_API_NOT_READY, listMerchants } from "@/api/discovery";
 import type { Merchant } from "@/types/discovery";
@@ -147,14 +146,14 @@ onUnmounted(() => {
 	padding-bottom: 24px;
 }
 .home-header {
-	background: $discovery-yellow;
+	background: $discovery-bg;
 }
 .home-header-inner {
 	width: 100%;
 	box-sizing: border-box;
 	max-width: 680px;
 	margin: 0 auto;
-	padding: 10px 16px 24px;
+	padding: 10px 16px 18px;
 }
 .home-brand-row {
 	display: flex;
@@ -177,9 +176,8 @@ onUnmounted(() => {
 	font-size: 13px;
 }
 .home-services {
-	background: white;
-	border-radius: 20px 20px 0 0;
-	margin-top: -8px;
+	background: $discovery-bg;
+	margin-top: 0;
 	position: relative;
 }
 .home-services-inner {
@@ -190,7 +188,7 @@ onUnmounted(() => {
 	justify-content: space-between;
 	max-width: 680px;
 	margin: 0 auto;
-	padding: 22px 12px;
+	padding: 8px 16px 22px;
 }
 .home-service {
 	width: calc(25% - 9px);
@@ -203,7 +201,9 @@ onUnmounted(() => {
 	font-size: 14px;
 	font-weight: 600;
 	white-space: nowrap;
-	background: #fff6cc;
+	background: #ffffff;
+	color: $discovery-ink;
+	border: 1px solid $discovery-border;
 	border-radius: 12px;
 	padding: 0;
 	line-height: 64px;

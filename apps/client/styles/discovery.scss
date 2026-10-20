@@ -1,8 +1,8 @@
-$discovery-yellow: #ffe23f;
-$discovery-ink: #242424;
-$discovery-muted: #707070;
-$discovery-bg: #f5f5f5;
-$discovery-offer: #a83e0a;
+$discovery-primary: #526d88;
+$discovery-ink: #26313b;
+$discovery-muted: #71808d;
+$discovery-bg: #eef2f6;
+$discovery-border: #dce4ec;
 .discovery-page {
 	min-height: 100vh;
 	background: $discovery-bg;
@@ -14,7 +14,7 @@ $discovery-offer: #a83e0a;
 	box-sizing: border-box;
 	max-width: 680px;
 	margin: 0 auto;
-	padding: 16px 12px;
+	padding: 18px 16px;
 }
 .discovery-action {
 	margin: 0;
@@ -44,11 +44,12 @@ $discovery-offer: #a83e0a;
 	box-sizing: border-box;
 }
 .discovery-search-button {
-	background: $discovery-yellow;
+	background: $discovery-primary;
 	border-radius: 22px;
 	padding: 10px 20px;
 	font-size: 15px;
 	font-weight: 600;
+	color: #ffffff;
 	flex-shrink: 0;
 }
 .discovery-section-head {
@@ -67,7 +68,7 @@ $discovery-offer: #a83e0a;
 	color: $discovery-muted;
 }
 .discovery-link {
-	color: #5b5b5b;
+	color: $discovery-primary;
 	min-height: 40px;
 	display: flex;
 	flex-direction: row;
@@ -87,13 +88,15 @@ $discovery-offer: #a83e0a;
 .discovery-state {
 	background: white;
 	border-radius: 16px;
-	padding: 30px 16px;
+	padding: 24px 16px;
 	text-align: center;
 	margin: 12px 0;
+	color: $discovery-ink;
 }
 .discovery-retry {
 	display: inline-block;
-	background: $discovery-yellow;
+	background: $discovery-primary;
+	color: #ffffff;
 	padding: 10px 20px;
 	border-radius: 22px;
 	margin-top: 14px;
@@ -116,11 +119,6 @@ $discovery-offer: #a83e0a;
 	line-height: 1.7;
 	margin-top: 10px;
 }
-.discovery-money {
-	font-size: 24px;
-	font-weight: 700;
-	color: $discovery-offer;
-}
 .discovery-chips {
 	display: flex;
 	flex-direction: row;
@@ -131,11 +129,14 @@ $discovery-offer: #a83e0a;
 	padding: 10px 14px;
 	border-radius: 22px;
 	background: white;
+	border: 1px solid $discovery-border;
 	margin: 0 6px 8px 0;
 	font-size: 13px;
 }
 .discovery-chip-selected {
-	background: $discovery-yellow;
+	background: $discovery-primary;
+	border-color: $discovery-primary;
+	color: #ffffff;
 	font-weight: 600;
 }
 // #ifdef H5
@@ -150,7 +151,12 @@ $discovery-offer: #a83e0a;
 	outline-offset: 3px;
 }
 .discovery-page {
-	scrollbar-color: #aaa #f5f5f5;
+	scrollbar-color: #aeb9c5 #eef2f6;
 	scrollbar-width: thin;
+}
+.discovery-action:focus-visible,
+.discovery-link:focus-visible {
+	outline: 3px solid $discovery-primary;
+	outline-offset: 3px;
 }
 // #endif

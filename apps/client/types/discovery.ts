@@ -6,10 +6,6 @@ export type Merchant = {
 	category: CategoryId;
 	description: string;
 	offer: string;
-	price: string;
-	unit: string;
 	address: string;
-	hours: string;
-	tags: string[];
 };
 export type MerchantQuery = { keyword?: string; category?: string };
