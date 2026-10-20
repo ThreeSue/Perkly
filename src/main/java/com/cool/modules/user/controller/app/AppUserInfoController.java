@@ -21,6 +21,12 @@ public class AppUserInfoController {
 
     private final UserInfoService userInfoService;
 
+    @Operation(summary = "账号绑定信息")
+    @GetMapping("/account")
+    public R account() {
+        return R.ok(userInfoService.accountInfo(CoolSecurityUtil.getCurrentUserId()));
+    }
+
     @Operation(summary = "用户个人信息", description = "获得App、小程序或者其他应用的用户个人信息")
     @GetMapping("/person")
     public R person() {

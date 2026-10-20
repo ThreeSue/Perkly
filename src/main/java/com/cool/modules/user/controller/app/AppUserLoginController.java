@@ -11,6 +11,8 @@ import com.cool.modules.user.controller.app.params.LoginParam;
 import com.cool.modules.user.controller.app.params.RefreshTokenParam;
 import com.cool.modules.user.controller.app.params.SmsCodeParam;
 import com.cool.modules.user.controller.app.params.RegisterParam;
+import com.cool.modules.user.controller.app.params.WechatBindPhoneParam;
+import com.cool.modules.user.controller.app.params.WechatBindingConfirmParam;
 import com.cool.modules.user.service.UserLoginService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,6 +30,25 @@ public class AppUserLoginController {
     private final UserLoginService userLoginService;
 
     private final BaseSysLoginService baseSysLoginService;
+
+    @TokenIgnore
+    @Operation(summary = "确认微信绑定并选择保留的昵称头像")
+    @PostMapping("/confirmWechatBinding")
+    public R confirmWechatBinding(@RequestBody WechatBindingConfirmParam param) {
+        CoolPreconditions.checkEmpty(param.getConfirmationToken());
+        CoolPreconditions.checkEmpty(param.getProfileSource());
+        return R.ok(userLoginService.confirmWechatBinding(param.getConfirmationToken(), param.getProfileSource()));
+    }
+
+    @TokenIgnore
+    @Operation(summary = "首次微信登录绑定手机号")
+    @PostMapping("/bindWechatPhone")
+    public R bindWechatPhone(@RequestBody WechatBindPhoneParam param) {
+        CoolPreconditions.checkEmpty(param.getBindingToken());
+        CoolPreconditions.checkEmpty(param.getPhone());
+        CoolPreconditions.checkEmpty(param.getSmsCode());
+        return R.ok(userLoginService.bindWechatPhone(param.getBindingToken(), param.getPhone(), param.getSmsCode()));
+    }
 
     @TokenIgnore
     @Operation(summary = "手机号注册", description = "短信验证后设置密码，注册成功返回用户Token")
@@ -50,8 +71,6 @@ public class AppUserLoginController {
         String encryptedData = param.getEncryptedData();
         String iv = param.getIv();
         CoolPreconditions.checkEmpty(code);
-        CoolPreconditions.checkEmpty(encryptedData);
-        CoolPreconditions.checkEmpty(iv);
         return R.ok(userLoginService.mini(code, encryptedData, iv));
     }
 

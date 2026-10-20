@@ -1,8 +1,6 @@
 package com.cool.modules.user.service.impl;
 
 import cn.binarywang.wx.miniapp.bean.WxMaJscode2SessionResult;
-import cn.binarywang.wx.miniapp.bean.WxMaUserInfo;
-import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ObjUtil;
 import com.cool.core.base.BaseServiceImpl;
 import com.cool.core.exception.CoolPreconditions;
@@ -28,20 +26,17 @@ public class UserWxServiceImpl extends BaseServiceImpl<UserWxMapper, UserWxEntit
      * 获得小程序用户信息
      */
     public UserWxEntity getMiniUserInfo(String code, String encryptedData, String iv) {
-        // 获取 session
-        WxMaJscode2SessionResult result = null;
+        // 身份登录仅由微信服务端兑换 code；不依赖客户端头像昵称加密数据。
         try {
-            result = wxProxy.getSessionInfo(code);
-            // 解密数据
-            WxMaUserInfo wxMaUserInfo = wxProxy.getUserInfo(result.getSessionKey(), encryptedData, iv);
-            if (ObjUtil.isNotEmpty(wxMaUserInfo)) {
-                UserWxEntity userWxEntity = BeanUtil.copyProperties(wxMaUserInfo, UserWxEntity.class);
-                userWxEntity.setOpenid(result.getOpenid());
-                userWxEntity.setUnionid(wxMaUserInfo.getUnionId());
-                return getBySave(userWxEntity, 0);
-            }
+            WxMaJscode2SessionResult result = wxProxy.getSessionInfo(code);
+            CoolPreconditions.check(result == null || ObjUtil.isEmpty(result.getOpenid()), "微信登录凭证无效");
+            UserWxEntity userWxEntity = new UserWxEntity();
+            userWxEntity.setOpenid(result.getOpenid());
+            userWxEntity.setUnionid(result.getUnionid());
+            userWxEntity.setGender(0);
+            return getBySave(userWxEntity, 0);
         } catch (WxErrorException e) {
-            CoolPreconditions.alwaysThrow(e.getMessage(), e);
+            CoolPreconditions.alwaysThrow("微信登录失败，请检查小程序配置或重新获取登录凭证", e);
         }
         CoolPreconditions.alwaysThrow("获得小程序用户信息");
         return null;

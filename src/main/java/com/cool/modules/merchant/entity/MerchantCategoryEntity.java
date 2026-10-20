@@ -22,6 +22,7 @@ import lombok.Setter;
 public class MerchantCategoryEntity
         extends BaseEntity<MerchantCategoryEntity> {
 
+    @org.dromara.autotable.annotation.Index
     @ColumnDefine(comment = "上级分类ID，顶级分类为空")
     private Long parentId;
 

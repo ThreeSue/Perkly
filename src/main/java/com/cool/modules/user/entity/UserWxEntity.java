@@ -13,6 +13,10 @@ import org.dromara.autotable.annotation.Index;
 @Table(value = "user_wx", comment = "微信用户")
 public class UserWxEntity extends BaseEntity<UserWxEntity> {
 
+    @UniIndex
+    @ColumnDefine(comment = "绑定的平台用户ID，一个平台账号绑定一个微信")
+    private Long userId;
+
     @Index
     @ColumnDefine(comment = "微信unionid")
     private String unionid;

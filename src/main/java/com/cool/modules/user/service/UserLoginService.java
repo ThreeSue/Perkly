@@ -34,6 +34,8 @@ public interface UserLoginService {
      * 小程序登录
      */
     Object mini(String code, String encryptedData, String iv);
+    Object bindWechatPhone(String bindingToken, String phone, String smsCode);
+    Object confirmWechatBinding(String confirmationToken, String profileSource);
     /**
      * 公众号登录
      */

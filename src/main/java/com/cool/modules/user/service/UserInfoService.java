@@ -4,6 +4,7 @@ import com.cool.core.base.BaseService;
 import com.cool.modules.user.entity.UserInfoEntity;
 
 public interface UserInfoService extends BaseService<UserInfoEntity> {
+    Object accountInfo(Long userId);
     /**
      * 用户个人信息
      * @param userId

@@ -160,3 +160,8 @@ leaf:
   segment:
     # 默认禁用
     enable: false
+
+# 微信小程序登录直接使用项目已有的 WxJava SDK，不依赖 wx 插件。
+wx-mini:
+  app-id: ${WECHAT_MINI_APP_ID:wxfe36bb9c0ea6e148}
+  app-secret: ${WECHAT_MINI_APP_SECRET:}
