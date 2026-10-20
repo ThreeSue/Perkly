@@ -152,6 +152,23 @@ class AppDiscoveryPersistenceTest {
         assertThrows(CoolException.class, () -> discovery.store(-1L));
     }
 
+    @Test void storeCoverTakesPriorityAndMissingCoverFallsBackToMerchantLogo() {
+        jdbc.update("UPDATE merchant_info SET logo='/upload/merchant-logo.png' WHERE id=?", merchant);
+        assertEquals("/upload/merchant-logo.png", discovery.store(store).get("cover"));
+        jdbc.update("UPDATE store SET cover='/upload/store-cover.jpg' WHERE id=?", store);
+        Map<String, Object> detail = discovery.store(store);
+        assertEquals("/upload/store-cover.jpg", detail.get("cover"));
+        assertEquals("/upload/merchant-logo.png", detail.get("merchantLogo"));
+        assertTrue(discovery.stores(request()).getList().stream()
+                .anyMatch(row -> number(row.get("id")) == store && "/upload/store-cover.jpg".equals(row.get("cover"))));
+        long coupon = coupon(1); publish(coupon, "PLATFORM", 2, 1, 1);
+        jdbc.update("INSERT INTO coupon_store(merchant_id,coupon_template_id,store_id) VALUES(?,?,?)", merchant, coupon, store);
+        Map<?, ?> applicable = (Map<?, ?>) ((List<?>) discovery.coupon(coupon).get("stores")).get(0);
+        assertEquals("/upload/store-cover.jpg", applicable.get("cover"));
+        jdbc.update("UPDATE store SET cover='  ' WHERE id=?", store);
+        assertEquals("/upload/merchant-logo.png", discovery.store(store).get("cover"));
+    }
+
     @Test void preservesEveryPublicFieldNullDateMoneyAndNestedContentContract() throws Exception {
         Map<String, Object> storeDetail = discovery.store(store);
         assertEquals(java.util.Set.of("id", "name", "merchantId", "merchantName", "merchantLogo", "cover",
