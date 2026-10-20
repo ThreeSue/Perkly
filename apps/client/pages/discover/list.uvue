@@ -7,25 +7,55 @@
 					<text>{{ categoryError }}</text>
 					<button class="discovery-action" @tap="loadCategories">重试</button>
 				</view>
-				<view v-if="categories.length > 0" class="discovery-chips">
-					<button
-						class="discovery-action discovery-chip"
-						:class="{ 'discovery-chip-selected': categoryId === '' }"
-						@tap="selectCategory('')"
-						hover-class="discovery-pressed"
-					>
-						全部
-					</button>
-					<button
-						v-for="item in categories"
-						:key="String(item.id)"
-						class="discovery-action discovery-chip"
-						:class="{ 'discovery-chip-selected': String(categoryId) === String(item.id) }"
-						@tap="selectCategory(item.id)"
-						hover-class="discovery-pressed"
-					>
-						{{ item.name }}
-					</button>
+				<view v-if="parentCategories.length > 0" class="category-filter">
+					<view class="category-level">
+						<text class="category-level-label">一级分类</text>
+						<scroll-view scroll-x class="category-level-scroll" :show-scrollbar="false">
+							<view class="category-level-track">
+								<button
+									class="discovery-action discovery-chip category-level-chip"
+									:class="{ 'discovery-chip-selected': parentCategoryId === '' }"
+									@tap="selectParentCategory('')"
+									hover-class="discovery-pressed"
+								>
+									全部
+								</button>
+								<button
+									v-for="item in parentCategories"
+									:key="String(item.id)"
+									class="discovery-action discovery-chip category-level-chip"
+									:class="{ 'discovery-chip-selected': String(parentCategoryId) === String(item.id) }"
+									@tap="selectParentCategory(item.id)"
+									hover-class="discovery-pressed"
+								>
+									{{ item.name }}
+								</button>
+							</view>
+						</scroll-view>
+					</view>
+					<view v-if="selectedParentCategory && childCategories.length > 0" class="category-level category-level-two">
+						<text class="category-level-label">二级分类 · {{ selectedParentCategory.name }}</text>
+						<view class="discovery-chips category-level-two-chips">
+							<button
+								class="discovery-action discovery-chip"
+								:class="{ 'discovery-chip-selected': childCategoryId === '' }"
+								@tap="selectChildCategory('')"
+								hover-class="discovery-pressed"
+							>
+								全部
+							</button>
+							<button
+								v-for="item in childCategories"
+								:key="String(item.id)"
+								class="discovery-action discovery-chip"
+								:class="{ 'discovery-chip-selected': String(childCategoryId) === String(item.id) }"
+								@tap="selectChildCategory(item.id)"
+								hover-class="discovery-pressed"
+							>
+								{{ item.name }}
+							</button>
+						</view>
+					</view>
 				</view>
 				<view v-if="loading" class="discovery-state" role="status">
 					<text>门店加载中…</text>
@@ -100,6 +130,8 @@ import ClientCouponCard from "@/components/client-coupon-card.uvue";
 
 const keyword = ref("");
 const categoryId = ref<ApiId | "">("");
+const parentCategoryId = ref<ApiId | "">("");
+const childCategoryId = ref<ApiId | "">("");
 const categories = ref<IndustryCategory[]>([]);
 const stores = ref<Store[]>([]);
 const searchCoupons = ref<Coupon[]>([]);
@@ -115,6 +147,13 @@ let page = 1;
 let requestId = 0;
 let categoryRequestId = 0;
 
+const parentCategories = computed(() => categories.value.filter((item) => item.parentId === null));
+const selectedParentCategory = computed(() =>
+	parentCategories.value.find((item) => String(item.id) === String(parentCategoryId.value))
+);
+const childCategories = computed(() =>
+	categories.value.filter((item) => item.parentId !== null && String(item.parentId) === String(parentCategoryId.value))
+);
 const title = computed(
 	() => categories.value.find((item) => String(item.id) === String(categoryId.value))?.name ?? "发现好店"
 );
@@ -126,6 +165,18 @@ async function loadCategories() {
 		const result = await listIndustryCategories();
 		if (id === categoryRequestId) {
 			categories.value = result;
+			const selected = result.find((item) => String(item.id) === String(categoryId.value));
+			if (selected && selected.parentId === null) {
+				parentCategoryId.value = selected.id;
+				childCategoryId.value = "";
+			} else if (selected) {
+				parentCategoryId.value = selected.parentId;
+				childCategoryId.value = selected.id;
+			} else {
+				parentCategoryId.value = "";
+				childCategoryId.value = "";
+				categoryId.value = "";
+			}
 			uni.setNavigationBarTitle({ title: title.value });
 		}
 	} catch (err) {
@@ -229,14 +280,24 @@ async function loadMore() {
 	}
 }
 
-function selectCategory(value: ApiId | "") {
+function selectParentCategory(value: ApiId | "") {
+	parentCategoryId.value = value;
+	childCategoryId.value = "";
 	categoryId.value = value;
+	search();
+}
+
+function selectChildCategory(value: ApiId | "") {
+	childCategoryId.value = value;
+	categoryId.value = value === "" ? parentCategoryId.value : value;
 	search();
 }
 
 function reset() {
 	keyword.value = "";
 	categoryId.value = "";
+	parentCategoryId.value = "";
+	childCategoryId.value = "";
 	search();
 }
 
@@ -261,6 +322,37 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 @import "@/styles/discovery.scss";
+.category-filter {
+	margin: 12px 0 18px;
+}
+.category-level {
+	margin-bottom: 12px;
+}
+.category-level-label {
+	display: block;
+	margin: 0 2px 8px;
+	font-size: 12px;
+	color: #71808d;
+}
+.category-level-scroll {
+	width: 100%;
+	white-space: nowrap;
+}
+.category-level-track {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: center;
+}
+.category-level-chip {
+	flex-shrink: 0;
+}
+.category-level-two {
+	margin-top: 2px;
+}
+.category-level-two-chips {
+	margin: 0;
+}
 .category-error {
 	display: flex;
 	flex-direction: row;
