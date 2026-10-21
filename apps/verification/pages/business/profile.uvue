@@ -1,0 +1,28 @@
+<template>
+	<business-shell title="我的"
+		><view class="qgj-card"
+			><text class="qgj-card-title">{{ session?.nickname ?? "尚未登录" }}</text
+			><text class="qgj-muted">当前端：商家核销端</text
+			><text class="qgj-muted">{{
+				appConfig.mockEnabled ? "本地演示身份，刷新应用后自动退出。" : "真实接口待接入。"
+			}}</text
+			><view class="qgj-actions"
+				><cl-button v-if="session == null" color="#0f766e" @tap="openLogin"
+					>本地演示登录</cl-button
+				><cl-button v-else border @tap="signOut">退出演示登录</cl-button></view
+			></view
+		></business-shell
+	>
+</template>
+<script setup lang="ts">
+import BusinessShell from "@/components/business-shell.uvue";
+import { session, logout } from "@/stores/session";
+import { appConfig } from "@/config/business";
+function openLogin() {
+	uni.navigateTo({ url: "/pages/business/login" });
+}
+function signOut() {
+	logout();
+	uni.switchTab({ url: "/pages/business/profile" });
+}
+</script>

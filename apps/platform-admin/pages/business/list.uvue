@@ -1,0 +1,124 @@
+<template>
+	<business-shell :title="moduleLabels[module]"
+		><view class="qgj-message"
+			><text class="qgj-muted" role="status" v-if="loading">正在加载…</text
+			><text v-if="message" class="qgj-status" role="status">{{ message }}</text></view
+		><view v-if="error" class="qgj-card"
+			><text class="qgj-error" role="alert">{{ error }}</text
+			><cl-button border @tap="refresh">重试</cl-button></view
+		><view v-else
+			><view class="qgj-card" v-for="item in items" :key="item.id"
+				><text class="qgj-card-title">{{ item.title }}</text
+				><text class="qgj-muted">{{ item.description }}</text
+				><text class="qgj-status"
+					>{{ item.status }}
+					{{ item.amountFen != null ? formatMoney(item.amountFen) : "" }}</text
+				><text v-if="item.code" class="qgj-muted">券码：{{ item.code }}</text
+				><cl-button
+					v-if="canClaim && module == 'coupons'"
+					color="#0f766e"
+					:disabled="claiming != ''"
+					:loading="claiming == item.id"
+					@tap="claim(item.id)"
+					>领取示例券</cl-button
+				></view
+			><view v-if="!loading && items.length == 0" class="qgj-card"
+				><text class="qgj-card-title">暂无{{ moduleLabels[module] }}</text
+				><text class="qgj-muted">{{ emptyHint }}</text></view
+			><cl-button
+				v-if="items.length < total"
+				border
+				:loading="loading"
+				:disabled="loading"
+				@tap="loadMore"
+				>加载更多</cl-button
+			></view
+		></business-shell
+	>
+</template>
+<script setup lang="ts">
+import { ref, computed } from "vue";
+import { onLoad, onShow, onUnload } from "@dcloudio/uni-app";
+import {
+	appDefinitions,
+	moduleLabels,
+	formatMoney,
+	type BusinessRow,
+	type ModuleId
+} from "@coupon-manager/shared";
+import BusinessShell from "@/components/business-shell.uvue";
+import { appConfig } from "@/config/business";
+import { api } from "@/api";
+import { requireSession } from "@/stores/session";
+const module = ref<ModuleId>("merchants"),
+	items = ref<BusinessRow[]>([]),
+	total = ref(0),
+	loading = ref(false),
+	error = ref(""),
+	message = ref(""),
+	claiming = ref("");
+const canClaim = ["client", "merchantIndependent"].includes(appConfig.id);
+const emptyHint = computed(() =>
+	["orders", "members", "users", "reports"].includes(module.value)
+		? "模块路由已预留，业务接口与交互将在这里继续开发。"
+		: "当前演示还没有记录，可以从首页开始操作。"
+);
+let page = 1,
+	version = 0;
+onLoad((query) => {
+	if (query?.module && appDefinitions[appConfig.id].modules.includes(query.module as ModuleId))
+		module.value = query.module as ModuleId;
+	else if (query?.module) error.value = "当前应用没有此模块";
+});
+onShow(() => {
+	refresh();
+});
+onUnload(() => {
+	version++;
+});
+async function load(append: boolean) {
+	if (
+		(appDefinitions[appConfig.id].private ||
+			["wallet", "orders", "records"].includes(module.value)) &&
+		!requireSession()
+	) {
+		items.value = [];
+		return;
+	}
+	const current = ++version;
+	loading.value = true;
+	error.value = "";
+	try {
+		const result = await api.list(module.value, page, 10);
+		if (current !== version) return;
+		items.value = append ? items.value.concat(result.items) : result.items;
+		total.value = result.total;
+	} catch (e) {
+		if (current === version) error.value = (e as Error).message;
+	} finally {
+		if (current === version) loading.value = false;
+	}
+}
+function refresh() {
+	page = 1;
+	load(false);
+}
+function loadMore() {
+	if (loading.value) return;
+	page = Math.floor(items.value.length / 10) + 1;
+	load(true);
+}
+async function claim(id: string) {
+	if (claiming.value != "" || !requireSession()) return;
+	claiming.value = id;
+	message.value = "";
+	try {
+		const voucher = await api.claim(id);
+		message.value = "示例券已放入我的券，券码 " + voucher.code;
+	} catch (e) {
+		error.value = (e as Error).message;
+	} finally {
+		claiming.value = "";
+	}
+}
+</script>

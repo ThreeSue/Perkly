@@ -1,0 +1,38 @@
+<template>
+	<business-shell title="券信息查询" description="查询本门店可用券，核对优惠与适用范围">
+		<merchant-pending capability="coupons" />
+		<view class="merchant-card">
+			<cl-form label-position="top"
+				><cl-form-item label="券名称"
+					><cl-input
+						v-model="keyword"
+						placeholder="输入券名称"
+						:maxlength="100" /></cl-form-item
+			></cl-form>
+			<view class="merchant-actions"
+				><cl-button disabled>查询 · 待接入</cl-button
+				><cl-button v-if="keyword" border @tap="keyword = ''">清空搜索</cl-button></view
+			>
+			<view class="merchant-empty"
+				><text class="merchant-muted">门店可用券待接入</text
+				><text class="merchant-field-note"
+					>接入后可查看券规则、适用商品或服务、售价、使用门槛和有效期。</text
+				></view
+			>
+		</view>
+		<view class="merchant-card"
+			><text class="merchant-heading">店长快捷管理</text
+			><navigator class="merchant-link" url="/pages/business/create"
+				>手机端快速建券 ›</navigator
+			><navigator class="merchant-link" url="/pages/business/audits"
+				>查看审核状态与驳回原因 ›</navigator
+			><text class="merchant-field-note">管理操作需后端确认店长角色和建券权限。</text></view
+		>
+	</business-shell>
+</template>
+<script setup lang="ts">
+import BusinessShell from "@/components/business-shell.uvue";
+import MerchantPending from "@/components/merchant-pending.uvue";
+import { ref } from "vue";
+const keyword = ref("");
+</script>

@@ -1,0 +1,54 @@
+<template>
+	<business-shell title="本地演示登录"
+		><view class="qgj-card"
+			><text class="qgj-card-title">平台管理端</text
+			><text class="qgj-muted">演示身份只用于本地页面交互，不会创建真实账号。</text
+			><label for="demo-name" class="qgj-muted">演示昵称</label
+			><input
+				id="demo-name"
+				class="qgj-input"
+				:value="nickname"
+				maxlength="30"
+				aria-label="演示昵称"
+				:aria-invalid="error != ''"
+				aria-describedby="login-error"
+				@input="updateNickname"
+			/><text id="login-error" class="qgj-error" v-if="error" role="alert">{{ error }}</text
+			><view class="qgj-actions"
+				><cl-button color="#0f766e" :loading="pending" :disabled="pending" @tap="submit"
+					>进入平台管理端</cl-button
+				></view
+			></view
+		></business-shell
+	>
+</template>
+<script setup lang="ts">
+import { ref } from "vue";
+import BusinessShell from "@/components/business-shell.uvue";
+import { login } from "@/stores/session";
+const nickname = ref(""),
+	error = ref(""),
+	pending = ref(false);
+function updateNickname(e: UniInputEvent) {
+	nickname.value = e.detail.value;
+	error.value = "";
+}
+async function submit() {
+	if (pending.value) return;
+	if (nickname.value.trim() == "") {
+		error.value = "请输入演示昵称";
+		return;
+	}
+	pending.value = true;
+	error.value = "";
+	try {
+		await login(nickname.value);
+		if (getCurrentPages().length > 1) uni.navigateBack();
+		else uni.switchTab({ url: "/pages/business/home" });
+	} catch (e) {
+		error.value = (e as Error).message;
+	} finally {
+		pending.value = false;
+	}
+}
+</script>

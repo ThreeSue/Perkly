@@ -1,0 +1,109 @@
+<template>
+	<business-shell title="核销"
+		><view class="qgj-card"
+			><text class="qgj-card-title">核验优惠券</text
+			><text class="qgj-muted">本地示例：QGJ20260001。仅展示当前商家 m001 的券。</text
+			><label for="voucher-code" class="qgj-muted">券码</label
+			><input
+				id="voucher-code"
+				:disabled="pending"
+				class="qgj-input"
+				:value="code"
+				maxlength="32"
+				aria-label="券码"
+				@input="updateCode"
+			/><view class="qgj-actions"
+				><cl-button color="#0f766e" :loading="pending" :disabled="pending" @tap="preview"
+					>查看券信息</cl-button
+				><cl-button border :disabled="pending" @tap="scan">扫码</cl-button></view
+			><text class="qgj-error" role="alert" v-if="error">{{ error }}</text
+			><text class="qgj-status" role="status" v-if="message">{{ message }}</text></view
+		><view v-if="voucher" class="qgj-card"
+			><text class="qgj-card-title">{{ voucher.title }}</text
+			><text class="qgj-muted">券码：{{ voucher.code }}</text
+			><text class="qgj-status">{{ voucher.status }}</text
+			><text class="qgj-muted">请确认券信息。本次操作只修改本地演示数据。</text
+			><view class="qgj-actions"
+				><cl-button border :disabled="pending" @tap="cancel">取消</cl-button
+				><cl-button
+					color="#0f766e"
+					:loading="pending"
+					:disabled="pending || voucher.status != '待使用'"
+					@tap="verify"
+					>确认核销示例券</cl-button
+				></view
+			></view
+		></business-shell
+	>
+</template>
+<script setup lang="ts">
+import { ref } from "vue";
+import { onShow } from "@dcloudio/uni-app";
+import type { BusinessRow } from "@coupon-manager/shared";
+import BusinessShell from "@/components/business-shell.uvue";
+import { api } from "@/api";
+import { requireSession } from "@/stores/session";
+const code = ref(""),
+	voucher = ref<BusinessRow | null>(null),
+	error = ref(""),
+	message = ref(""),
+	pending = ref(false);
+onShow(() => {
+	voucher.value = null;
+	message.value = "";
+	requireSession();
+});
+function updateCode(e: UniInputEvent) {
+	code.value = e.detail.value;
+	voucher.value = null;
+	error.value = "";
+	message.value = "";
+}
+function cancel() {
+	voucher.value = null;
+}
+async function preview() {
+	if (pending.value || !requireSession()) return;
+	pending.value = true;
+	error.value = "";
+	message.value = "";
+	voucher.value = null;
+	try {
+		voucher.value = await api.preview(code.value);
+	} catch (e) {
+		error.value = (e as Error).message;
+	} finally {
+		pending.value = false;
+	}
+}
+async function verify() {
+	if (pending.value || voucher.value == null || !requireSession()) return;
+	pending.value = true;
+	error.value = "";
+	try {
+		voucher.value = await api.verify(voucher.value.code!);
+		message.value = "示例券已核销，可在核销记录中查看。";
+	} catch (e) {
+		error.value = (e as Error).message;
+	} finally {
+		pending.value = false;
+	}
+}
+function scan() {
+	// #ifdef MP-WEIXIN
+	uni.scanCode({
+		onlyFromCamera: true,
+		success(result) {
+			code.value = result.result;
+			preview();
+		},
+		fail() {
+			error.value = "扫码未完成，请重试或手动输入券码";
+		}
+	});
+	// #endif
+	// #ifdef H5
+	message.value = "H5 演示请手动输入券码；微信小程序可使用扫码入口。";
+	// #endif
+}
+</script>

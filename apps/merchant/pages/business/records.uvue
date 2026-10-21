@@ -1,0 +1,54 @@
+<template>
+	<business-shell title="核销记录与数据" description="核对每一笔核销，了解门店当日情况">
+		<view class="merchant-tabs" role="tablist" aria-label="记录范围">
+			<button
+				class="merchant-tab"
+				:class="{ 'merchant-tab-active': scope === 'self' }"
+				role="tab"
+				:aria-selected="scope === 'self'"
+				@tap="scope = 'self'"
+			>
+				本人记录
+			</button>
+			<button
+				class="merchant-tab"
+				:class="{ 'merchant-tab-active': scope === 'store' }"
+				role="tab"
+				:aria-selected="scope === 'store'"
+				@tap="scope = 'store'"
+			>
+				店长记录
+			</button>
+		</view>
+		<merchant-pending :capability="scope === 'self' ? 'records' : 'managerRecords'" />
+		<view class="merchant-card">
+			<text class="merchant-heading">{{
+				scope === "self" ? "本人今日核销记录" : "本门店今日核销汇总"
+			}}</text>
+			<text v-if="scope === 'store'" class="merchant-muted"
+				>仅店长获授权后可查看门店汇总及员工核销记录；当前未加载门店数据。</text
+			>
+			<text v-if="scope === 'store'" class="merchant-stat">—</text>
+			<cl-form label-position="top">
+				<cl-form-item label="时间范围"
+					><cl-input disabled placeholder="今日 · 时间筛选待接入"
+				/></cl-form-item>
+				<cl-form-item label="券类型"
+					><cl-input disabled placeholder="全部类型 · 字典待接入"
+				/></cl-form-item>
+			</cl-form>
+			<view class="merchant-empty"
+				><text class="merchant-muted">记录待接入，暂不能展示核销明细</text
+				><text class="merchant-field-note"
+					>接口接入后可查看核销时间、券信息和核销详情。</text
+				></view
+			>
+		</view>
+	</business-shell>
+</template>
+<script setup lang="ts">
+import BusinessShell from "@/components/business-shell.uvue";
+import MerchantPending from "@/components/merchant-pending.uvue";
+import { ref } from "vue";
+const scope = ref("self");
+</script>

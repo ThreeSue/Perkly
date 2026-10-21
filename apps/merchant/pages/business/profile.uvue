@@ -1,0 +1,41 @@
+<template>
+	<business-shell title="个人中心" description="账号与权限、操作帮助、问题反馈">
+		<view class="merchant-card"
+			><text class="merchant-heading">尚未登录</text
+			><text class="merchant-muted">所属商家：待验证</text
+			><text class="merchant-muted">当前角色：待验证</text
+			><view class="merchant-actions"
+				><cl-button
+					:style="{ backgroundColor: '#ffe23f' }"
+					:pt="{ label: { color: '#242424' } }"
+					@tap="openLogin"
+					>员工登录</cl-button
+				></view
+			></view
+		>
+		<view class="merchant-card"
+			><text class="merchant-heading">账号与权限</text
+			><text class="merchant-muted">个人资料和授权门店在员工登录并取得后端资料后展示。</text
+			><text class="merchant-field-note"
+				>当前无已验证的门店授权，不展示演示商家或员工身份。</text
+			></view
+		>
+		<view class="merchant-card"
+			><text class="merchant-heading">帮助与反馈</text
+			><navigator class="merchant-link" url="/pages/business/help"
+				>核销说明与常见问题 ›</navigator
+			><navigator class="merchant-link" url="/pages/business/feedback"
+				>提交问题反馈 ›</navigator
+			></view
+		>
+		<merchant-pending capability="logout" />
+		<cl-button disabled fluid>退出登录 · 当前未登录</cl-button>
+	</business-shell>
+</template>
+<script setup lang="ts">
+import BusinessShell from "@/components/business-shell.uvue";
+import MerchantPending from "@/components/merchant-pending.uvue";
+function openLogin() {
+	uni.navigateTo({ url: "/pages/business/login" });
+}
+</script>

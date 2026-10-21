@@ -1,0 +1,32 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": [
+    "apps/client/pages/index",
+    "apps/client/pages/discover",
+    "apps/client/pages/trade",
+    "apps/client/composables",
+    "apps/client/components",
+    "apps/client/api",
+    "apps/merchant/pages/business",
+    "apps/platform-admin/pages/business",
+    "apps/merchant-independent/pages/business",
+    "apps/verification/pages/business",
+    "apps/merchant/components",
+    "apps/merchant/api"
+  ],
+  "locale": "zh-CN",
+  "canonicalMap": "UX-CONTRACT.md",
+  "requiredCapabilities": ["Form", "Scrollbar"],
+  "ownership": {
+    "Form": "authored",
+    "Scrollbar": "authored"
+  },
+  "requiredCommands": ["structure", "mock", "client", "merchant", "trade"],
+  "commands": {
+    "structure": "pnpm check",
+    "mock": "pnpm test:shared",
+    "client": "pnpm test:client",
+    "merchant": "pnpm test:merchant",
+    "trade": "pnpm test:trade"
+  }
+}

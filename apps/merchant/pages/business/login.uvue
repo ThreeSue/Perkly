@@ -1,0 +1,25 @@
+<template>
+	<business-shell title="员工登录" description="验证员工身份后，进入本人获授权的门店">
+		<merchant-pending
+			capability="identity"
+			hint="已有顾客和平台管理员账号接口不能直接作为商家员工登录。"
+		/>
+		<view class="merchant-card">
+			<text class="merchant-heading">商家员工账号</text>
+			<cl-form label-position="top">
+				<cl-form-item label="员工账号"
+					><cl-input disabled placeholder="登录方式待后端确认"
+				/></cl-form-item>
+				<cl-form-item label="密码"
+					><cl-input disabled password placeholder="接口接入后开放输入"
+				/></cl-form-item>
+			</cl-form>
+			<text class="merchant-muted">登录后显示所属商家、当前角色和授权门店。</text>
+			<view class="merchant-actions"><cl-button disabled>登录 · 待接入</cl-button></view>
+		</view>
+	</business-shell>
+</template>
+<script setup lang="ts">
+import BusinessShell from "@/components/business-shell.uvue";
+import MerchantPending from "@/components/merchant-pending.uvue";
+</script>

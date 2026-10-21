@@ -1,0 +1,20 @@
+<template>
+	<business-shell title="审核进度" description="查看优惠券审核状态与驳回原因">
+		<merchant-pending
+			capability="audits"
+			hint="待审核、审核通过和驳回等状态的实际枚举以后端契约为准。"
+		/>
+		<view class="merchant-card merchant-empty"
+			><text class="merchant-heading">审核记录待接入</text
+			><text class="merchant-muted"
+				>接入后展示本人有权查看的提交记录、审核状态及驳回原因。</text
+			><text class="merchant-field-note"
+				>审核状态与上架状态分别展示，审核通过不能直接视为已上架。</text
+			></view
+		>
+	</business-shell>
+</template>
+<script setup lang="ts">
+import BusinessShell from "@/components/business-shell.uvue";
+import MerchantPending from "@/components/merchant-pending.uvue";
+</script>

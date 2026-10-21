@@ -1,0 +1,67 @@
+{
+  "pages": [
+    {
+      "path": "pages/business/home",
+      "style": {
+        "navigationBarTitleText": "商家首页"
+      }
+    },
+    {
+      "path": "pages/business/records",
+      "style": {
+        "navigationBarTitleText": "我的券"
+      }
+    },
+    {
+      "path": "pages/business/profile",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/business/login",
+      "style": {
+        "navigationBarTitleText": "本地演示登录"
+      }
+    },
+    {
+      "path": "pages/business/list",
+      "style": {
+        "navigationBarTitleText": "业务列表"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTitleText": "券管家 · 商家独立端",
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f3f6f8",
+    "backgroundColorContent": "#f3f6f8"
+  },
+  "tabBar": {
+    "custom": false,
+    "color": "#526579",
+    "selectedColor": "#0f766e",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/business/home",
+        "text": "商家首页",
+        "iconPath": "static/icon/tabbar/home.png",
+        "selectedIconPath": "static/icon/tabbar/home2.png"
+      },
+      {
+        "pagePath": "pages/business/records",
+        "text": "我的券",
+        "iconPath": "static/icon/tabbar/template.png",
+        "selectedIconPath": "static/icon/tabbar/template2.png"
+      },
+      {
+        "pagePath": "pages/business/profile",
+        "text": "我的",
+        "iconPath": "static/icon/tabbar/my.png",
+        "selectedIconPath": "static/icon/tabbar/my2.png"
+      }
+    ]
+  }
+}

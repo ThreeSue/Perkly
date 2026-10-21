@@ -1,0 +1,17 @@
+<template>
+	<cl-page :back-top="false">
+		<view class="merchant-page">
+			<view class="merchant-header">
+				<view class="merchant-header-inner">
+					<text class="merchant-eyebrow">券管家 · 商家端</text>
+					<text class="merchant-title">{{ title }}</text>
+					<text v-if="description" class="merchant-subtitle">{{ description }}</text>
+				</view>
+			</view>
+			<view class="merchant-content"><slot /></view>
+		</view>
+	</cl-page>
+</template>
+<script setup lang="ts">
+defineProps<{ title: string; description?: string }>();
+</script>

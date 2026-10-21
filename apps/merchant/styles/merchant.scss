@@ -1,0 +1,242 @@
+// 与 client/styles/discovery.scss 同源视觉；不修改其他运营端公共主题。
+$merchant-yellow: #ffe23f;
+$merchant-ink: #242424;
+$merchant-muted: #707070;
+$merchant-bg: #f5f5f5;
+.merchant-page {
+	min-height: 100vh;
+	background: $merchant-bg;
+	color: $merchant-ink;
+	padding-bottom: 28px;
+}
+.merchant-header {
+	background: $merchant-yellow;
+}
+.merchant-header-inner {
+	width: 100%;
+	max-width: 680px;
+	box-sizing: border-box;
+	margin: 0 auto;
+	padding: 22px 16px 28px;
+}
+.merchant-eyebrow {
+	display: block;
+	font-size: 12px;
+	margin-bottom: 8px;
+}
+.merchant-title {
+	display: block;
+	font-size: 23px;
+	font-weight: 800;
+}
+.merchant-subtitle {
+	display: block;
+	font-size: 13px;
+	line-height: 1.6;
+	margin-top: 8px;
+}
+.merchant-content {
+	width: 100%;
+	max-width: 680px;
+	box-sizing: border-box;
+	margin: 0 auto;
+	padding: 16px 12px;
+}
+.merchant-card {
+	padding: 20px;
+	background: white;
+	border-radius: 16px;
+	margin-bottom: 12px;
+}
+.merchant-heading {
+	display: block;
+	font-size: 18px;
+	font-weight: 700;
+	margin-bottom: 12px;
+}
+.merchant-muted {
+	display: block;
+	color: $merchant-muted;
+	font-size: 14px;
+	line-height: 1.7;
+	overflow-wrap: anywhere;
+}
+.merchant-notice {
+	background: #fff9d9;
+	border: 1px solid #e3d68b;
+	padding: 16px;
+	border-radius: 12px;
+	margin-bottom: 16px;
+}
+.merchant-notice-title {
+	display: block;
+	font-size: 14px;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+.merchant-actions {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 16px;
+}
+.merchant-grid {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: space-between;
+}
+.merchant-tile {
+	width: calc(50% - 6px);
+	min-width: 0;
+	margin-bottom: 12px;
+}
+.merchant-tile-button {
+	width: 100%;
+	min-height: 126px;
+	padding: 18px 14px;
+	border: 0;
+	border-radius: 16px;
+	background: white;
+	color: $merchant-ink;
+	text-align: left;
+	line-height: 1.5;
+}
+.merchant-tile-button::after {
+	border: 0;
+}
+.merchant-tile-icon {
+	display: block;
+	width: 36px;
+	line-height: 36px;
+	border-radius: 10px;
+	background: #fff6cc;
+	text-align: center;
+	font-size: 16px;
+	font-weight: 700;
+	margin-bottom: 12px;
+}
+.merchant-tile-title {
+	display: block;
+	font-size: 16px;
+	font-weight: 600;
+}
+.merchant-tile-caption {
+	display: block;
+	font-size: 12px;
+	color: $merchant-muted;
+	margin-top: 6px;
+}
+.merchant-link {
+	display: block;
+	padding: 16px 0;
+	border-bottom: 1px solid #eee;
+	font-size: 15px;
+	line-height: 1.6;
+}
+.merchant-link:last-child {
+	border-bottom: 0;
+}
+.merchant-stat {
+	display: block;
+	font-size: 32px;
+	font-weight: 800;
+	margin: 10px 0;
+}
+.merchant-label {
+	display: block;
+	font-size: 14px;
+	font-weight: 600;
+	margin: 18px 0 8px;
+}
+.merchant-field-note {
+	display: block;
+	font-size: 12px;
+	color: $merchant-muted;
+	margin: 6px 0 12px;
+	line-height: 1.6;
+}
+.merchant-tabs {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+.merchant-tab {
+	margin: 0;
+	padding: 10px 16px;
+	min-height: 44px;
+	font-size: 14px;
+	border-radius: 24px;
+	background: white;
+	color: $merchant-ink;
+	line-height: 24px;
+}
+.merchant-tab::after {
+	border: 0;
+}
+.merchant-tab-active {
+	background: $merchant-yellow;
+	font-weight: 600;
+}
+.merchant-empty {
+	text-align: center;
+	padding: 28px 12px;
+}
+.merchant-step {
+	display: block;
+	font-size: 14px;
+	line-height: 1.8;
+	margin: 12px 0;
+}
+// #ifdef H5
+page {
+	scrollbar-color: #aaa $merchant-bg;
+	scrollbar-width: thin;
+}
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+::-webkit-scrollbar-track {
+	background: $merchant-bg;
+}
+::-webkit-scrollbar-thumb {
+	background: #aaa;
+	border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: #888;
+}
+.merchant-page button,
+.merchant-page navigator {
+	cursor: pointer;
+}
+.merchant-page button:focus-visible,
+.merchant-page navigator:focus-visible,
+.merchant-page input:focus-visible,
+.merchant-page textarea:focus-visible {
+	outline: 3px solid #785c00;
+	outline-offset: 3px;
+}
+.merchant-page button:disabled {
+	cursor: default;
+}
+.merchant-tile-button:hover,
+.merchant-link:hover {
+	background: #fff9df;
+}
+.merchant-tile-button:active {
+	background: #fff0ab;
+}
+.merchant-page textarea {
+	resize: none;
+}
+@media (forced-colors: active) {
+	page {
+		scrollbar-color: auto;
+	}
+}
+// #endif

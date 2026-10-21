@@ -1,0 +1,42 @@
+<template>
+	<business-shell title="商家首页"
+		><view v-if="!definition.private || session != null" class="qgj-row"
+			><view class="qgj-card qgj-module" v-for="module in definition.modules" :key="module"
+				><text class="qgj-card-title">{{ moduleLabels[module] }}</text
+				><text class="qgj-muted">{{
+					module == "orders" ||
+					module == "members" ||
+					module == "users" ||
+					module == "reports"
+						? "业务模块已预留，等待开发。"
+						: "查看本地示例数据。"
+				}}</text
+				><view class="qgj-actions"
+					><cl-button border @tap="openModule(module)"
+						>查看{{ moduleLabels[module] }}</cl-button
+					></view
+				></view
+			></view
+		><view v-else class="qgj-card"
+			><text class="qgj-muted">请先进入本端的本地演示登录。</text
+			><cl-button color="#0f766e" @tap="openLogin">本地演示登录</cl-button></view
+		></business-shell
+	>
+</template>
+<script setup lang="ts">
+import { onShow } from "@dcloudio/uni-app";
+import { appDefinitions, moduleLabels, type ModuleId } from "@coupon-manager/shared";
+import BusinessShell from "@/components/business-shell.uvue";
+import { appConfig } from "@/config/business";
+import { session, requireSession } from "@/stores/session";
+const definition = appDefinitions[appConfig.id];
+onShow(() => {
+	if (definition.private) requireSession();
+});
+function openLogin() {
+	uni.navigateTo({ url: "/pages/business/login" });
+}
+function openModule(module: ModuleId) {
+	uni.navigateTo({ url: "/pages/business/list?module=" + module });
+}
+</script>

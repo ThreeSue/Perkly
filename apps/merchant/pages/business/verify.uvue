@@ -1,0 +1,54 @@
+<template>
+	<business-shell title="优惠券核销" description="先查验券信息，再确认核销">
+		<merchant-pending
+			capability="preview"
+			hint="员工身份与当前门店未验证，扫码和核销暂不可用。"
+		/>
+		<view class="merchant-card">
+			<text class="merchant-heading">扫码核销</text>
+			<text class="merchant-muted">扫描顾客出示的优惠券二维码</text>
+			<view class="merchant-actions"
+				><cl-button disabled icon="scan-line">扫描二维码 · 待接入</cl-button></view
+			>
+			<text class="merchant-label">手动核销</text>
+			<cl-form label-position="top"
+				><cl-form-item label="券码"
+					><cl-input
+						v-model="code"
+						placeholder="输入或粘贴顾客券码"
+						:maxlength="200" /></cl-form-item
+			></cl-form>
+			<text class="merchant-field-note">券码仅作为本页临时输入，不保存、不上传。</text>
+			<view class="merchant-actions"
+				><cl-button disabled>校验券码 · 待接入</cl-button
+				><cl-button v-if="code" border @tap="code = ''">清空券码</cl-button></view
+			>
+		</view>
+		<view class="merchant-card">
+			<text class="merchant-heading">核销确认</text>
+			<text class="merchant-muted"
+				>校验通过后，在这里核对券名称、类型、售价和使用规则，以及有效期、使用状态、适用门店和使用门槛。</text
+			>
+			<cl-form label-position="top"
+				><cl-form-item label="消费金额（适用时填写）"
+					><cl-input
+						disabled
+						type="digit"
+						placeholder="校验通过后按券规则填写" /></cl-form-item
+			></cl-form>
+			<text class="merchant-field-note"
+				>优惠金额以后端试算为准，不能由页面自行计算后认定可核销。</text
+			>
+			<view class="merchant-actions"><cl-button disabled>确认核销 · 待接入</cl-button></view>
+			<text class="merchant-field-note"
+				>核销成功结果或失败原因将在收到真实接口响应后显示。</text
+			>
+		</view>
+	</business-shell>
+</template>
+<script setup lang="ts">
+import BusinessShell from "@/components/business-shell.uvue";
+import MerchantPending from "@/components/merchant-pending.uvue";
+import { ref } from "vue";
+const code = ref("");
+</script>

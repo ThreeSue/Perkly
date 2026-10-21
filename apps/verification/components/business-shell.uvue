@@ -1,0 +1,19 @@
+<template>
+	<cl-page
+		><view class="qgj"
+			><view class="qgj-header"
+				><text class="qgj-demo">券管家 · {{ definition.label }}</text
+				><text class="qgj-title">{{ title }}</text
+				><text class="qgj-muted">{{ definition.description }}</text
+				><text v-if="appConfig.mockEnabled" class="qgj-demo"
+					>本地演示数据 · 未连接真实后端</text
+				></view
+			><slot></slot></view
+	></cl-page>
+</template>
+<script setup lang="ts">
+import { appDefinitions } from "@coupon-manager/shared";
+import { appConfig } from "@/config/business";
+defineProps<{ title: string }>();
+const definition = appDefinitions[appConfig.id];
+</script>

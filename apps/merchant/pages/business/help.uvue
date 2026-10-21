@@ -1,0 +1,29 @@
+<template>
+	<business-shell title="核销帮助" description="操作说明与常见问题">
+		<view class="merchant-card"
+			><text class="merchant-heading">核销操作说明</text
+			><text class="merchant-step">1. 员工登录，选择本人获授权的门店。</text
+			><text class="merchant-step">2. 扫描顾客二维码，或手动输入、粘贴券码。</text
+			><text class="merchant-step">3. 校验券状态、有效期、适用门店和使用门槛。</text
+			><text class="merchant-step">4. 适用时输入消费金额，核对后端返回的优惠金额。</text
+			><text class="merchant-step">5. 确认核销，以后端返回的结果为准。</text></view
+		>
+		<view class="merchant-card"
+			><text class="merchant-heading">为什么暂时不能核销？</text
+			><text class="merchant-muted"
+				>员工身份、门店授权及核销接口尚未接入。当前可浏览页面，不能提交真实核销。</text
+			><text class="merchant-label">没有看到授权门店怎么办？</text
+			><text class="merchant-muted"
+				>接口接入后，仅展示当前账号获授权的门店；授权问题需由商家管理员核对。</text
+			><text class="merchant-label">没有收到明确结果怎么办？</text
+			><text class="merchant-muted"
+				>不要把等待或超时当作成功。接口接入后，应先查询核销结果，避免重复提交。</text
+			></view
+		>
+		<merchant-pending capability="help" />
+	</business-shell>
+</template>
+<script setup lang="ts">
+import BusinessShell from "@/components/business-shell.uvue";
+import MerchantPending from "@/components/merchant-pending.uvue";
+</script>

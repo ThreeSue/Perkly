@@ -1,0 +1,29 @@
+{
+  "name": "coupon-manager-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "check": "node scripts/check-framework.mjs",
+    "test:shared": "node --test tests/shared.test.mjs",
+    "sync:theme": "node scripts/sync-theme.mjs",
+    "format": "prettier --write \"apps/*/api/*.ts\" \"apps/*/mocks/*.ts\" \"apps/*/stores/*.ts\" \"apps/*/types/*.ts\" \"apps/*/config/business.ts\" \"apps/*/pages/business/*.uvue\" \"apps/*/components/business-shell.uvue\" \"packages/shared/src/*.{js,ts}\" \"scripts/*.mjs\" \"tests/*.mjs\"",
+    "format:check": "prettier --check \"apps/*/{api,mocks,stores,types,pages/business}/**/*.{ts,uvue}\" \"apps/*/components/business-shell.uvue\" \"apps/*/config/business.ts\" \"packages/shared/src/*.{js,ts}\" \"scripts/*.mjs\"",
+    "open:client": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App client",
+    "dev:client": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App client -Run",
+    "open:merchant": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App merchant",
+    "dev:merchant": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App merchant -Run",
+    "open:platform-admin": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App platform-admin",
+    "dev:platform-admin": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App platform-admin -Run",
+    "open:merchant-independent": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App merchant-independent",
+    "dev:merchant-independent": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App merchant-independent -Run",
+    "open:verification": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App verification",
+    "dev:verification": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App verification -Run",
+    "test:client": "node --test tests/client.test.mjs",
+    "test:merchant": "node --test tests/merchant.test.mjs",
+    "test:trade": "node --test tests/trade.test.mjs tests/trade-flow.test.mjs"
+  },
+  "devDependencies": {
+    "prettier": "3.5.3",
+    "@vue/compiler-sfc": "3.5.13"
+  }
+}
