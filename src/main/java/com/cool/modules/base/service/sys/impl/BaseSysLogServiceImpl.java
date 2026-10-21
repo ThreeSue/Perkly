@@ -97,6 +97,9 @@ public class BaseSysLogServiceImpl extends BaseServiceImpl<BaseSysLogMapper, Bas
 			newJSONObject.remove("tokenInfo");
 			newJSONObject.remove("refreshToken");
 			newJSONObject.remove("body");
+			for (String sensitive : java.util.List.of("password", "oldPassword", "newPassword", "verifyCode", "smsCode", "token")) {
+				newJSONObject.remove(sensitive);
+			}
 			if (newJSONObject.toString().getBytes().length > logProperties.getMaxByteLength()) {
 				// 超过指定
 				newJSONObject.clear();

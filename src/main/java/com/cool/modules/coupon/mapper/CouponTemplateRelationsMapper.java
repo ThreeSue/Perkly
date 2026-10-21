@@ -3,12 +3,14 @@ package com.cool.modules.coupon.mapper;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+
 import com.mybatisflex.core.query.QueryColumn;
 import com.mybatisflex.core.query.QueryTable;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.row.Row;
 import com.mybatisflex.core.row.RowMapper;
 import org.apache.ibatis.annotations.Select;
+
 import static com.mybatisflex.core.query.QueryMethods.number;
 import static com.mybatisflex.core.query.QueryMethods.select;
 
@@ -50,7 +52,8 @@ public interface CouponTemplateRelationsMapper extends RowMapper {
     }
 
     default long usableStoreCount(Long merchantId, Integer scopeType, Collection<Long> storeIds) {
-        if (merchantId == null || (Integer.valueOf(1).equals(scopeType) && (storeIds == null || storeIds.isEmpty()))) return 0;
+        if (merchantId == null || (Integer.valueOf(1).equals(scopeType) && (storeIds == null || storeIds.isEmpty())))
+            return 0;
         QueryWrapper query = QueryWrapper.create().from("store").eq("merchant_id", merchantId).eq("status", 1);
         if (Integer.valueOf(1).equals(scopeType)) query.in("id", storeIds);
         return selectCountByQuery(null, "store", query);
@@ -136,10 +139,11 @@ public interface CouponTemplateRelationsMapper extends RowMapper {
     int insertProductRow(@org.apache.ibatis.annotations.Param("row") Row row);
 
     default void replaceContents(Long merchantId, Long id,
-            List<com.cool.modules.coupon.controller.admin.params.CouponContentParam> items) {
+                                 List<com.cool.modules.coupon.controller.admin.params.CouponContentParam> items) {
         deleteByQuery(null, "coupon_product", QueryWrapper.create().eq("coupon_template_id", id).eq("relation_type", 2));
         for (var item : items) {
-            if (item.getProductId() == null) item.setProductId(insertProduct(merchantId, item.getName(), item.getType()));
+            if (item.getProductId() == null)
+                item.setProductId(insertProduct(merchantId, item.getName(), item.getType()));
             insert(null, "coupon_product", Row.of("merchant_id", merchantId).set("coupon_template_id", id)
                     .set("product_id", item.getProductId()).set("relation_type", 2).set("quantity", item.getQuantity())
                     .set("item_description", item.getItemDescription()).setRaw("create_time", "NOW()"));

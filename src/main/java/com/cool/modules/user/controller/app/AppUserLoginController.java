@@ -11,6 +11,7 @@ import com.cool.modules.user.controller.app.params.LoginParam;
 import com.cool.modules.user.controller.app.params.RefreshTokenParam;
 import com.cool.modules.user.controller.app.params.SmsCodeParam;
 import com.cool.modules.user.controller.app.params.RegisterParam;
+import com.cool.modules.user.controller.app.params.ResetPasswordParam;
 import com.cool.modules.user.controller.app.params.WechatBindPhoneParam;
 import com.cool.modules.user.controller.app.params.WechatBindingConfirmParam;
 import com.cool.modules.user.service.UserLoginService;
@@ -30,6 +31,14 @@ public class AppUserLoginController {
     private final UserLoginService userLoginService;
 
     private final BaseSysLoginService baseSysLoginService;
+
+    @TokenIgnore
+    @Operation(summary = "忘记密码", description = "验证手机号短信验证码后重设密码，不自动登录")
+    @PostMapping("/resetPassword")
+    public R resetPassword(@RequestBody ResetPasswordParam param) {
+        userLoginService.resetPassword(param.getPhone(), param.getSmsCode(), param.getPassword());
+        return R.ok();
+    }
 
     @TokenIgnore
     @Operation(summary = "确认微信绑定并选择保留的昵称头像")

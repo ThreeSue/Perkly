@@ -57,6 +57,7 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public Long add(MerchantStoreEntity entity) {
         if (entity.getStatus() == null) entity.setStatus(1);
         normalize(entity);
@@ -65,6 +66,7 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public boolean update(MerchantStoreEntity entity) {
         if (entity.getId() == null) throw new CoolException("门店ID不能为空");
         MerchantStoreEntity existing = getById(entity.getId());
@@ -90,13 +92,11 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
         MerchantInfoEntity merchant = merchantService.getById(entity.getMerchantId());
         if (merchant == null) throw new CoolException("所属商家不存在");
         if (requireEnabled && !Integer.valueOf(1).equals(merchant.getStatus())) throw new CoolException("请选择启用中的商家");
-        if (entity.getCategoryId() == null) throw new CoolException("门店分类不能为空");
-        MerchantStoreCategoryEntity category = categoryService.getById(entity.getCategoryId());
-        if (category == null) throw new CoolException("门店分类不存在");
-        if (!Objects.equals(category.getMerchantId(), entity.getMerchantId())) {
-            throw new CoolException("门店分类必须属于所选商家");
-        }
-        if (requireEnabled && !Integer.valueOf(1).equals(category.getStatus())) throw new CoolException("请选择启用中的门店分类");
+        if (entity.getCategoryId() == null) throw new CoolException("门店类型不能为空");
+        MerchantStoreCategoryEntity category = categoryService.getOne(QueryWrapper.create()
+                .eq(MerchantStoreCategoryEntity::getId, entity.getCategoryId()).forUpdate());
+        if (category == null) throw new CoolException("门店类型不存在");
+        if (requireEnabled && !Integer.valueOf(1).equals(category.getStatus())) throw new CoolException("请选择启用中的门店类型");
         if (StrUtil.isBlank(entity.getName()) || entity.getName().length() > 100) {
             throw new CoolException("门店名称不能为空且不能超过100个字符");
         }

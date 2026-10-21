@@ -111,6 +111,9 @@ public class BaseSysLoginServiceImpl implements BaseSysLoginService {
 			"错误的refreshToken");
 		BaseSysUserEntity baseSysUserEntity =
 			baseSysUserMapper.selectOneById(Convert.toLong(jwt.getPayload("userId")));
+		CoolPreconditions.check(!UserTypeEnum.ADMIN.name().equals(jwt.getPayload("userType"))
+			|| baseSysUserEntity == null || baseSysUserEntity.getMerchantId() != null
+			|| !Integer.valueOf(1).equals(baseSysUserEntity.getStatus()), "请使用有效运营账号");
 		Long[] roleIds = baseSysPermsService.getRoles(baseSysUserEntity);
 		return generateToken(roleIds, baseSysUserEntity, refreshToken);
 	}

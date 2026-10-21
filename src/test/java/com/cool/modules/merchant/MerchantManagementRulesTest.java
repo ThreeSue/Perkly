@@ -65,7 +65,7 @@ class MerchantManagementRulesTest {
     @Test void disabledMerchantAllowsMaintainingAndDisablingExistingStoreButRejectsReenable() {
         var merchants = mock(MerchantInfoService.class); var categories = mock(MerchantStoreCategoryService.class);
         var merchant = new MerchantInfoEntity(); merchant.setStatus(0); when(merchants.getById(1L)).thenReturn(merchant);
-        var category = new MerchantStoreCategoryEntity(); category.setMerchantId(1L); category.setStatus(0); when(categories.getById(2L)).thenReturn(category);
+        var category = new MerchantStoreCategoryEntity(); category.setStatus(0); when(categories.getOne(any(QueryWrapper.class))).thenReturn(category);
         var service = spy(new MerchantStoreServiceImpl(merchants, categories)); var mapper = mock(MerchantStoreMapper.class);
         ReflectionTestUtils.setField(service, "mapper", mapper); when(mapper.update(any(MerchantStoreEntity.class))).thenReturn(1);
         doReturn(store(1)).when(service).getById(5L);
@@ -74,29 +74,31 @@ class MerchantManagementRulesTest {
         assertThrows(CoolException.class, () -> service.update(store(1)));
         assertThrows(CoolException.class, () -> service.add(store(0)));
     }
-    @Test void storeRejectsCrossMerchantCategoryInvalidPhoneAndIncompleteCoordinates() {
+    @Test void storeRejectsMissingTypeInvalidPhoneAndIncompleteCoordinates() {
         var merchants = mock(MerchantInfoService.class); var categories = mock(MerchantStoreCategoryService.class);
         var merchant = new MerchantInfoEntity(); merchant.setStatus(1); when(merchants.getById(1L)).thenReturn(merchant);
-        var category = new MerchantStoreCategoryEntity(); category.setMerchantId(9L); category.setStatus(1); when(categories.getById(2L)).thenReturn(category);
+        var category = new MerchantStoreCategoryEntity(); category.setStatus(1); when(categories.getOne(any(QueryWrapper.class))).thenReturn(category);
         var service = new MerchantStoreServiceImpl(merchants, categories);
+        when(categories.getOne(any(QueryWrapper.class))).thenReturn(null);
         assertThrows(CoolException.class, () -> service.add(store(1)));
-        category.setMerchantId(1L); var invalid = store(1); invalid.setPhone("随便填写");
+        when(categories.getOne(any(QueryWrapper.class))).thenReturn(category);
+        var invalid = store(1); invalid.setPhone("随便填写");
         assertThrows(CoolException.class, () -> service.add(invalid));
         final var coordinates = store(1); coordinates.setLongitude(java.math.BigDecimal.ONE);
         assertThrows(CoolException.class, () -> service.add(coordinates));
     }
-    @Test void disabledMerchantAllowsMaintainingCategoryAndDeleteStillChecksReferences() {
-        var merchants = mock(MerchantInfoService.class); var stores = mock(MerchantStoreMapper.class);
-        var merchant = new MerchantInfoEntity(); merchant.setStatus(0); when(merchants.getById(1L)).thenReturn(merchant);
-        var service = spy(new MerchantStoreCategoryServiceImpl(merchants, stores)); var mapper = mock(MerchantStoreCategoryMapper.class);
-        ReflectionTestUtils.setField(service, "mapper", mapper); when(mapper.update(any(MerchantStoreCategoryEntity.class))).thenReturn(1);
-        var data = new MerchantStoreCategoryEntity(); data.setId(2L); data.setMerchantId(1L); data.setName("直营"); data.setStatus(0);
-        var old = new MerchantStoreCategoryEntity(); old.setId(2L); old.setMerchantId(1L); old.setStatus(1);
-        doReturn(old).when(service).getById(2L); doReturn(0L).when(service).count(any(QueryWrapper.class));
-        assertTrue(service.update(data)); old.setStatus(0); data.setStatus(1);
-        assertThrows(CoolException.class, () -> service.update(data));
-        when(stores.selectCountByQuery(any(QueryWrapper.class))).thenReturn(1L);
-        assertThrows(CoolException.class, () -> service.delete(2L));
-        verify(mapper, never()).deleteBatchByIds(anyCollection());
+    @Test void storeTypeRejectsInvalidNameSortAndStatus() {
+        var mapper = mock(MerchantStoreCategoryMapper.class);
+        var service = new MerchantStoreCategoryServiceImpl();
+        ReflectionTestUtils.setField(service, "mapper", mapper);
+        var data = new MerchantStoreCategoryEntity(); data.setName("   ");
+        assertThrows(CoolException.class, () -> service.add(data));
+        data.setName("有效类型"); data.setSort(-1);
+        assertThrows(CoolException.class, () -> service.add(data));
+        data.setSort(0); data.setStatus(2);
+        assertThrows(CoolException.class, () -> service.add(data));
+        verify(mapper, never()).insertSelective(any(MerchantStoreCategoryEntity.class));
+        assertThrows(CoolException.class, () -> service.delete(new Long[]{}));
+        assertThrows(CoolException.class, () -> service.delete(-1L));
     }
 }

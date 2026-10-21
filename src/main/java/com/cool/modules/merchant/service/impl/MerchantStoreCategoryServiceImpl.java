@@ -1,132 +1,105 @@
 package com.cool.modules.merchant.service.impl;
 
-import cn.hutool.core.util.StrUtil;
 import com.cool.core.base.BaseServiceImpl;
 import com.cool.core.exception.CoolException;
-import com.cool.modules.merchant.entity.MerchantInfoEntity;
 import com.cool.modules.merchant.entity.MerchantStoreCategoryEntity;
 import com.cool.modules.merchant.mapper.MerchantStoreCategoryMapper;
 import com.cool.modules.merchant.mapper.MerchantStoreMapper;
-import com.cool.modules.merchant.service.MerchantInfoService;
+import com.cool.modules.merchant.entity.MerchantStoreEntity;
 import com.cool.modules.merchant.service.MerchantStoreCategoryService;
 import com.mybatisflex.core.query.QueryWrapper;
-import java.util.HashSet;
-import java.util.Set;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.Arrays;
+import java.util.Objects;
 
+/** 由运营人员统一维护公共门店类型，商家共用，关联门店后禁止删除。 */
 @Service
+@Transactional(rollbackFor = Exception.class)
 public class MerchantStoreCategoryServiceImpl
         extends BaseServiceImpl<MerchantStoreCategoryMapper, MerchantStoreCategoryEntity>
         implements MerchantStoreCategoryService {
-    private final MerchantInfoService merchantService;
-    private final MerchantStoreMapper storeMapper;
-
-    public MerchantStoreCategoryServiceImpl(MerchantInfoService merchantService,
-            MerchantStoreMapper storeMapper) {
-        this.merchantService = merchantService;
-        this.storeMapper = storeMapper;
-    }
-
     @org.springframework.beans.factory.annotation.Autowired
     private MerchantSummaryService summaries;
+    @org.springframework.beans.factory.annotation.Autowired
+    private MerchantStoreMapper stores;
 
     @Override
     public Object page(cn.hutool.json.JSONObject params, com.mybatisflex.core.paginate.Page<MerchantStoreCategoryEntity> page, QueryWrapper query) {
-        com.mybatisflex.core.paginate.Page<MerchantStoreCategoryEntity> result = (com.mybatisflex.core.paginate.Page<MerchantStoreCategoryEntity>) super.page(params, page, query);
+        var result = (com.mybatisflex.core.paginate.Page<MerchantStoreCategoryEntity>) super.page(params, page, ordered(query));
         summaries.categories(result.getRecords());
         return result;
     }
 
     @Override
     public Object list(cn.hutool.json.JSONObject params, QueryWrapper query) {
-        java.util.List<MerchantStoreCategoryEntity> rows = (java.util.List<MerchantStoreCategoryEntity>) super.list(params, query);
+        var rows = (java.util.List<MerchantStoreCategoryEntity>) super.list(params, ordered(query));
         summaries.categories(rows);
         return rows;
     }
 
+    private QueryWrapper ordered(QueryWrapper query) {
+        return query.orderBy(MerchantStoreCategoryEntity::getSort, true)
+                .orderBy(MerchantStoreCategoryEntity::getId, true);
+    }
+
     @Override
     public Long add(MerchantStoreCategoryEntity entity) {
-        normalize(entity);
-        validate(entity, null);
-        return super.add(entity);
+        if (entity.getSort() == null) entity.setSort(0);
+        if (entity.getStatus() == null) entity.setStatus(1);
+        validate(entity);
+        try { return super.add(entity); }
+        catch (org.springframework.dao.DuplicateKeyException duplicate) {
+            throw new CoolException("门店类型名称不能重复");
+        }
     }
 
     @Override
     public boolean update(MerchantStoreCategoryEntity entity) {
-        if (entity.getId() == null) throw new CoolException("门店分类ID不能为空");
-        MerchantStoreCategoryEntity existing = getById(entity.getId());
-        if (existing == null) throw new CoolException("门店分类不存在");
-        normalize(entity);
-        validate(entity, existing);
-        return super.update(entity);
+        MerchantStoreCategoryEntity existing = lock(entity.getId());
+        if (entity.getName() == null) entity.setName(existing.getName());
+        if (entity.getSort() == null) entity.setSort(existing.getSort());
+        if (entity.getStatus() == null) entity.setStatus(existing.getStatus());
+        validate(entity);
+        try { return super.update(entity); }
+        catch (org.springframework.dao.DuplicateKeyException duplicate) {
+            throw new CoolException("门店类型名称不能重复");
+        }
     }
 
     @Override
     public boolean delete(Long... ids) {
-        for (Long id : ids) {
-            if (count(QueryWrapper.create().eq("parent_id", id)) > 0) {
-                throw new CoolException("请先删除该分类下的子分类");
-            }
-            if (storeMapper.selectCountByQuery(QueryWrapper.create()
-                    .eq("category_id", id)) > 0) {
-                throw new CoolException("该分类下还有门店，不能删除");
-            }
+        if (ids == null || ids.length == 0 || Arrays.stream(ids).anyMatch(id -> id == null || id <= 0))
+            throw new CoolException("请选择有效的门店类型");
+        Long[] ordered = Arrays.stream(ids).distinct().sorted().toArray(Long[]::new);
+        for (Long id : ordered) {
+            MerchantStoreCategoryEntity type = lock(id);
+            // 使用锁定读，避免批量删除事务中的旧快照漏掉刚提交的新门店。
+            if (stores.selectOneByQuery(QueryWrapper.create().eq(MerchantStoreEntity::getCategoryId, id)
+                    .limit(1).forUpdate()) != null)
+                throw new CoolException("门店类型“" + type.getName() + "”下还有门店，请先调整门店归属后再删除");
         }
-        return super.delete(ids);
+        return super.delete(ordered);
     }
 
-    private void normalize(MerchantStoreCategoryEntity entity) {
-        if (entity.getName() != null) entity.setName(entity.getName().trim());
-        if (entity.getSort() == null) entity.setSort(0);
-        if (entity.getShowOnFront() == null) entity.setShowOnFront(1);
-        if (entity.getStatus() == null) entity.setStatus(1);
+    private MerchantStoreCategoryEntity lock(Long id) {
+        if (id == null || id <= 0) throw new CoolException("请选择有效的门店类型");
+        MerchantStoreCategoryEntity row = mapper.selectOneByQuery(QueryWrapper.create()
+                .eq(MerchantStoreCategoryEntity::getId, id).forUpdate());
+        if (row == null) throw new CoolException("门店类型不存在");
+        return row;
     }
 
-    private void validate(MerchantStoreCategoryEntity entity, MerchantStoreCategoryEntity existing) {
-        if (entity.getMerchantId() == null) throw new CoolException("所属商家不能为空");
-        MerchantInfoEntity merchant = merchantService.getById(entity.getMerchantId());
-        if (merchant == null) throw new CoolException("所属商家不存在");
-        boolean requireEnabled = existing == null || (Integer.valueOf(1).equals(entity.getStatus()) && !Integer.valueOf(1).equals(existing.getStatus()))
-                || !java.util.Objects.equals(existing.getMerchantId(), entity.getMerchantId());
-        if (requireEnabled && !Integer.valueOf(1).equals(merchant.getStatus())) throw new CoolException("请选择启用中的商家");
-        if (StrUtil.isBlank(entity.getName())) throw new CoolException("分类名称不能为空");
+    private void validate(MerchantStoreCategoryEntity entity) {
+        String name = entity.getName();
+        if (name == null || name.isBlank()) throw new CoolException("门店类型名称不能为空");
+        entity.setName(name.trim());
+        if (entity.getName().length() > 50) throw new CoolException("门店类型名称不能超过50个字符");
         if (entity.getSort() < 0) throw new CoolException("排序不能小于0");
-        if (entity.getIcon() != null && entity.getIcon().length() > 500) throw new CoolException("图标地址不能超过500个字符");
-        if (entity.getName().length() > 50) throw new CoolException("分类名称不能超过50个字符");
-        if (!validFlag(entity.getStatus()) || !validFlag(entity.getShowOnFront())) {
-            throw new CoolException("分类状态和前台展示值只能为0或1");
-        }
-        if (existing != null && !existing.getMerchantId().equals(entity.getMerchantId())) {
-            boolean hasChildren = count(QueryWrapper.create().eq("parent_id",
-                    existing.getId())) > 0;
-            boolean hasStores = storeMapper.selectCountByQuery(QueryWrapper.create()
-                    .eq("category_id", existing.getId())) > 0;
-            if (hasChildren || hasStores) throw new CoolException("分类已关联子分类或门店，不能更换所属商家");
-        }
-        if (entity.getParentId() != null) {
-            Set<Long> visited = new HashSet<>();
-            Long parentId = entity.getParentId();
-            while (parentId != null) {
-                if (entity.getId() != null && parentId.equals(entity.getId())) {
-                    throw new CoolException("上级分类不能选择自身或下级分类");
-                }
-                if (!visited.add(parentId)) throw new CoolException("门店分类层级存在循环关联");
-                MerchantStoreCategoryEntity parent = getById(parentId);
-                if (parent == null) throw new CoolException("上级门店分类不存在");
-                if (!parent.getMerchantId().equals(entity.getMerchantId())) {
-                    throw new CoolException("上级分类必须属于同一个商家");
-                }
-                parentId = parent.getParentId();
-            }
-        }
-        QueryWrapper duplicate = QueryWrapper.create()
-                .eq("merchant_id", entity.getMerchantId())
-                .eq("name", entity.getName());
-        if (entity.getParentId() == null) duplicate.isNull("parent_id");
-        else duplicate.eq("parent_id", entity.getParentId());
-        if (entity.getId() != null) duplicate.ne("id", entity.getId());
-        if (count(duplicate) > 0) throw new CoolException("同一商家、同一上级下分类名称不能重复");
+        if (!Objects.equals(entity.getStatus(), 0) && !Objects.equals(entity.getStatus(), 1))
+            throw new CoolException("状态只能为启用或停用");
+        QueryWrapper duplicate = QueryWrapper.create().eq(MerchantStoreCategoryEntity::getName, entity.getName());
+        if (entity.getId() != null) duplicate.ne(MerchantStoreCategoryEntity::getId, entity.getId());
+        if (mapper.selectCountByQuery(duplicate) > 0) throw new CoolException("门店类型名称不能重复");
     }
-
-    private boolean validFlag(Integer value) { return Integer.valueOf(0).equals(value) || Integer.valueOf(1).equals(value); }
 }

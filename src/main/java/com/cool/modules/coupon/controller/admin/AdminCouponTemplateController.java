@@ -51,7 +51,7 @@ public class AdminCouponTemplateController extends BaseController<CouponTemplate
     @PostMapping("/audit")
     public R<?> audit(@Valid @RequestBody CouponPublicationParam req) {
         requirePublicationPermission();
-        return R.ok(publications.audit(req.getId(), req.getVersion(), req.getApproved()));
+        return R.ok(publications.audit(req.getId(), req.getVersion(), req.getApproved(), req.getReason()));
     }
 
     @PostMapping("/publish")

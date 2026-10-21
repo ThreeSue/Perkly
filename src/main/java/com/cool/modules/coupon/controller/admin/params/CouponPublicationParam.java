@@ -20,4 +20,6 @@ public class CouponPublicationParam {
     @NotNull @Positive
     private Integer version;
     private Boolean approved;
+    @jakarta.validation.constraints.Size(max=500)
+    private String reason;
 }

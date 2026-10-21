@@ -62,7 +62,7 @@ class AppDiscoveryPersistenceTest {
         root = insert("INSERT INTO merchant_category(name,sort,status,show_on_front) VALUES('公开查询回滚分类',0,1,1)");
         long category = insert("INSERT INTO merchant_category(name,parent_id,sort,status,show_on_front) VALUES('公开查询回滚子分类',?,0,1,1)", root);
         merchant = insert("INSERT INTO merchant_info(name,category_id,contact_name,contact_phone,status,remark) VALUES('公开查询回滚商家',?,'内部联系人','13800000000',1,'不可泄露的内部备注')", category);
-        long storeCategory = insert("INSERT INTO store_category(merchant_id,name,sort,status,show_on_front) VALUES(?,'回滚门店分类',0,1,1)", merchant);
+        long storeCategory = jdbc.queryForObject("SELECT id FROM store_type WHERE name='直营店'", Long.class);
         store = insert("INSERT INTO store(merchant_id,category_id,name,address,phone,status) VALUES(?,?,'公开查询门店','测试地址','13800000000',1)", merchant, storeCategory);
         secondStore = insert("INSERT INTO store(merchant_id,category_id,name,address,phone,status) VALUES(?,?,'第二门店','测试地址','13800000000',1)", merchant, storeCategory);
     }

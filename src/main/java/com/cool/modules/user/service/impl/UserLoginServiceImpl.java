@@ -97,15 +97,37 @@ public class UserLoginServiceImpl implements UserLoginService {
         return generateTokenByPhone(phone);
     }
 
+    @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public void resetPassword(String phone, String smsCode, String password) {
+        UserSmsUtil.validatePhone(phone);
+        // 先校验密码规则，再消费一次性短信验证码；验证手机号前不暴露账号是否存在。
+        String encoded = UserPasswordUtil.encode(password);
+        userSmsUtil.checkVerifyCode(phone, smsCode, SendSceneEnum.ALL);
+        UserInfoEntity user = userInfoService.getOne(QueryWrapper.create().eq(UserInfoEntity::getPhone, phone));
+        if (user == null || !Integer.valueOf(1).equals(user.getStatus())) throw new CoolException("账号不存在或不可用");
+        UserInfoEntity changes = new UserInfoEntity();
+        changes.setPassword(encoded);
+        // 仅更新密码，附带手机号和状态条件，避免验证期间绑定关系或状态变化时误更新。
+        QueryWrapper condition = QueryWrapper.create().eq(UserInfoEntity::getId, user.getId())
+                .eq(UserInfoEntity::getPhone, phone).eq(UserInfoEntity::getStatus, 1);
+        if (!userInfoService.update(changes, condition)) throw new CoolException("重设未成功，请重新验证手机号后重试");
+        coolCache.del("app:userDetails:" + user.getId());
+    }
+
 
     @Override
     public Object refreshToken(String refreshToken) {
         CoolPreconditions.check(!jwtTokenUtil.validateRefreshToken(refreshToken), "错误的refreshToken");
         JWT jwt = jwtTokenUtil.getTokenInfo(refreshToken);
-        CoolPreconditions.check(jwt == null || !(Boolean) jwt.getPayload("isRefresh"),
+        CoolPreconditions.check(jwt == null || !Boolean.TRUE.equals(jwt.getPayload("isRefresh"))
+                || !UserTypeEnum.APP.name().equals(jwt.getPayload("userType")),
             "错误的refreshToken");
         Long userId = Convert.toLong(jwt.getPayload("userId"));
-        return generateToken(userId, refreshToken);
+        UserInfoEntity user = userId == null ? null : userInfoService.getById(userId);
+        CoolPreconditions.check(!UserPasswordUtil.matchesCredentialVersion(user, jwt.getPayload("credentialVersion")),
+                "登录已失效，请重新登录");
+        return generateToken(user, refreshToken);
     }
 
     @Override
@@ -348,6 +370,7 @@ public class UserLoginServiceImpl implements UserLoginService {
             "账号不可用");
         Dict tokenInfo = Dict.create()
             .set("userType", UserTypeEnum.APP.name())
+            .set("credentialVersion", UserPasswordUtil.credentialVersion(userInfoEntity))
             .set("userId", userInfoEntity.getId());
         String token = jwtTokenUtil.generateToken(tokenInfo);
         if (ObjUtil.isEmpty(refreshToken)) {

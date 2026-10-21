@@ -7,7 +7,9 @@ import com.mybatisflex.core.query.QueryCondition;
 import com.mybatisflex.core.query.QueryTable;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.query.RawQueryColumn;
+
 import java.util.List;
+
 import static com.mybatisflex.core.query.QueryMethods.*;
 
 /**
@@ -22,7 +24,9 @@ import static com.mybatisflex.core.query.QueryMethods.*;
 public final class AdminUserAccountQueries {
     private static final QueryTable USER = new QueryTable("user_info").as("u");
     private static final QueryTable WECHAT = new QueryTable("user_wx").as("w");
-    private AdminUserAccountQueries() {}
+
+    private AdminUserAccountQueries() {
+    }
 
     public static QueryWrapper list(JSONObject params) {
         QueryWrapper query = projection();

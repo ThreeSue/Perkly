@@ -27,19 +27,19 @@ class MerchantSummaryServiceTest {
         assertTrue(sql.contains("GROUP BY"), sql); assertTrue(sql.contains(" IN "), sql);
         verifyNoInteractions(merchants, categories);
     }
-    @Test void categoryCountsAndStoreNamesUseBatchesAndRejectMismatchedCategoryLabel() {
+    @Test void publicTypeCountsAndLabelsAreSharedAcrossMerchants() {
         var merchants = mock(MerchantInfoMapper.class); var categories = mock(MerchantStoreCategoryMapper.class); var stores = mock(MerchantStoreMapper.class);
         var service = new MerchantSummaryService(merchants, categories, stores);
         var merchant = new MerchantInfoEntity(); merchant.setId(3L); merchant.setName("青禾");
         when(merchants.selectListByIds(anyCollection())).thenReturn(List.of(merchant));
-        var category = new MerchantStoreCategoryEntity(); category.setId(5L); category.setMerchantId(3L); category.setName("直营");
+        var category = new MerchantStoreCategoryEntity(); category.setId(5L); category.setName("直营");
         when(categories.selectListByIds(anyCollection())).thenReturn(List.of(category));
         Row count = new Row(); count.set("category_id", 5L); count.set("total", 2L);
         when(stores.selectRowsByQuery(any(QueryWrapper.class))).thenReturn(List.of(count));
-        service.categories(List.of(category)); assertEquals("青禾", category.getMerchantName()); assertEquals(2L, category.getStoreCount());
+        service.categories(List.of(category)); assertEquals(2L, category.getStoreCount());
         var store = new MerchantStoreEntity(); store.setMerchantId(3L); store.setCategoryId(5L);
         service.stores(List.of(store)); assertEquals("青禾", store.getMerchantName()); assertEquals("直营", store.getCategoryName());
-        category.setMerchantId(99L); service.stores(List.of(store)); assertEquals("分类不存在", store.getCategoryName());
+        store.setMerchantId(99L); service.stores(List.of(store)); assertEquals("直营", store.getCategoryName());
         verify(stores, times(1)).selectRowsByQuery(any(QueryWrapper.class));
     }
 }

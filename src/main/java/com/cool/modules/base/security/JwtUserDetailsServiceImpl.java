@@ -33,7 +33,7 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService {
         BaseSysUserEntity sysUserEntity = baseSysUserService.getMapper().selectOneByQuery(
             QueryWrapper.create().eq(BaseSysUserEntity::getUsername, username)
                 .eq(BaseSysUserEntity::getStatus, 1));
-        if (ObjectUtil.isEmpty(sysUserEntity)) {
+        if (ObjectUtil.isEmpty(sysUserEntity) || sysUserEntity.getMerchantId() != null) {
             throw new UsernameNotFoundException("用户名不存在");
         }
         List<GrantedAuthority> authority = new ArrayList<>();

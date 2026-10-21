@@ -43,15 +43,13 @@ public class MerchantSummaryService {
         rows.forEach(row -> {
             row.setMerchantName(names.getOrDefault(row.getMerchantId(), "商家不存在"));
             MerchantStoreCategoryEntity category = categoryMap.get(row.getCategoryId());
-            row.setCategoryName(category != null && Objects.equals(category.getMerchantId(), row.getMerchantId()) ? category.getName() : "分类不存在");
+            row.setCategoryName(category != null ? category.getName() : "门店类型不存在");
         });
     }
     public void categories(List<MerchantStoreCategoryEntity> rows) {
         if (rows.isEmpty()) return;
-        Map<Long, String> names = merchantNames(rows.stream().map(MerchantStoreCategoryEntity::getMerchantId).distinct().toList());
         Map<Long, Long> counts = counts("category_id", rows.stream().map(MerchantStoreCategoryEntity::getId).toList());
         rows.forEach(row -> {
-            row.setMerchantName(names.getOrDefault(row.getMerchantId(), "商家不存在"));
             row.setStoreCount(counts.getOrDefault(row.getId(), 0L));
         });
     }

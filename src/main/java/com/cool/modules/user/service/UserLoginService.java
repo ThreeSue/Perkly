@@ -7,6 +7,9 @@ public interface UserLoginService {
     /** 验证手机号，创建带密码的普通用户账号。 */
     Object register(String phone, String smsCode, String password);
 
+    /** 未登录用户通过短信验证后重设已有账号的密码。 */
+    void resetPassword(String phone, String smsCode, String password);
+
     /**
      * 发送短信验证码
      * @param phone

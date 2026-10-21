@@ -40,6 +40,10 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
         <dependency>
@@ -110,6 +114,11 @@
             <version>${fastjson2.version}</version>
         </dependency>
         <!-- mybatis-flex-ext -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.0</version>
+        </dependency>
         <dependency>
             <groupId>com.tangzc</groupId>
             <artifactId>mybatis-flex-ext-spring-boot3-starter</artifactId>

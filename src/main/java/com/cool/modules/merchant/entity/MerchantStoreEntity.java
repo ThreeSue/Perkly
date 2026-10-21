@@ -17,7 +17,7 @@ public class MerchantStoreEntity extends BaseEntity<MerchantStoreEntity> {
     private Long merchantId;
 
     @Index
-    @ColumnDefine(comment = "所属门店分类ID", notNull = true)
+    @ColumnDefine(comment = "平台公共门店类型ID，关联store_type.id", notNull = true)
     private Long categoryId;
 
     @ColumnDefine(comment = "门店名称", length = 100, notNull = true)

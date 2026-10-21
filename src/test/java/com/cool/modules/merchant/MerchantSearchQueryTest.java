@@ -69,15 +69,15 @@ class MerchantSearchQueryTest {
     }
 
     @Test
-    void storeCategoryTreeListAndPageApplyMerchantNameAndVisibilityTogether() {
+    void publicStoreTypeQueriesIgnoreLegacyMerchantAndVisibilityFilters() {
         for (String endpoint : List.of("list", "page")) {
             String query = sql(new AdminMerchantStoreCategoryController(), MerchantStoreCategoryEntity.class, endpoint,
                     new JSONObject().set("merchantId", 3).set("name", "加盟")
                             .set("status", 1).set("showOnFront", 0));
-            assertTrue(query.matches("(?s).*merchant_id`? = 3.*"), query);
+            assertFalse(query.contains("merchant_id"), query);
             assertTrue(query.contains("加盟"), query);
             assertTrue(query.matches("(?s).*status`? = 1.*"), query);
-            assertTrue(query.matches("(?s).*show_on_front`? = 0.*"), query);
+            assertFalse(query.contains("show_on_front"), query);
         }
     }
 

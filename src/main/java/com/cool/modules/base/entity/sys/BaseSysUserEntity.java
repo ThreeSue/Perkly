@@ -18,6 +18,13 @@ import java.util.List;
 @Table(value = "base_sys_user", comment = "系统用户表")
 public class BaseSysUserEntity extends TenantEntity<BaseSysUserEntity> {
     @Index
+    @ColumnDefine(comment = "所属商家，平台运营账号为空")
+    private Long merchantId;
+
+    @ColumnDefine(comment = "商家角色，首版仅开放OWNER商家管理员", length = 20)
+    private String merchantRole;
+
+    @Index
     @ColumnDefine(comment = "部门ID", type = "bigint")
     private Long departmentId;
 

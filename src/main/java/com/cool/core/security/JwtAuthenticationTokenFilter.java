@@ -9,6 +9,8 @@ import com.cool.core.enums.UserTypeEnum;
 import com.cool.core.security.jwt.JwtTokenUtil;
 import com.cool.core.security.jwt.JwtUser;
 import com.cool.core.util.PathUtils;
+import com.cool.modules.user.mapper.UserInfoMapper;
+import com.cool.modules.user.util.UserPasswordUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,12 +37,21 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
     final private JwtTokenUtil jwtTokenUtil;
     final private CoolCache coolCache;
     final private IgnoredUrlsProperties ignoredUrlsProperties;
+    final private UserInfoMapper appUsers;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.merchant.service.MerchantAccountService merchantAccounts;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain)
             throws ServletException, IOException {
         String requestURI = request.getRequestURI();
+        if (requestURI.equals("/merchant/auth/login") || requestURI.equals("/merchant/auth/captcha")
+                || requestURI.equals("/merchant/auth/refreshToken") || requestURI.equals("/merchant/auth/register")
+                || requestURI.equals("/merchant/auth/resubmit") || requestURI.equals("/merchant/auth/registrationCategories")) {
+            chain.doFilter(request, response);
+            return;
+        }
         if (PathUtils.isMatch(ignoredUrlsProperties.getAdminAuthUrls(), requestURI)) {
             // 请求路径在忽略后台鉴权url里支持通配符，放行
             chain.doFilter(request, response);
@@ -48,9 +59,39 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
         }
         String authToken = request.getHeader("Authorization");
         if (!StrUtil.isEmpty(authToken)) {
-            JWT jwt = jwtTokenUtil.getTokenInfo(authToken);
+            JWT jwt;
+            try { jwt = jwtTokenUtil.getTokenInfo(authToken); }
+            catch (Exception invalidToken) { response.sendError(401); return; }
 
             Object userType = jwt.getPayload("userType");
+            if (requestURI.startsWith("/merchant/") || Objects.equals(userType, "MERCHANT")) {
+                if (!requestURI.startsWith("/merchant/")) { response.sendError(403); return; }
+                try {
+                    if (Boolean.TRUE.equals(jwt.getPayload("applicant"))) {
+                        var application = merchantAccounts.validateApplicant(authToken, false);
+                        if (!java.util.Set.of("/merchant/workspace/me", "/merchant/auth/onboarding", "/merchant/auth/logout").contains(requestURI)) {
+                            response.sendError(403, "必须通过入驻审批后才能开始经营"); return;
+                        }
+                        var principal = new com.cool.core.security.jwt.JwtUser(application.getId(), application.getUsername(), "",
+                                java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_MERCHANT")), true);
+                        principal.setUserTypeEnum(UserTypeEnum.MERCHANT);
+                        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
+                        request.setAttribute("merchantApplication", application);
+                        chain.doFilter(request, response); return;
+                    }
+                    var user = merchantAccounts.validate(authToken, false);
+                    var principal = merchantAccounts.principal(user);
+                    var authentication = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    request.setAttribute("merchantUserId", user.getId());
+                    request.setAttribute("tokenInfo", jwt);
+                } catch (Exception invalidMerchant) { response.sendError(401); return; }
+                chain.doFilter(request, response);
+                return;
+            }
+            if (requestURI.startsWith("/admin/") && !Objects.equals(userType, "ADMIN")) {
+                response.sendError(403); return;
+            }
             if (Objects.equals(userType, UserTypeEnum.APP.name())) {
                 // app
                 handlerAppRequest(request, jwt, authToken);
@@ -70,7 +111,9 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
             && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = coolCache.get("app:userDetails:" + userId,
                 JwtUser.class);
-            if (jwtTokenUtil.validateToken(authToken) && userDetails != null) {
+            if (jwtTokenUtil.validateToken(authToken) && userDetails != null
+                    && Boolean.FALSE.equals(jwt.getPayload("isRefresh"))
+                    && UserPasswordUtil.matchesCredentialVersion(appUsers.selectOneById(userId), jwt.getPayload("credentialVersion"))) {
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(
@@ -95,7 +138,8 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
             Integer rv = coolCache.get("admin:passwordVersion:" + jwt.getPayload("userId"),
                 Integer.class);
             if (jwtTokenUtil.validateToken(authToken, username) && Objects.equals(passwordV, rv)
-                && userDetails != null) {
+                && userDetails != null && Boolean.FALSE.equals(jwt.getPayload("isRefresh"))
+                && merchantAccounts.platformAccount(Convert.toLong(jwt.getPayload("userId")))) {
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(

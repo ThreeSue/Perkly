@@ -37,6 +37,7 @@ public class MerchantInfoEntity extends BaseEntity<MerchantInfoEntity> {
     @ColumnDefine(comment = "平台内部备注", length = 1000)
     private String remark;
 
+
     @org.dromara.autotable.annotation.Ignore
     @com.mybatisflex.annotation.Column(ignore = true)
     private Long storeCount;

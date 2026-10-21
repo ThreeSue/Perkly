@@ -57,9 +57,11 @@ public class JwtSecurityConfig {
         return httpSecurity
                 .authorizeHttpRequests(
                         conf -> {
+                            conf.requestMatchers("/merchant/auth/login", "/merchant/auth/captcha", "/merchant/auth/refreshToken", "/merchant/auth/register", "/merchant/auth/resubmit", "/merchant/auth/registrationCategories").permitAll();
                             conf.requestMatchers(
                                             ignoredUrlsProperties.getAdminAuthUrls().toArray(String[]::new))
                                     .permitAll();
+                            conf.requestMatchers("/merchant/**").hasRole(UserTypeEnum.MERCHANT.name());
                             conf.requestMatchers("/admin/**").authenticated();
                             conf.requestMatchers("/app/**").hasRole(UserTypeEnum.APP.name());
                         })
