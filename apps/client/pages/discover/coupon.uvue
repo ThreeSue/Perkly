@@ -1,6 +1,6 @@
 <template>
 	<cl-page :back-top="false">
-		<view class="discovery-page">
+		<view class="discovery-page" :class="{ 'is-dark': isDark }">
 			<view class="discovery-content">
 				<view v-if="loading" class="discovery-state" role="status">
 					<text>优惠券详情加载中…</text>
@@ -22,12 +22,16 @@
 							<text>{{ coupon.typeText }}</text>
 						</view>
 						<text class="discovery-detail-title">{{ coupon.name }}</text>
-						<text class="discovery-caption">{{ coupon.merchantName }} · {{ coupon.categoryName }}</text>
+						<text class="discovery-caption"
+							>{{ coupon.merchantName }} · {{ coupon.categoryName }}</text
+						>
 						<view class="coupon-price-row">
 							<text class="coupon-price">¥{{ formatMoney(coupon.salePrice) }}</text>
 							<text class="coupon-state">{{ coupon.saleStateText }}</text>
 						</view>
-						<text class="discovery-body">{{ coupon.description || "暂无详细说明" }}</text>
+						<text class="discovery-body">{{
+							coupon.description || "暂无详细说明"
+						}}</text>
 					</view>
 					<view class="discovery-detail-card">
 						<text class="discovery-heading">优惠规则</text>
@@ -61,7 +65,10 @@
 					</view>
 					<view class="discovery-detail-card">
 						<text class="discovery-heading">时间说明</text>
-						<text class="discovery-body">可领购时间：{{ coupon.saleStartTime || "不限" }} 至 {{ coupon.saleEndTime || "不限" }}</text>
+						<text class="discovery-body"
+							>可领购时间：{{ coupon.saleStartTime || "不限" }} 至
+							{{ coupon.saleEndTime || "不限" }}</text
+						>
 						<text class="discovery-body">有效期：{{ validityText }}</text>
 					</view>
 					<view class="discovery-detail-card">
@@ -73,7 +80,10 @@
 							v-for="store in coupon.stores"
 							:key="String(store.id)"
 							class="coupon-store-row"
-							:url="'/pages/discover/merchant?id=' + encodeURIComponent(String(store.id))"
+							:url="
+								'/pages/discover/merchant?id=' +
+								encodeURIComponent(String(store.id))
+							"
 						>
 							<text>{{ store.name }}</text>
 							<text class="discovery-caption">{{ store.address }} ›</text>
@@ -81,10 +91,77 @@
 					</view>
 					<view v-if="coupon.contents.length > 0" class="discovery-detail-card">
 						<text class="discovery-heading">适用商品或套餐</text>
-						<view v-for="item in coupon.contents" :key="String(item.productId) + '-' + item.relationType" class="coupon-content-row">
-							<text>{{ item.relationType === 1 ? "适用范围" : "套餐内容" }} · {{ item.quantity }} 份</text>
+						<view
+							v-for="item in coupon.contents"
+							:key="String(item.productId) + '-' + item.relationType"
+							class="coupon-content-row"
+						>
+							<text
+								>{{ item.relationType === 1 ? "适用范围" : "套餐内容" }} ·
+								{{ item.quantity }} 份</text
+							>
 							<text class="discovery-caption">{{ item.description }}</text>
 						</view>
+					</view>
+					<view class="discovery-detail-card">
+						<text class="discovery-heading">{{
+							coupon.salePrice === 0 ? "免费领取" : "购买优惠券"
+						}}</text>
+						<text class="discovery-body"
+							>每次可选择1至20张，库存与每人限额以后端校验为准。</text
+						>
+						<view class="purchase-quantity"
+							><text>数量 {{ quantity }} 张</text
+							><cl-button
+								size="small"
+								border
+								:disabled="busy || Boolean(purchaseKey) || quantity <= 1"
+								aria-label="减少领取数量"
+								@tap="quantity--"
+								>－</cl-button
+							><cl-button
+								size="small"
+								border
+								:disabled="busy || Boolean(purchaseKey) || quantity >= 20"
+								aria-label="增加领取数量"
+								@tap="quantity++"
+								>＋</cl-button
+							></view
+						>
+						<text v-if="coupon.salePrice > 0" class="discovery-body"
+							>下一步创建待支付订单，使用模拟支付，不会真实扣款。</text
+						>
+						<text v-if="purchaseError" class="purchase-error" role="alert">{{
+							purchaseError
+						}}</text>
+						<view class="purchase-actions"
+							><cl-button
+								type="primary"
+								:loading="busy"
+								:disabled="
+									busy ||
+									(coupon.saleState !== 'AVAILABLE' &&
+										!purchaseKey &&
+										!createdOrderId)
+								"
+								@tap="purchase"
+								>{{
+									createdOrderId
+										? "查看本次订单"
+										: uncertain
+											? "重试原操作"
+											: !loggedIn
+												? "登录后继续"
+												: coupon.salePrice === 0
+													? "确认领取"
+													: "创建购券订单"
+								}}</cl-button
+							><cl-button v-if="createdOrderId" border @tap="newPurchase"
+								>再次领购</cl-button
+							><cl-button border @tap="router.to('/pages/trade/orders')"
+								>我的订单</cl-button
+							></view
+						>
 					</view>
 				</template>
 			</view>
@@ -93,7 +170,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from "vue";
+import { isDark, router, useStore } from "@/.cool";
+import { computed, onUnmounted, ref, watch } from "vue";
+import { claimCoupon, createOrder, createPurchaseRequestId } from "@/api/trade";
 import { formatMoney, getApiErrorMessage, getCoupon } from "@/api/discovery";
 import type { ApiId, CouponDetail } from "@/types/discovery";
 
@@ -103,6 +182,76 @@ const error = ref("");
 const imageFailed = ref(false);
 let couponId: ApiId | "" = "";
 let requestId = 0;
+const { user } = useStore();
+const quantity = ref(1),
+	busy = ref(false),
+	purchaseError = ref("");
+const purchaseKey = ref(""),
+	uncertain = ref(false),
+	createdOrderId = ref("");
+const loggedIn = computed(() => {
+	void user.sessionVersion.value;
+	return Boolean(user.token);
+});
+let purchaseVersion = 0;
+function newPurchase() {
+	if (busy.value) return;
+	purchaseKey.value = "";
+	createdOrderId.value = "";
+	purchaseError.value = "";
+	uncertain.value = false;
+}
+async function purchase() {
+	if (!coupon.value || busy.value) return;
+	if (!user.token) {
+		router.to("/pages/user/login");
+		return;
+	}
+	if (createdOrderId.value) {
+		router.to("/pages/trade/order?id=" + encodeURIComponent(createdOrderId.value));
+		return;
+	}
+	if (coupon.value.saleState !== "AVAILABLE" && !purchaseKey.value) return;
+	const version = ++purchaseVersion,
+		session = user.sessionVersion.value;
+	purchaseKey.value ||= createPurchaseRequestId();
+	busy.value = true;
+	uncertain.value = true;
+	purchaseError.value = "";
+	try {
+		const result = await (coupon.value.salePrice === 0 ? claimCoupon : createOrder)({
+			couponTemplateId: coupon.value.id,
+			quantity: quantity.value,
+			requestId: purchaseKey.value
+		});
+		if (version !== purchaseVersion || session !== user.sessionVersion.value) return;
+		createdOrderId.value = String(result.id);
+		uncertain.value = false;
+		router.to("/pages/trade/order?id=" + encodeURIComponent(createdOrderId.value));
+	} catch (err) {
+		if (version !== purchaseVersion || session !== user.sessionVersion.value) return;
+		const businessError =
+			err != null && typeof err === "object" && "code" in err && typeof err.code === "number";
+		if (businessError) {
+			purchaseKey.value = "";
+			uncertain.value = false;
+		}
+		purchaseError.value =
+			getApiErrorMessage(err, "本次操作暂未确认") +
+			(uncertain.value ? "。请重试原操作，或先到我的订单查询，勿另建重复订单。" : "");
+	} finally {
+		if (version === purchaseVersion) busy.value = false;
+	}
+}
+watch(user.sessionVersion, () => {
+	purchaseVersion++;
+	busy.value = false;
+	newPurchase();
+});
+onHide(() => {
+	purchaseVersion++;
+	busy.value = false;
+});
 const validityText = computed(() => {
 	if (!coupon.value) return "—";
 	if (coupon.value.validityType === "FIXED") {
@@ -151,6 +300,25 @@ onUnmounted(() => {
 	border-radius: 16px;
 	padding: 16px;
 	margin-bottom: 12px;
+}
+.purchase-quantity,
+.purchase-actions {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 16px;
+}
+.purchase-error {
+	display: block;
+	margin-top: 12px;
+	color: #b42318;
+	font-size: 14px;
+	line-height: 1.6;
+}
+.is-dark .purchase-error {
+	color: #ffb4ab;
 }
 .coupon-detail-image {
 	width: 100%;

@@ -18,6 +18,8 @@ export class User {
 	info = ref<UserInfo | null>(null);
 	profileLoading = ref(false);
 	profileLoadFailed = ref(false);
+	// 私有业务响应绑定会话版本；刷新Token不等于切换账号。
+	sessionVersion = ref(0);
 
 	/**
 	 * 当前token，字符串或null
@@ -41,19 +43,19 @@ export class User {
 	 */
 	async get() {
 		if (this.token == null || this.profileLoading.value) return;
-		const requestToken = this.token;
+		const requestSession = this.sessionVersion.value;
 		this.profileLoading.value = true;
 		this.profileLoadFailed.value = false;
 
 		try {
 			const result = await request({ url: "/app/user/info/person" });
-			if (this.token !== requestToken) return;
+			if (this.sessionVersion.value !== requestSession) return;
 			if (result == null) throw new Error("资料暂时无法加载");
 			this.set(result);
 		} catch {
-			if (this.token === requestToken) this.profileLoadFailed.value = true;
+			if (this.sessionVersion.value === requestSession) this.profileLoadFailed.value = true;
 		} finally {
-			if (this.token === requestToken) this.profileLoading.value = false;
+			if (this.sessionVersion.value === requestSession) this.profileLoading.value = false;
 		}
 	}
 
@@ -116,6 +118,7 @@ export class User {
 	 * 清除本地所有用户信息和token
 	 */
 	clear() {
+		this.sessionVersion.value++;
 		storage.remove("userInfo");
 		storage.remove("token");
 		storage.remove("refreshToken");
@@ -136,7 +139,8 @@ export class User {
 	 * 设置token并存储到本地
 	 * @param data Token对象
 	 */
-	setToken(data: Token) {
+	setToken(data: Token, keepSession = false) {
+		if (!keepSession) this.sessionVersion.value++;
 		this.token = data.token;
 
 		// 访问token，提前5秒过期，防止边界问题
@@ -150,6 +154,7 @@ export class User {
 	 * @returns Promise<string> 新的token
 	 */
 	refreshToken(): Promise<string> {
+		const session = this.sessionVersion.value;
 		return new Promise((resolve, reject) => {
 			request({
 				url: "/app/user/login/refreshToken",
@@ -159,14 +164,20 @@ export class User {
 				}
 			})
 				.then((res) => {
+					if (session !== this.sessionVersion.value) {
+						reject(new Error("登录身份已变化"));
+						return;
+					}
 					if (res != null) {
 						const token = parse<Token>(res);
 
 						if (token != null) {
-							this.setToken(token);
+							this.setToken(token, true);
 							resolve(token.token);
+							return;
 						}
 					}
+					reject(new Error("登录状态刷新失败，请重新登录"));
 				})
 				.catch((err) => {
 					reject(err);

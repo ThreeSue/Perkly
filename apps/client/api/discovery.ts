@@ -18,7 +18,7 @@ const DEFAULT_SIZE = 20;
 function requiredId(id: ApiId, label: string): string {
 	const value = String(id).trim();
 	if (!/^[1-9]\d*$/.test(value)) throw new Error(`${label}必须为正整数`);
-	return encodeURIComponent(value);
+	return value;
 }
 
 function normalizeImage(path: string | null): string | null {

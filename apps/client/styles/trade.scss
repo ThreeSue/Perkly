@@ -1,0 +1,149 @@
+@import "./discovery-palette.scss";
+.trade-page {
+	min-height: 100vh;
+	background: $discovery-bg;
+	color: $discovery-ink;
+}
+.trade-content {
+	width: 100%;
+	max-width: 680px;
+	margin: 0 auto;
+	padding: 16px 16px 32px;
+	box-sizing: border-box;
+}
+.trade-card,
+.trade-state {
+	padding: 20px;
+	margin-bottom: 12px;
+	border-radius: 16px;
+	background: white;
+}
+.trade-state {
+	text-align: center;
+	line-height: 1.7;
+}
+.trade-title {
+	display: block;
+	font-size: 20px;
+	font-weight: 700;
+	line-height: 1.5;
+}
+.trade-body {
+	display: block;
+	margin-top: 10px;
+	font-size: 14px;
+	line-height: 1.7;
+	overflow-wrap: anywhere;
+}
+.trade-muted {
+	color: $discovery-muted;
+	font-size: 13px;
+}
+.trade-status {
+	color: $discovery-primary;
+	font-size: 14px;
+	font-weight: 600;
+}
+.trade-row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 10px 0;
+}
+.trade-actions {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	margin-top: 16px;
+}
+.trade-tabs {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+.trade-filter {
+	margin: 0;
+	padding: 8px 12px;
+	font-size: 13px;
+	line-height: 1.6;
+	background: white;
+	color: $discovery-muted;
+	border: 1px solid $discovery-border;
+	border-radius: 20px;
+}
+.trade-filter::after {
+	border: 0;
+}
+.trade-card {
+	display: block;
+}
+// #ifdef H5
+.trade-filter {
+	cursor: pointer;
+}
+.trade-filter:hover {
+	opacity: 0.85;
+}
+.trade-filter:focus-visible {
+	outline: 3px solid $discovery-primary;
+	outline-offset: 3px;
+}
+// #endif
+.trade-filter.is-active {
+	background: $discovery-primary;
+	color: white;
+	border-color: $discovery-primary;
+}
+.trade-error {
+	display: block;
+	margin-top: 12px;
+	color: #b42318;
+	font-size: 14px;
+	line-height: 1.6;
+}
+.trade-qr {
+	width: 240px;
+	height: 240px;
+	max-width: 100%;
+	margin: 20px auto;
+	display: block;
+	background: white;
+}
+.trade-code {
+	display: block;
+	font-family: monospace;
+	font-size: 14px;
+	word-break: break-all;
+	line-height: 1.6;
+	user-select: text;
+}
+.trade-page.is-dark {
+	background: $discovery-dark-bg;
+	color: $discovery-dark-ink;
+}
+.is-dark .trade-card,
+.is-dark .trade-state,
+.is-dark .trade-filter {
+	background: $discovery-dark-surface;
+	color: $discovery-dark-ink;
+}
+.is-dark .trade-muted {
+	color: $discovery-dark-muted;
+}
+.is-dark .trade-status {
+	color: $discovery-dark-primary;
+}
+.is-dark .trade-filter.is-active {
+	background: $discovery-primary;
+	color: white;
+}
+.is-dark .trade-error {
+	color: #ffb4ab;
+}

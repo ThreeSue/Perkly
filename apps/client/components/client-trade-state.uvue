@@ -1,0 +1,30 @@
+<template>
+	<view v-if="!loggedIn || loading || error || empty" class="trade-state" role="status">
+		<text>{{
+			!loggedIn ? "登录后查看你的订单和优惠券" : loading ? "正在读取…" : error || emptyText
+		}}</text>
+		<view class="trade-actions">
+			<cl-button v-if="!loggedIn" type="primary" @tap="router.to('/pages/user/login')"
+				>登录 / 注册</cl-button
+			>
+			<cl-button v-else-if="error && !loading" border @tap="$emit('retry')">重试</cl-button>
+		</view>
+	</view>
+</template>
+<script setup lang="ts">
+import { router } from "@/.cool";
+withDefaults(
+	defineProps<{
+		loggedIn: boolean;
+		loading: boolean;
+		error: string;
+		empty: boolean;
+		emptyText?: string;
+	}>(),
+	{ emptyText: "暂无记录" }
+);
+defineEmits<{ retry: [] }>();
+</script>
+<style lang="scss" scoped>
+@import "@/styles/trade.scss";
+</style>

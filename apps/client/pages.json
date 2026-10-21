@@ -29,31 +29,35 @@
 				{
 					"path": "list",
 					"style": {
-						"navigationBarTitleText": "发现好店",
-						"navigationBarBackgroundColor": "#eef2f6"
+						"navigationBarTitleText": "发现好店"
 					}
 				},
 				{
 					"path": "merchant",
 					"style": {
-						"navigationBarTitleText": "门店详情",
-						"navigationBarBackgroundColor": "#eef2f6"
+						"navigationBarTitleText": "门店详情"
 					}
 				},
 				{
 					"path": "coupons",
 					"style": {
-						"navigationBarTitleText": "优惠券",
-						"navigationBarBackgroundColor": "#eef2f6"
+						"navigationBarTitleText": "优惠券"
 					}
 				},
 				{
 					"path": "coupon",
 					"style": {
-						"navigationBarTitleText": "优惠券详情",
-						"navigationBarBackgroundColor": "#eef2f6"
+						"navigationBarTitleText": "优惠券详情"
 					}
 				}
+			]
+		},
+		{
+			"root": "pages/trade",
+			"pages": [
+				{ "path": "orders", "style": { "navigationBarTitleText": "我的订单" } },
+				{ "path": "order", "style": { "navigationBarTitleText": "购券订单" } },
+				{ "path": "wallet", "style": { "navigationBarTitleText": "持券详情" } }
 			]
 		},
 		{
@@ -102,6 +106,13 @@
 					"path": "register",
 					"style": {
 						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "reset-password",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "忘记密码"
 					}
 				}
 			]

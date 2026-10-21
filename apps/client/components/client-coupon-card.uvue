@@ -1,5 +1,5 @@
 <template>
-	<navigator class="coupon-card" :url="'/pages/discover/coupon?id=' + coupon.id">
+	<navigator class="coupon-card" :class="{ 'is-dark': isDark }" :url="'/pages/discover/coupon?id=' + coupon.id">
 		<view class="coupon-cover">
 			<image
 				v-if="coupon.cover && !imageFailed"
@@ -25,6 +25,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { isDark } from "@/.cool";
 import { formatMoney } from "@/api/discovery";
 import type { Coupon } from "@/types/discovery";
 
@@ -33,6 +34,7 @@ const imageFailed = ref(false);
 </script>
 
 <style lang="scss" scoped>
+@import "@/styles/discovery-palette.scss";
 .coupon-card {
 	display: flex;
 	flex-direction: row;
@@ -95,5 +97,25 @@ const imageFailed = ref(false);
 	font-size: 17px;
 	font-weight: 700;
 	color: #b35332;
+}
+.coupon-card.is-dark {
+	background: $discovery-dark-surface;
+	color: $discovery-dark-ink;
+	.coupon-title {
+		color: $discovery-dark-ink;
+	}
+	.coupon-cover {
+		background: $discovery-dark-raised;
+	}
+	.coupon-caption,
+	.coupon-state {
+		color: $discovery-dark-muted;
+	}
+	.coupon-cover-fallback {
+		color: $discovery-dark-primary;
+	}
+	.coupon-price {
+		color: $discovery-dark-price;
+	}
 }
 </style>

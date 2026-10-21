@@ -1,5 +1,5 @@
 <template>
-	<view class="client-search">
+	<view class="client-search" :class="{ 'is-dark': isDark }">
 		<cl-input
 			class="client-search-input"
 			:model-value="value"
@@ -25,6 +25,7 @@
 </template>
 <script setup lang="ts">
 import { computed } from "vue";
+import { isDark } from "@/.cool";
 const props = defineProps<{ modelValue: string }>();
 const emit = defineEmits(["update:modelValue", "submit", "clear"]);
 const value = computed({
@@ -36,6 +37,7 @@ function updateValue(value: string) {
 }
 </script>
 <style lang="scss" scoped>
+@import "@/styles/discovery-palette.scss";
 .client-search {
 	display: flex;
 	flex-direction: row;
@@ -53,6 +55,9 @@ function updateValue(value: string) {
 	height: 36px;
 	padding: 0 4px;
 	background: transparent;
+}
+.client-search.is-dark {
+	background: $discovery-dark-surface;
 }
 .client-search-submit {
 	margin: 0;

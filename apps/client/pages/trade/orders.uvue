@@ -1,0 +1,82 @@
+<template>
+	<cl-page :back-top="false"
+		><view class="trade-page" :class="{ 'is-dark': isDark }"
+			><view class="trade-content">
+				<view class="trade-tabs"
+					><button
+						v-for="tab in tabs"
+						:key="tab.value"
+						class="trade-filter"
+						:class="{ 'is-active': status === tab.value }"
+						:aria-pressed="status === tab.value"
+						@tap="select(tab.value)"
+					>
+						{{ tab.label }}
+					</button></view
+				>
+				<client-trade-state
+					:logged-in="loggedIn"
+					:loading="loading && items.length === 0"
+					:error="error"
+					:empty="items.length === 0"
+					empty-text="当前分类暂无购券订单"
+					@retry="load(items.length === 0)"
+				/>
+				<navigator
+					v-for="order in items"
+					:key="String(order.id)"
+					class="trade-card"
+					:url="'/pages/trade/order?id=' + encodeURIComponent(String(order.id))"
+				>
+					<view class="trade-row"
+						><text class="trade-title">{{ order.merchantName }}</text
+						><text class="trade-status">{{ order.orderStatusText }}</text></view
+					>
+					<text class="trade-body">订单金额 ¥{{ formatMoney(order.totalAmount) }}</text
+					><text class="trade-body trade-muted">{{ order.createdAt }}</text
+					><text class="trade-body trade-muted">订单号 {{ order.orderNo }}</text>
+				</navigator>
+				<view v-if="loggedIn" class="trade-actions"
+					><cl-button border :disabled="loading" @tap="load(true)">刷新订单</cl-button
+					><cl-button
+						v-if="hasMore"
+						:disabled="loading"
+						:loading="loading"
+						@tap="load(false)"
+						>加载更多</cl-button
+					></view
+				>
+			</view></view
+		></cl-page
+	>
+</template>
+<script setup lang="ts">
+import { ref } from "vue";
+import { isDark } from "@/.cool";
+import ClientTradeState from "@/components/client-trade-state.uvue";
+import { usePrivatePage } from "@/composables/use-private-page";
+import { listOrders } from "@/api/trade";
+import { formatMoney } from "@/api/discovery";
+import type { OrderStatus, OrderSummary } from "@/types/trade";
+const status = ref<OrderStatus | "">("");
+const tabs: { value: OrderStatus | ""; label: string }[] = [
+	{ value: "", label: "全部" },
+	{ value: "PENDING", label: "待支付" },
+	{ value: "PAID", label: "已完成" },
+	{ value: "CANCELLED", label: "已取消" },
+	{ value: "FAILED", label: "支付失败" },
+	{ value: "EXPIRED", label: "已超时" }
+];
+const { items, loading, error, loggedIn, hasMore, load, clear } = usePrivatePage<OrderSummary>(
+	(page) => listOrders(page, status.value || undefined)
+);
+function select(value: OrderStatus | "") {
+	status.value = value;
+	load(true);
+}
+onShow(() => load(true));
+onHide(clear);
+</script>
+<style lang="scss" scoped>
+@import "@/styles/trade.scss";
+</style>

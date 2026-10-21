@@ -1,0 +1,160 @@
+<template>
+	<cl-page :back-top="false"
+		><view class="trade-page" :class="{ 'is-dark': isDark }"
+			><view class="trade-content">
+				<client-trade-state
+					:logged-in="loggedIn"
+					:loading="loading"
+					:error="error"
+					:empty="!coupon"
+					@retry="load"
+				/>
+				<template v-if="coupon">
+					<view class="trade-card"
+						><text class="trade-title">{{ coupon.name }}</text
+						><text class="trade-body trade-status">{{ coupon.stateText }}</text
+						><text class="trade-body trade-muted">{{ coupon.merchantName }}</text
+						><text class="trade-body"
+							>{{ coupon.validFrom }} 至 {{ coupon.validTo }}</text
+						><text v-if="coupon.usedAt" class="trade-body"
+							>使用时间 {{ coupon.usedAt }}</text
+						></view
+					>
+					<view class="trade-card"
+						><text class="trade-title">出示给商家核销</text
+						><text v-if="coupon.state !== 'UNUSED'" class="trade-error"
+							>当前{{ coupon.stateText }}，不能凭二维码核销。</text
+						>
+						<image
+							v-if="validQr && !imageFailed"
+							class="trade-qr"
+							:src="qrImage || coupon.qrCodeImage"
+							mode="aspectFit"
+							aria-label="优惠券核销二维码"
+							@error="imageFailed = true"
+						/>
+						<text v-else class="trade-body"
+							>二维码暂时无法显示，可刷新重试或让商家输入下方券码。</text
+						>
+						<view v-if="imageFailed || !validQr" class="trade-actions"
+							><cl-button
+								border
+								:loading="qrLoading"
+								:disabled="qrLoading"
+								@tap="reloadQr"
+								>重新获取二维码</cl-button
+							></view
+						>
+						<text v-if="qrError" class="trade-error" role="alert">{{ qrError }}</text>
+						<text class="trade-code" selectable>{{ coupon.code }}</text
+						><view class="trade-actions"
+							><cl-button border @tap="copyCode">复制券码</cl-button></view
+						><text class="trade-body trade-muted"
+							>请妥善保管券码，仅向核销商家出示。</text
+						>
+					</view>
+					<view class="trade-card"
+						><text class="trade-title">使用规则</text
+						><text class="trade-body">{{
+							coupon.rule.description || "暂无补充说明"
+						}}</text
+						><text class="trade-body"
+							>适用门店：{{
+								coupon.rule.scopeType === 0
+									? "商家全部营业门店"
+									: coupon.rule.storeNames.join("、") || "未提供门店名称"
+							}}</text
+						><text v-if="coupon.rule.minSpend != null" class="trade-body"
+							>使用门槛 ¥{{ formatMoney(coupon.rule.minSpend) }}</text
+						><text v-if="coupon.rule.discountAmount != null" class="trade-body"
+							>满减优惠 ¥{{ formatMoney(coupon.rule.discountAmount) }}</text
+						><text v-if="coupon.rule.deductAmount != null" class="trade-body"
+							>抵扣金额 ¥{{ formatMoney(coupon.rule.deductAmount) }}</text
+						><text v-if="coupon.rule.discountRate != null" class="trade-body"
+							>{{ coupon.rule.discountRate }} 折</text
+						><text v-if="coupon.rule.maxDiscount != null" class="trade-body"
+							>最高优惠 ¥{{ formatMoney(coupon.rule.maxDiscount) }}</text
+						><text class="trade-body"
+							>可叠加其他优惠：{{
+								coupon.rule.allowCombine === 1 ? "可以" : "不可以"
+							}}</text
+						><text class="trade-body trade-muted"
+							>这里显示发券时保存的规则，权益以商家核销时的后端校验为准。</text
+						></view
+					>
+					<view class="trade-actions"
+						><cl-button border :disabled="loading" @tap="reload"
+							>刷新使用状态</cl-button
+						></view
+					>
+				</template>
+			</view></view
+		></cl-page
+	>
+</template>
+<script setup lang="ts">
+import { computed, ref, watch } from "vue";
+import { isDark } from "@/.cool";
+import { useUi } from "@/uni_modules/cool-ui";
+import ClientTradeState from "@/components/client-trade-state.uvue";
+import { usePrivateDetail } from "@/composables/use-private-detail";
+import { getWalletCoupon, getWalletQrImage } from "@/api/trade";
+import { formatMoney, getApiErrorMessage } from "@/api/discovery";
+const ui = useUi();
+const { value: coupon, loading, error, loggedIn, load } = usePrivateDetail(getWalletCoupon);
+const imageFailed = ref(false);
+const qrImage = ref(""),
+	qrLoading = ref(false),
+	qrError = ref("");
+watch(coupon, (value) => {
+	if (!value) {
+		qrImage.value = "";
+		qrError.value = "";
+	}
+});
+const validQr = computed(() =>
+	Boolean(
+		coupon.value && /^data:image\/png;base64,/.test(qrImage.value || coupon.value.qrCodeImage)
+	)
+);
+async function reloadQr() {
+	if (!coupon.value || qrLoading.value) return;
+	const id = coupon.value.id;
+	qrLoading.value = true;
+	qrError.value = "";
+	try {
+		const image = await getWalletQrImage(id);
+		if (coupon.value?.id === id) {
+			qrImage.value = image;
+			imageFailed.value = false;
+		}
+	} catch (err) {
+		if (coupon.value?.id === id) qrError.value = getApiErrorMessage(err, "二维码读取失败");
+	} finally {
+		qrLoading.value = false;
+	}
+}
+async function reload() {
+	imageFailed.value = false;
+	qrImage.value = "";
+	qrError.value = "";
+	await load();
+}
+function copyCode() {
+	if (!coupon.value) return;
+	uni.setClipboardData({
+		data: coupon.value.code,
+		fail: () => ui.showToast({ message: "复制失败，请手动选择券码复制" })
+	});
+}
+onShow(() => {
+	imageFailed.value = false;
+});
+onHide(() => {
+	qrImage.value = "";
+	qrError.value = "";
+});
+</script>
+<style lang="scss" scoped>
+@import "@/styles/trade.scss";
+</style>

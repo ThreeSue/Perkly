@@ -1,0 +1,131 @@
+<template>
+	<cl-page :back-top="false"
+		><view class="trade-page" :class="{ 'is-dark': isDark }"
+			><view class="trade-content">
+				<client-trade-state
+					:logged-in="loggedIn"
+					:loading="loading"
+					:error="error"
+					:empty="!order"
+					@retry="refresh"
+				/>
+				<template v-if="order">
+					<view class="trade-card"
+						><text class="trade-title">{{ order.orderStatusText }}</text
+						><text class="trade-body">{{ order.merchantName }}</text
+						><text class="trade-body"
+							>订单金额 ¥{{ formatMoney(order.totalAmount) }}</text
+						><text class="trade-body trade-muted">订单号 {{ order.orderNo }}</text
+						><text class="trade-body trade-muted">创建时间 {{ order.createdAt }}</text
+						><text v-if="order.paidAt" class="trade-body trade-muted"
+							>完成时间 {{ order.paidAt }}</text
+						><text v-if="order.orderStatus === 'PENDING'" class="trade-body"
+							>请在 {{ order.expiresAt }} 前模拟支付，实际状态以刷新结果为准。</text
+						></view
+					>
+					<view class="trade-card"
+						><text class="trade-title">订单明细</text
+						><view v-for="item in order.items" :key="String(item.id)"
+							><text class="trade-body"
+								>{{ item.couponName }} × {{ item.quantity }}</text
+							><text class="trade-body trade-muted"
+								>单价 ¥{{ formatMoney(item.unitPrice) }} · 小计 ¥{{
+									formatMoney(item.subtotal)
+								}}</text
+							></view
+						></view
+					>
+					<view v-if="order.orderStatus === 'PENDING'" class="trade-card"
+						><text class="trade-body"
+							>本项目使用模拟支付，不会扣款。下单不预占库存，支付时会再次校验库存与限购。</text
+						><view class="trade-actions"
+							><cl-button
+								type="primary"
+								:disabled="busy || uncertain"
+								:loading="busy"
+								@tap="mutate('pay')"
+								>模拟支付</cl-button
+							><cl-button border :disabled="busy || uncertain" @tap="mutate('cancel')"
+								>取消订单</cl-button
+							></view
+						></view
+					>
+					<text v-if="actionError" class="trade-error" role="alert">{{
+						actionError
+					}}</text>
+					<view v-if="order.orderStatus === 'PAID'" class="trade-card"
+						><text class="trade-title">优惠券已发放</text
+						><navigator
+							v-for="id in order.couponIds"
+							:key="String(id)"
+							:url="'/pages/trade/wallet?id=' + encodeURIComponent(String(id))"
+							class="trade-body trade-status"
+							>查看持券与二维码 ›</navigator
+						><text v-if="order.couponIds.length === 0" class="trade-body"
+							>请进入我的券包查询发券结果。</text
+						></view
+					>
+					<view class="trade-actions"
+						><cl-button border :disabled="busy || loading" @tap="refresh"
+							>刷新订单状态</cl-button
+						><cl-button @tap="router.to('/pages/index/template')"
+							>我的券包</cl-button
+						></view
+					>
+				</template>
+			</view></view
+		></cl-page
+	>
+</template>
+<script setup lang="ts">
+import { ref } from "vue";
+import { isDark, router, useStore } from "@/.cool";
+import ClientTradeState from "@/components/client-trade-state.uvue";
+import { usePrivateDetail } from "@/composables/use-private-detail";
+import { getOrder, simulatePay, cancelOrder } from "@/api/trade";
+import { formatMoney, getApiErrorMessage } from "@/api/discovery";
+const { user } = useStore();
+const { value: order, loading, error, loggedIn, load } = usePrivateDetail(getOrder);
+const busy = ref(false),
+	uncertain = ref(false),
+	actionError = ref("");
+let operation = 0;
+async function refresh() {
+	if (busy.value) return;
+	await load();
+	if (order.value) {
+		uncertain.value = false;
+		actionError.value = "";
+	}
+}
+async function mutate(kind: "pay" | "cancel") {
+	if (!order.value || busy.value || uncertain.value || order.value.orderStatus !== "PENDING")
+		return;
+	const id = ++operation,
+		session = user.sessionVersion.value,
+		recordId = order.value.id;
+	busy.value = true;
+	actionError.value = "";
+	try {
+		const result = await (kind === "pay" ? simulatePay(recordId) : cancelOrder(recordId));
+		if (id === operation && session === user.sessionVersion.value) order.value = result;
+	} catch (err) {
+		if (id === operation && session === user.sessionVersion.value) {
+			uncertain.value = true;
+			actionError.value =
+				getApiErrorMessage(err, "操作结果暂不确定") + "；请先刷新订单状态，再决定下一步。";
+		}
+	} finally {
+		if (id === operation) busy.value = false;
+	}
+}
+onHide(() => {
+	operation++;
+	busy.value = false;
+	uncertain.value = false;
+	actionError.value = "";
+});
+</script>
+<style lang="scss" scoped>
+@import "@/styles/trade.scss";
+</style>

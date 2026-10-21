@@ -24,7 +24,7 @@ export type Response = {
 };
 
 // 请求队列（用于等待token刷新后继续请求）
-let requests: ((token: string) => void)[] = [];
+let requests: { next: (token: string) => void; fail: (error: unknown) => void }[] = [];
 
 // 标记token是否正在刷新
 let isRefreshing = false;
@@ -46,6 +46,7 @@ export function request(options: RequestOptions): Promise<any | null> {
 	let { url, method = "GET", data = {}, header = {}, timeout = 60000 } = options;
 
 	const { user } = useStore();
+	const sessionVersion = user.sessionVersion.value;
 
 	// 开发环境下打印请求信息
 	if (isDev) {
@@ -80,6 +81,10 @@ export function request(options: RequestOptions): Promise<any | null> {
 				timeout,
 
 				success(res) {
+					if (sessionVersion !== user.sessionVersion.value) {
+						reject({ message: "登录身份已变化，请重新操作" } as Response);
+						return;
+					}
 					// 401 无权限
 					if (res.statusCode == 401) {
 						user.logout();
@@ -142,6 +147,7 @@ export function request(options: RequestOptions): Promise<any | null> {
 					if (storage.isExpired("refreshToken")) {
 						// 刷新token也过期，直接退出登录
 						user.logout();
+						reject({ message: "登录已失效，请重新登录" } as Response);
 						return;
 					}
 
@@ -151,24 +157,28 @@ export function request(options: RequestOptions): Promise<any | null> {
 						user.refreshToken()
 							.then((token) => {
 								// 刷新成功后，执行队列中的请求
-								requests.forEach((cb) => cb(token));
+								requests.forEach((entry) => entry.next(token));
 								requests = [];
 								isRefreshing = false;
 							})
 							.catch((err) => {
-								reject(err);
-								user.logout();
+								requests.forEach((entry) => entry.fail(err));
+								requests = [];
+								isRefreshing = false;
+								if (sessionVersion === user.sessionVersion.value) user.logout();
 							});
 					}
 
-					// 将当前请求加入队列，等待token刷新后再执行
-					new Promise((resolve) => {
-						requests.push((token: string) => {
-							// 重新设置token
+					requests.push({
+						next: (token: string) => {
+							if (sessionVersion !== user.sessionVersion.value) {
+								reject({ message: "登录身份已变化，请重新操作" } as Response);
+								return;
+							}
 							Authorization = token;
 							next();
-							resolve(true);
-						});
+						},
+						fail: reject
 					});
 					// 此处return，等待token刷新
 					return;

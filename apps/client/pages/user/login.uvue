@@ -15,6 +15,7 @@
 			<login-password v-else :form="form" @success="toLogin"></login-password>
 
 			<view class="mt-2 flex flex-row justify-end">
+				<cl-button text size="small" @tap="toResetPassword">{{ t("忘记密码") }}</cl-button>
 				<cl-button text size="small" @tap="toggleLoginMode">
 					{{ loginMode == "sms" ? t("切换为密码登录") : t("切换为短信登录") }}
 				</cl-button>
@@ -40,7 +41,7 @@
 					}"
 				>
 				</cl-checkbox>
-				<cl-text color="info" :size="12">{{ t("已阅读并同意") }}</cl-text>
+				<cl-text color="info" :size="12" @tap="agree = !agree">{{ t("已阅读并同意") }}</cl-text>
 				<cl-text
 					:size="12"
 					:pt="{
@@ -59,6 +60,11 @@
 					@tap.stop="toDoc(t('隐私政策'), 'privacyPolicy')"
 				>
 					《{{ t("隐私政策") }}》
+				</cl-text>
+			</view>
+			<view v-if="agreementError && !agree" class="mt-2" role="alert" aria-live="polite">
+				<cl-text color="error" :size="13">
+					{{ t("请先勾选并同意《用户协议》和《隐私政策》后再登录") }}
 				</cl-text>
 			</view>
 		</view>
@@ -85,8 +91,19 @@ const form = reactive<LoginForm>({
 	password: ""
 });
 
+onLoad((options) => {
+	if (options?.mode === "password") loginMode.value = "password";
+	const phone = String(options?.phone ?? "");
+	if (/^1[3-9]\d{9}$/.test(phone)) form.phone = phone;
+});
+
+function toResetPassword() {
+	router.to("/pages/user/reset-password?phone=" + (encodeURIComponent(form.phone) ?? ""));
+}
+
 // 是否同意
 const agree = ref(false);
+const agreementError = ref(false);
 
 function toggleLoginMode() {
 	loginMode.value = loginMode.value == "sms" ? "password" : "sms";
@@ -108,6 +125,7 @@ function toDoc(name: string, path: string) {
 // 是否同意
 function isAgree() {
 	if (!agree.value) {
+		agreementError.value = true;
 		ui.showToast({
 			message: t("请先阅读并同意《用户协议》和《隐私政策》")
 		});
