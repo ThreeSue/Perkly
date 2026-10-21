@@ -82,7 +82,8 @@
 					<button @tap="loadCoupons">重试</button>
 				</view>
 				<view v-else-if="coupons.length === 0" class="discovery-state">
-					<text>暂无可展示优惠券</text>
+					<text>暂无已审核并上架的优惠券</text>
+					<text class="discovery-caption">平台优惠券通过审核并上架后会显示在这里</text>
 				</view>
 				<view v-else class="coupon-grid">
 					<view v-for="coupon in coupons" :key="String(coupon.id)" class="coupon-cell">

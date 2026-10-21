@@ -82,6 +82,7 @@ export async function getStore(id: ApiId): Promise<StoreDetail> {
 	};
 }
 
+/** 后端接口：POST /app/coupon/page。公开优惠券分页查询。 */
 export async function listCoupons(query: CouponQuery = {}): Promise<PageResult<Coupon>> {
 	const result = (await request({
 		url: "/app/coupon/page",
@@ -100,6 +101,7 @@ export async function listCoupons(query: CouponQuery = {}): Promise<PageResult<C
 	return { ...result, list: (result?.list ?? []).map(normalizeCoupon) };
 }
 
+/** 后端接口：GET /app/coupon/info?id={券模板ID}。公开优惠券详情查询。 */
 export async function getCoupon(id: ApiId): Promise<CouponDetail> {
 	const result = (await request({
 		url: `/app/coupon/info?id=${requiredId(id, "优惠券模板ID")}`,
