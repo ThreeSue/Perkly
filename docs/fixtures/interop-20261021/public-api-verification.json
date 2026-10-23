@@ -1,0 +1,66 @@
+{
+  "batchId": "interop_20261021_01",
+  "checkedAt": "2026-10-21T22:02:21.2249213+08:00",
+  "categoriesCode": 1000,
+  "categoryCount": 6,
+  "merchantStoreChecks": [
+    {
+      "category": "餐饮美食",
+      "merchantId": 11,
+      "storeId": 21,
+      "pageCode": 1000,
+      "filteredTotal": 1,
+      "detailCode": 1000,
+      "merchantMatches": true
+    },
+    {
+      "category": "休闲娱乐",
+      "merchantId": 12,
+      "storeId": 22,
+      "pageCode": 1000,
+      "filteredTotal": 1,
+      "detailCode": 1000,
+      "merchantMatches": true
+    },
+    {
+      "category": "生活服务",
+      "merchantId": 13,
+      "storeId": 23,
+      "pageCode": 1000,
+      "filteredTotal": 1,
+      "detailCode": 1000,
+      "merchantMatches": true
+    },
+    {
+      "category": "美容美发",
+      "merchantId": 14,
+      "storeId": 24,
+      "pageCode": 1000,
+      "filteredTotal": 1,
+      "detailCode": 1000,
+      "merchantMatches": true
+    },
+    {
+      "category": "运动健身",
+      "merchantId": 15,
+      "storeId": 25,
+      "pageCode": 1000,
+      "filteredTotal": 1,
+      "detailCode": 1000,
+      "merchantMatches": true
+    },
+    {
+      "category": "酒店住宿",
+      "merchantId": 16,
+      "storeId": 26,
+      "pageCode": 1000,
+      "filteredTotal": 1,
+      "detailCode": 1000,
+      "merchantMatches": true
+    }
+  ],
+  "couponListCode": 1001,
+  "couponListMessage": "请求方式不正确或服务出现异常",
+  "readyForClientStoreBrowsing": true,
+  "readyForCouponTrade": false
+}

@@ -22,38 +22,57 @@
 							<text>{{ store.merchantName }}</text>
 						</view>
 						<text class="discovery-detail-title">{{ store.name }}</text>
-						<text class="discovery-caption">{{ store.merchantName }} · {{ store.categoryName }}</text>
+						<text class="discovery-caption"
+							>{{ store.merchantName }} · {{ store.categoryName }}</text
+						>
 						<text class="store-status">{{ store.statusText }}</text>
-						<text v-if="store.merchantIntroduction" class="discovery-body">{{ store.merchantIntroduction }}</text>
+						<text v-if="store.merchantIntroduction" class="discovery-body">{{
+							store.merchantIntroduction
+						}}</text>
 					</view>
 					<view class="discovery-detail-card">
 						<text class="discovery-heading">门店信息</text>
 						<text class="discovery-body">地址：{{ store.address || "暂未提供" }}</text>
 						<text class="discovery-body">电话：{{ store.phone || "暂未提供" }}</text>
-						<text class="discovery-body">营业时间：{{ store.businessHours || "暂未提供" }}</text>
+						<text class="discovery-body"
+							>营业时间：{{ store.businessHours || "暂未提供" }}</text
+						>
 					</view>
 					<view class="discovery-section-head">
 						<view><text class="discovery-heading">适用优惠券</text></view>
-						<text v-if="couponPage" class="discovery-caption">共 {{ couponPage.pagination.total }} 张</text>
+						<text v-if="couponPage" class="discovery-caption"
+							>共 {{ couponPage.pagination.total }} 张</text
+						>
 					</view>
 					<view v-if="couponLoading" class="discovery-state" role="status">
 						<text>优惠券加载中…</text>
 					</view>
 					<view v-else-if="couponError" class="discovery-state">
 						<text>{{ couponError }}</text>
-						<button class="discovery-action discovery-retry" @tap="loadStoreCoupons">重试</button>
+						<button class="discovery-action discovery-retry" @tap="loadStoreCoupons">
+							重试
+						</button>
 					</view>
 					<view v-else-if="coupons.length === 0" class="discovery-state">
 						<text>当前没有可展示的优惠券</text>
 					</view>
 					<view v-else class="coupon-grid">
-						<view v-for="coupon in coupons" :key="String(coupon.id)" class="coupon-cell">
+						<view
+							v-for="coupon in coupons"
+							:key="String(coupon.id)"
+							class="coupon-cell"
+						>
 							<client-coupon-card :coupon="coupon" />
 						</view>
 					</view>
 					<view v-if="couponMoreError" class="discovery-state">
 						<text>{{ couponMoreError }}</text>
-						<button class="discovery-action discovery-retry" @tap="loadMoreStoreCoupons">重试</button>
+						<button
+							class="discovery-action discovery-retry"
+							@tap="loadMoreStoreCoupons"
+						>
+							重试
+						</button>
 					</view>
 					<button
 						v-else-if="hasMoreCoupons && !couponLoading"
@@ -65,7 +84,10 @@
 					</button>
 					<navigator
 						class="discovery-link"
-						:url="'/pages/discover/list?categoryId=' + encodeURIComponent(String(store.categoryId))"
+						:url="
+							'/pages/discover/list?categoryId=' +
+							encodeURIComponent(String(store.categoryId))
+						"
 					>
 						浏览同类门店 ›
 					</navigator>
@@ -144,7 +166,8 @@ async function loadStoreCoupons() {
 }
 
 async function loadMoreStoreCoupons() {
-	if (couponLoadingMore.value || !hasMoreCoupons.value || !couponPage.value || storeId === "") return;
+	if (couponLoadingMore.value || !hasMoreCoupons.value || !couponPage.value || storeId === "")
+		return;
 	const id = couponRequestId;
 	couponLoadingMore.value = true;
 	couponMoreError.value = "";
@@ -184,7 +207,7 @@ onUnmounted(() => {
 @import "@/styles/discovery.scss";
 .store-detail-card {
 	background: #ffffff;
-	border-radius: 16px;
+	border-radius: $discovery-radius;
 	padding: 16px;
 	margin-bottom: 12px;
 }
@@ -198,13 +221,13 @@ onUnmounted(() => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: #71808d;
+	color: $discovery-muted;
 }
 .store-status {
 	display: inline-block;
 	margin-top: 10px;
 	font-size: 13px;
-	color: #526d88;
+	color: $discovery-primary;
 }
 .coupon-grid {
 	display: flex;
@@ -219,6 +242,6 @@ onUnmounted(() => {
 	width: 100%;
 	padding: 12px;
 	text-align: center;
-	color: #526d88;
+	color: $discovery-primary;
 }
 </style>

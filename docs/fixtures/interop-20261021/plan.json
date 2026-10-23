@@ -1,0 +1,19 @@
+{
+  "batchId": "interop_20261021_01",
+  "retention": "保留，直到用户明确要求清理",
+  "marker": "【联调测试】",
+  "merchants": [
+    { "category": "餐饮美食", "name": "食味小馆", "plannedProduct": "双人简餐套餐" },
+    { "category": "休闲娱乐", "name": "乐聚空间", "plannedProduct": "双人桌游体验" },
+    { "category": "生活服务", "name": "便民生活馆", "plannedProduct": "基础家政保洁" },
+    { "category": "美容美发", "name": "清颜造型", "plannedProduct": "基础洗剪吹" },
+    { "category": "运动健身", "name": "轻动健身", "plannedProduct": "单次健身体验" },
+    { "category": "酒店住宿", "name": "安栖客栈", "plannedProduct": "标准房入住体验" }
+  ],
+  "couponsPerMerchant": [
+    { "type": "FULL_REDUCTION", "nameSuffix": "免费满100减20券", "salePriceYuan": "0.00", "minSpendYuan": "100.00", "discountAmountYuan": "20.00" },
+    { "type": "CASH", "nameSuffix": "9.9元购20元代金券", "salePriceYuan": "9.90", "minSpendYuan": "0.00", "deductAmountYuan": "20.00" }
+  ],
+  "commonRules": { "issueLimit": 1000, "perCustomerLimit": 20, "validityType": "AFTER_ISSUE", "validDays": 30, "scopeType": 0, "ruleVersion": 1 },
+  "pending": "商品及券发布记录需要后端提供现有版本缺失的实体/建表脚本与接口；不根据规划臆造业务表。plannedProduct仅存档，尚未写入不存在的product表。"
+}

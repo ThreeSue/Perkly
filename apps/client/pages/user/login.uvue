@@ -2,10 +2,12 @@
 	<cl-page>
 		<cl-topbar safe-area-top background-color="transparent"></cl-topbar>
 
-		<view class="px-10">
+		<view class="auth-content">
 			<!-- 项目名称 -->
-			<view class="flex flex-col items-center justify-center py-12">
-				<cl-text :size="18" :pt="{ className: 'font-bold mt-4' }">{{
+			<view class="auth-brand">
+				<view class="auth-symbol"
+					><cl-icon name="coupon-line" :size="36" color="primary" /></view
+				><cl-text :size="25" :pt="{ className: 'font-bold mt-4' }">{{
 					config.name
 				}}</cl-text>
 			</view>
@@ -41,7 +43,9 @@
 					}"
 				>
 				</cl-checkbox>
-				<cl-text color="info" :size="12" @tap="agree = !agree">{{ t("已阅读并同意") }}</cl-text>
+				<cl-text color="info" :size="12" @tap="agree = !agree">{{
+					t("已阅读并同意")
+				}}</cl-text>
 				<cl-text
 					:size="12"
 					:pt="{
@@ -138,3 +142,30 @@ function isAgree() {
 
 provide("isAgree", isAgree);
 </script>
+
+<style lang="scss" scoped>
+@import "@/styles/discovery-palette.scss";
+.auth-content {
+	width: 100%;
+	max-width: 460px;
+	padding: 16px 28px 40px;
+	margin: 0 auto;
+	box-sizing: border-box;
+}
+.auth-brand {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	padding: 16px 0 36px;
+}
+.auth-symbol {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 64px;
+	height: 64px;
+	background: white;
+	border: 1px solid $discovery-border;
+	border-radius: 20px;
+}
+</style>

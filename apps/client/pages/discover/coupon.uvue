@@ -297,7 +297,7 @@ onUnmounted(() => {
 @import "@/styles/discovery.scss";
 .coupon-detail-card {
 	background: #ffffff;
-	border-radius: 16px;
+	border-radius: $discovery-radius;
 	padding: 16px;
 	margin-bottom: 12px;
 }
@@ -330,7 +330,7 @@ onUnmounted(() => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: #526d88;
+	color: $discovery-primary;
 }
 .coupon-price-row {
 	display: flex;
@@ -342,11 +342,11 @@ onUnmounted(() => {
 .coupon-price {
 	font-size: 22px;
 	font-weight: 700;
-	color: #b35332;
+	color: $discovery-price;
 }
 .coupon-state {
 	font-size: 13px;
-	color: #71808d;
+	color: $discovery-muted;
 }
 .coupon-store-row,
 .coupon-content-row {

@@ -1,7 +1,33 @@
 <template>
 	<view v-if="!loggedIn || loading || error || empty" class="trade-state" role="status">
-		<text>{{
-			!loggedIn ? "登录后查看你的订单和优惠券" : loading ? "正在读取…" : error || emptyText
+		<view class="trade-state-symbol" aria-hidden="true"
+			><cl-icon
+				:name="
+					!loggedIn
+						? 'coupon-line'
+						: loading
+							? 'time-line'
+							: error
+								? 'cloud-off-line'
+								: 'file-list-line'
+				"
+				:size="32"
+		/></view>
+		<text class="trade-state-title">{{
+			!loggedIn
+				? "好优惠，登录后收好"
+				: loading
+					? "正在读取"
+					: error
+						? "暂时无法加载"
+						: "这里还没有记录"
+		}}</text>
+		<text class="trade-state-note">{{
+			!loggedIn
+				? "查看你的优惠券和购券订单，随时找到使用凭证"
+				: loading
+					? "正在读取…"
+					: error || emptyText
 		}}</text>
 		<view class="trade-actions">
 			<cl-button v-if="!loggedIn" type="primary" @tap="router.to('/pages/user/login')"
@@ -27,4 +53,42 @@ defineEmits<{ retry: [] }>();
 </script>
 <style lang="scss" scoped>
 @import "@/styles/trade.scss";
+.trade-state {
+	padding: 36px 24px;
+	min-height: 240px;
+	box-sizing: border-box;
+}
+.trade-state-symbol {
+	width: 70px;
+	height: 70px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 24px;
+	background: $discovery-bg;
+	color: $discovery-primary;
+	margin: 0 auto 20px;
+}
+.trade-state-title {
+	display: block;
+	font-size: 18px;
+	font-weight: 650;
+}
+.trade-state-note {
+	display: block;
+	margin-top: 10px;
+	font-size: 13px;
+	color: $discovery-muted;
+	line-height: 1.8;
+}
+.trade-actions {
+	margin-top: 24px;
+}
+.is-dark .trade-state-symbol {
+	background: $discovery-dark-raised;
+	color: $discovery-dark-primary;
+}
+.is-dark .trade-state-note {
+	color: $discovery-dark-muted;
+}
 </style>

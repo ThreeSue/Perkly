@@ -14,12 +14,10 @@ export const config = {
 	locale: "zh-cn",
 	website: "https://cool-js.com",
 	showDarkButton: false,
-	isCustomTabBar: false,
+	isCustomTabBar: true,
 	backTop: true,
 	wx: {
 		debug: false
 	},
 	...(isDev ? dev() : prod())
 } as Config;
-
-

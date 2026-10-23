@@ -1,16 +1,11 @@
 <template>
-	<business-shell title="个人中心" description="账号与权限、操作帮助、问题反馈">
+	<business-shell tab="my" title="个人中心" description="账号与权限、操作帮助、问题反馈">
 		<view class="merchant-card"
 			><text class="merchant-heading">尚未登录</text
 			><text class="merchant-muted">所属商家：待验证</text
 			><text class="merchant-muted">当前角色：待验证</text
 			><view class="merchant-actions"
-				><cl-button
-					:style="{ backgroundColor: '#ffe23f' }"
-					:pt="{ label: { color: '#242424' } }"
-					@tap="openLogin"
-					>员工登录</cl-button
-				></view
+				><cl-button type="primary" @tap="openLogin">员工登录</cl-button></view
 			></view
 		>
 		<view class="merchant-card"

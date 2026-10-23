@@ -1,0 +1,671 @@
+{
+    "database": "cool",
+    "categories": [
+    ],
+    "tables": [
+        {
+            "TABLE_NAME": "base_sys_conf"
+        },
+        {
+            "TABLE_NAME": "base_sys_department"
+        },
+        {
+            "TABLE_NAME": "base_sys_log"
+        },
+        {
+            "TABLE_NAME": "base_sys_menu"
+        },
+        {
+            "TABLE_NAME": "base_sys_param"
+        },
+        {
+            "TABLE_NAME": "base_sys_role"
+        },
+        {
+            "TABLE_NAME": "base_sys_role_department"
+        },
+        {
+            "TABLE_NAME": "base_sys_role_menu"
+        },
+        {
+            "TABLE_NAME": "base_sys_user"
+        },
+        {
+            "TABLE_NAME": "base_sys_user_role"
+        },
+        {
+            "TABLE_NAME": "coupon_template"
+        },
+        {
+            "TABLE_NAME": "dict_info"
+        },
+        {
+            "TABLE_NAME": "dict_type"
+        },
+        {
+            "TABLE_NAME": "leaf_alloc"
+        },
+        {
+            "TABLE_NAME": "merchant_category"
+        },
+        {
+            "TABLE_NAME": "merchant_info"
+        },
+        {
+            "TABLE_NAME": "qrtz_blob_triggers"
+        },
+        {
+            "TABLE_NAME": "qrtz_calendars"
+        },
+        {
+            "TABLE_NAME": "qrtz_cron_triggers"
+        },
+        {
+            "TABLE_NAME": "qrtz_fired_triggers"
+        },
+        {
+            "TABLE_NAME": "qrtz_job_details"
+        },
+        {
+            "TABLE_NAME": "qrtz_locks"
+        },
+        {
+            "TABLE_NAME": "qrtz_paused_trigger_grps"
+        },
+        {
+            "TABLE_NAME": "qrtz_scheduler_state"
+        },
+        {
+            "TABLE_NAME": "qrtz_simple_triggers"
+        },
+        {
+            "TABLE_NAME": "qrtz_simprop_triggers"
+        },
+        {
+            "TABLE_NAME": "qrtz_triggers"
+        },
+        {
+            "TABLE_NAME": "recycle_data"
+        },
+        {
+            "TABLE_NAME": "space_info"
+        },
+        {
+            "TABLE_NAME": "space_type"
+        },
+        {
+            "TABLE_NAME": "store"
+        },
+        {
+            "TABLE_NAME": "store_category"
+        },
+        {
+            "TABLE_NAME": "task_info"
+        },
+        {
+            "TABLE_NAME": "task_log"
+        },
+        {
+            "TABLE_NAME": "user_address"
+        },
+        {
+            "TABLE_NAME": "user_info"
+        },
+        {
+            "TABLE_NAME": "user_wx"
+        }
+    ],
+    "columns": [
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "NO",
+            "EXTRA": "auto_increment"
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "create_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "update_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "merchant_id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "name",
+            "COLUMN_TYPE": "varchar(100)",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "type",
+            "COLUMN_TYPE": "varchar(20)",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "description",
+            "COLUMN_TYPE": "varchar(2000)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "cover",
+            "COLUMN_TYPE": "varchar(500)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "sale_price",
+            "COLUMN_TYPE": "decimal(10,2)",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "0.00",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "scope_type",
+            "COLUMN_TYPE": "tinyint",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "0",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "min_spend",
+            "COLUMN_TYPE": "decimal(10,2)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "discount_amount",
+            "COLUMN_TYPE": "decimal(10,2)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "deduct_amount",
+            "COLUMN_TYPE": "decimal(10,2)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "max_discount",
+            "COLUMN_TYPE": "decimal(10,2)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "discount_rate",
+            "COLUMN_TYPE": "decimal(5,2)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "issue_limit",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "issued_count",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "0",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "per_customer_limit",
+            "COLUMN_TYPE": "int",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "1",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "sale_start_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "sale_end_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "valid_from",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "valid_to",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "validity_type",
+            "COLUMN_TYPE": "varchar(20)",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "valid_days",
+            "COLUMN_TYPE": "int",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "allow_combine",
+            "COLUMN_TYPE": "tinyint",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "0",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "rule_version",
+            "COLUMN_TYPE": "int",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "1",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "coupon_template",
+            "COLUMN_NAME": "status",
+            "COLUMN_TYPE": "tinyint",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "0",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_category",
+            "COLUMN_NAME": "id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "NO",
+            "EXTRA": "auto_increment"
+        },
+        {
+            "TABLE_NAME": "merchant_category",
+            "COLUMN_NAME": "create_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_category",
+            "COLUMN_NAME": "update_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_category",
+            "COLUMN_NAME": "parent_id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_category",
+            "COLUMN_NAME": "name",
+            "COLUMN_TYPE": "varchar(50)",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_category",
+            "COLUMN_NAME": "icon",
+            "COLUMN_TYPE": "varchar(500)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_category",
+            "COLUMN_NAME": "sort",
+            "COLUMN_TYPE": "int",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "0",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_category",
+            "COLUMN_NAME": "show_on_front",
+            "COLUMN_TYPE": "int",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "1",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_category",
+            "COLUMN_NAME": "status",
+            "COLUMN_TYPE": "int",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "1",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "NO",
+            "EXTRA": "auto_increment"
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "create_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "update_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "name",
+            "COLUMN_TYPE": "varchar(100)",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "category_id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "logo",
+            "COLUMN_TYPE": "varchar(500)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "contact_name",
+            "COLUMN_TYPE": "varchar(50)",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "contact_phone",
+            "COLUMN_TYPE": "varchar(30)",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "province",
+            "COLUMN_TYPE": "varchar(50)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "city",
+            "COLUMN_TYPE": "varchar(50)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "district",
+            "COLUMN_TYPE": "varchar(50)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "address",
+            "COLUMN_TYPE": "varchar(500)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "introduction",
+            "COLUMN_TYPE": "varchar(2000)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "status",
+            "COLUMN_TYPE": "int",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "1",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "merchant_info",
+            "COLUMN_NAME": "remark",
+            "COLUMN_TYPE": "varchar(1000)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "NO",
+            "EXTRA": "auto_increment"
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "create_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "update_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "merchant_id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "category_id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "name",
+            "COLUMN_TYPE": "varchar(100)",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "cover",
+            "COLUMN_TYPE": "varchar(500)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "address",
+            "COLUMN_TYPE": "varchar(500)",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "longitude",
+            "COLUMN_TYPE": "decimal(10,7)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "latitude",
+            "COLUMN_TYPE": "decimal(10,7)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "phone",
+            "COLUMN_TYPE": "varchar(30)",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "business_hours",
+            "COLUMN_TYPE": "text",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store",
+            "COLUMN_NAME": "status",
+            "COLUMN_TYPE": "int",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "1",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store_category",
+            "COLUMN_NAME": "id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "NO",
+            "EXTRA": "auto_increment"
+        },
+        {
+            "TABLE_NAME": "store_category",
+            "COLUMN_NAME": "create_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store_category",
+            "COLUMN_NAME": "update_time",
+            "COLUMN_TYPE": "datetime",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store_category",
+            "COLUMN_NAME": "merchant_id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store_category",
+            "COLUMN_NAME": "parent_id",
+            "COLUMN_TYPE": "bigint",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store_category",
+            "COLUMN_NAME": "name",
+            "COLUMN_TYPE": "varchar(50)",
+            "IS_NULLABLE": "NO",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store_category",
+            "COLUMN_NAME": "icon",
+            "COLUMN_TYPE": "varchar(500)",
+            "IS_NULLABLE": "YES",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store_category",
+            "COLUMN_NAME": "sort",
+            "COLUMN_TYPE": "int",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "0",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store_category",
+            "COLUMN_NAME": "show_on_front",
+            "COLUMN_TYPE": "int",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "1",
+            "EXTRA": ""
+        },
+        {
+            "TABLE_NAME": "store_category",
+            "COLUMN_NAME": "status",
+            "COLUMN_TYPE": "int",
+            "IS_NULLABLE": "NO",
+            "COLUMN_DEFAULT": "1",
+            "EXTRA": ""
+        }
+    ],
+    "counts": [
+        {
+            "table_name": "merchant_category",
+            "row_count": 0
+        },
+        {
+            "table_name": "merchant_info",
+            "row_count": 0
+        },
+        {
+            "table_name": "store",
+            "row_count": 0
+        },
+        {
+            "table_name": "coupon_template",
+            "row_count": 0
+        }
+    ]
+}

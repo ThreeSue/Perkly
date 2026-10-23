@@ -1,0 +1,79 @@
+@import "./discovery-palette.scss";
+page {
+	font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+	color: $discovery-ink;
+}
+// #ifdef H5
+html,
+body,
+page,
+* {
+	scrollbar-color: #9cabb9 $discovery-bg;
+	scrollbar-width: thin;
+}
+::-webkit-scrollbar {
+	width: 7px;
+	height: 7px;
+}
+::-webkit-scrollbar-track {
+	background: $discovery-bg;
+}
+::-webkit-scrollbar-thumb {
+	background: #9cabb9;
+	border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: #788b9d;
+}
+::-webkit-scrollbar-thumb:active {
+	background: $discovery-primary;
+}
+button,
+uni-button,
+navigator,
+uni-navigator,
+[role="button"] {
+	cursor: pointer;
+}
+button:disabled,
+uni-button[disabled],
+[aria-disabled="true"] {
+	cursor: default;
+}
+button:focus-visible,
+uni-button:focus-visible,
+uni-navigator:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+	outline: 3px solid $discovery-primary;
+	outline-offset: 3px;
+}
+input {
+	font-size: 16px;
+}
+textarea {
+	resize: none;
+}
+.uni-tabbar {
+	display: none !important;
+}
+.uni-page-head {
+	background: $discovery-bg !important;
+}
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+@media (forced-colors: active) {
+	html,
+	body,
+	page,
+	* {
+		scrollbar-color: auto;
+	}
+}
+// #endif

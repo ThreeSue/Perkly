@@ -2,7 +2,7 @@
 	<cl-page>
 		<cl-topbar safe-area-top background-color="transparent"></cl-topbar>
 
-		<view class="px-10 pb-8">
+		<view class="auth-content">
 			<view class="flex flex-col items-center justify-center py-12">
 				<cl-text :size="22" :pt="{ className: 'font-bold' }">券管家</cl-text>
 				<cl-text color="info" :pt="{ className: 'mt-2' }">
@@ -120,7 +120,11 @@
 					{{ t("短信验证码已发送，有效期5分钟") }}
 				</cl-text>
 				<cl-text color="info" :size="12" v-else>
-					{{ t("填写正确手机号并确认密码后，点击右侧获取验证码，完成图片验证并获取短信验证码") }}
+					{{
+						t(
+							"填写正确手机号并确认密码后，点击右侧获取验证码，完成图片验证并获取短信验证码"
+						)
+					}}
 				</cl-text>
 			</view>
 
@@ -131,7 +135,9 @@
 					inactive-icon="checkbox-blank-circle-line"
 					:pt="{ icon: { size: 18 } }"
 				></cl-checkbox>
-				<cl-text color="info" :size="12">{{ t("我已阅读并同意用户协议和隐私政策") }}</cl-text>
+				<cl-text color="info" :size="12">{{
+					t("我已阅读并同意用户协议和隐私政策")
+				}}</cl-text>
 			</view>
 
 			<cl-button
@@ -219,9 +225,7 @@ const hasValidPassword = computed(() => {
 
 const canRequestSms = computed(() => {
 	return (
-		isValidPhone(form.phone) &&
-		hasValidPassword.value &&
-		form.confirmPassword == form.password
+		isValidPhone(form.phone) && hasValidPassword.value && form.confirmPassword == form.password
 	);
 });
 
@@ -243,11 +247,7 @@ function validateForm() {
 		return false;
 	}
 
-	if (
-		form.password.length < 8 ||
-		form.password.length > 32 ||
-		/\s/.test(form.password)
-	) {
+	if (form.password.length < 8 || form.password.length > 32 || /\s/.test(form.password)) {
 		showError("密码须为8至32位且不含空白字符");
 		return false;
 	}
@@ -320,3 +320,13 @@ async function register() {
 	}
 }
 </script>
+
+<style lang="scss" scoped>
+.auth-content {
+	width: 100%;
+	max-width: 460px;
+	padding: 16px 28px 40px;
+	margin: 0 auto;
+	box-sizing: border-box;
+}
+</style>

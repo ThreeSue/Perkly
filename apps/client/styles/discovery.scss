@@ -8,9 +8,9 @@
 .discovery-content {
 	width: 100%;
 	box-sizing: border-box;
-	max-width: 680px;
+	max-width: $discovery-width;
 	margin: 0 auto;
-	padding: 18px 16px;
+	padding: 20px 20px;
 }
 .discovery-action {
 	margin: 0;
@@ -53,17 +53,23 @@
 	flex-direction: row;
 	align-items: center;
 	justify-content: space-between;
-	margin: 8px 2px 14px;
+	margin: 0 0 18px;
 }
 .discovery-heading {
-	font-size: 20px;
+	line-height: 1.5;
+	font-size: 19px;
 	font-weight: 700;
 }
 .discovery-caption {
-	font-size: 12px;
+	display: block;
+	line-height: 1.7;
+	font-size: 13px;
 	color: $discovery-muted;
 }
 .discovery-link {
+	gap: 4px;
+	font-size: 13px;
+	flex-shrink: 0;
 	color: $discovery-primary;
 	min-height: 40px;
 	display: flex;
@@ -78,12 +84,21 @@
 	margin-top: 12px;
 }
 .discovery-cell {
-	width: calc(50% - 6px);
+	width: calc(50% - 7px);
 	margin-bottom: 12px;
 }
 .discovery-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 160px;
+	box-sizing: border-box;
+	gap: 12px;
+	font-size: 14px;
+	line-height: 1.7;
 	background: white;
-	border-radius: 16px;
+	border-radius: $discovery-radius;
 	padding: 24px 16px;
 	text-align: center;
 	margin: 12px 0;
@@ -99,7 +114,7 @@
 }
 .discovery-detail-card {
 	background: white;
-	border-radius: 16px;
+	border-radius: $discovery-radius;
 	padding: 20px;
 	margin-bottom: 12px;
 }
@@ -198,7 +213,7 @@
 	opacity: 0.85;
 }
 .discovery-action:focus-visible {
-	outline: 3px solid #785c00;
+	outline: 3px solid $discovery-primary;
 	outline-offset: 3px;
 }
 .discovery-page {

@@ -26,7 +26,7 @@ export const config = {
 	name: "券管家",
 	locale: "zh-cn",
 	showDarkButton: false,
-	isCustomTabBar: false,
+	isCustomTabBar: true,
 	backTop: true,
 	wx: {
 		debug: false

@@ -1,7 +1,9 @@
 <template>
 	<cl-page :back-top="false"
 		><view class="trade-page" :class="{ 'is-dark': isDark }"
-			><view class="trade-content">
+			><view class="trade-content"
+				><text class="trade-page-title">每一笔优惠，都有记录</text
+				><text class="trade-page-note">查看购券进度、订单明细与发券结果</text>
 				<view class="trade-tabs"
 					><button
 						v-for="tab in tabs"

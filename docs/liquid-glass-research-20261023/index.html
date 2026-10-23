@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>背景折射验证 · 券管家</title>
+    <link rel="stylesheet" href="./lab.css" />
+    <script src="./lab.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="eyebrow">券管家 / 独立技术实验</span>
+        <h1>检查背景是否真的弯曲</h1>
+        <p>
+          两边都是实时 HTML
+          文字和网格。右侧透镜通过位移场折射背景，无模糊、无白色高光；并非业务页面。
+        </p>
+      </header>
+      <div class="controls">
+        <label
+          ><input id="enabled" type="checkbox" checked /> 开启右侧折射</label
+        >
+        <label for="strength"
+          >折射强度 <output id="strength-value">40</output></label
+        >
+        <input id="strength" type="range" min="0" max="56" value="40" />
+        <button id="reset" type="button">复位透镜</button>
+      </div>
+      <section class="comparison" aria-label="透明与折射对照">
+        <article>
+          <h2><span>01</span> 普通透明参照</h2>
+          <div class="scene" id="plain">
+            <div class="backdrop" aria-label="参照背景"></div>
+            <div class="lens reference" aria-hidden="true"></div>
+          </div>
+          <p>线条穿过边缘时保持笔直。</p>
+        </article>
+        <article>
+          <h2><span>02</span> 实时背景折射</h2>
+          <div class="scene" id="refracted">
+            <div class="backdrop" aria-label="可滚动的实时背景"></div>
+            <button
+              class="lens optical"
+              type="button"
+              aria-label="拖动折射透镜，或用方向键移动"
+            ></button>
+          </div>
+          <p>拖动右侧透镜或使用方向键，检查边缘的线条与字形。</p>
+        </article>
+      </section>
+      <p class="status" id="status" role="status">正在生成位移场…</p>
+      <aside>
+        此实验用于验证 Chromium 的实时背板折射。CSS
+        接受滤镜语法不代表每个浏览器都能渲染；Safari、Firefox、微信小程序尚未在此实验中验证。
+      </aside>
+    </main>
+    <svg width="0" height="0" aria-hidden="true" class="filter-definitions">
+      <defs>
+        <filter
+          id="lens-warp"
+          filterUnits="userSpaceOnUse"
+          primitiveUnits="userSpaceOnUse"
+          color-interpolation-filters="sRGB"
+        >
+          <feImage
+            id="displacement-image"
+            result="surface"
+            preserveAspectRatio="none"
+          />
+          <feDisplacementMap
+            id="displacement"
+            in="SourceGraphic"
+            in2="surface"
+            scale="40"
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
+        </filter>
+      </defs>
+    </svg>
+  </body>
+</html>

@@ -1,96 +1,103 @@
 <template>
 	<cl-page :back-top="false">
 		<view class="discovery-page home-page" :class="{ 'is-dark': isDark }">
-			<view class="home-header">
-				<cl-topbar
-					:show-back="false"
-					safe-area-top
-					:height="isMp() ? 32 : 8"
-					:background-color="isDark ? '#191919' : '#eef2f6'"
-					><view
-				/></cl-topbar>
-				<view class="home-header-inner">
-					<view class="home-brand-row">
-						<text class="home-brand">券管家</text>
-						<cl-button
-							class="home-location"
-							type="light"
-							rounded
-							icon="map-pin-line"
-							size="normal"
-							:pt="{
-								label: { color: isDark ? '#f1f5f9' : '#26313b' },
-								icon: { color: isDark ? '#abc6e3' : '#526d88', size: 15 }
-							}"
-							:style="{
-								backgroundColor: isDark ? '#262629' : '#ffffff',
-								borderColor: isDark ? '#41414a' : '#dce4ec'
-							}"
-							:disabled="selectingLocation"
-							@tap="choosePlace"
-						>
-							{{ place || "选择地点" }} ▾
-						</cl-button>
-					</view>
-					<client-search v-model="keyword" @submit="search" />
+			<cl-topbar
+				:show-back="false"
+				safe-area-top
+				:height="isMp() ? 32 : 8"
+				:background-color="isDark ? '#191919' : '#eef2f6'"
+				><view
+			/></cl-topbar>
+			<view class="home-header-inner">
+				<view class="home-brand-row">
+					<view
+						><text class="home-brand">券管家<text class="home-brand-dot">·</text></text
+						><text class="home-brand-note">发现好店，收好优惠</text></view
+					>
+					<cl-button
+						class="home-location"
+						type="light"
+						rounded
+						icon="map-pin-line"
+						size="small"
+						:pt="{
+							label: { color: isDark ? '#f1f5f9' : '#304b65' },
+							icon: { color: isDark ? '#abc6e3' : '#526d88', size: 15 }
+						}"
+						:disabled="selectingLocation"
+						@tap="choosePlace"
+						>{{ place || "选择地点"
+						}}<text class="home-location-arrow">⌄</text></cl-button
+					>
+				</view>
+				<client-search v-model="keyword" @submit="search" />
+				<view class="home-services-inner">
+					<navigator
+						v-for="service in homeServices"
+						:key="service.id"
+						class="home-service"
+						:url="
+							service.id === 'group-buy'
+								? '/pages/discover/coupons'
+								: '/pages/discover/list'
+						"
+					>
+						<button class="home-service-button">
+							<view class="home-service-icon"
+								><cl-icon :name="service.icon" :size="25" color="primary" /></view
+							><text class="home-service-label">{{ service.name }}</text>
+						</button>
+					</navigator>
 				</view>
 			</view>
-			<view class="home-services"
-				><view class="home-services-inner">
-					<navigator
-					v-for="service in homeServices"
-					:key="service.id"
-						class="home-service"
-					:url="service.id === 'group-buy' ? '/pages/discover/coupons' : '/pages/discover/list'"
-					>
-					<button class="home-service-button">{{ service.name }}</button>
-					</navigator>
-				</view></view
-			>
-			<view class="discovery-content">
+			<view class="discovery-content home-content">
 				<view class="discovery-section-head">
-					<view><text class="discovery-heading">发现好店</text></view>
-					<navigator class="discovery-link" url="/pages/discover/list"
-						>查看全部 ›</navigator
+					<view
+						><text class="discovery-heading">发现好店</text
+						><text class="section-note">从日常所需，到休闲好去处</text></view
 					>
+					<navigator class="discovery-link" url="/pages/discover/list"
+						>全部门店 <cl-icon name="arrow-right-up-line" :size="17"
+					/></navigator>
 				</view>
-				<view v-if="loading" class="discovery-state" role="status"
-					><text>门店加载中…</text></view
-				>
-				<view v-else-if="error" class="discovery-state"
-					><text>{{ error }}</text
-					><button @tap="loadStores">重试</button></view
-				>
-				<view v-else-if="stores.length === 0" class="discovery-state"
-					><text>暂无可展示门店</text></view
-				>
+				<client-browse-state
+					v-if="loading || error || stores.length === 0"
+					:loading="loading"
+					:error="error"
+					title="门店"
+					empty-title="好店即将与你见面"
+					description="暂无可展示门店，稍后再来看看"
+					@retry="loadStores"
+				/>
 				<view v-else class="discovery-grid"
 					><view v-for="store in stores" :key="String(store.id)" class="discovery-cell"
 						><client-merchant-card :store="store" /></view
 				></view>
 				<view class="discovery-section-head coupon-section-head">
-					<view><text class="discovery-heading">优惠券</text></view>
-					<navigator class="discovery-link" url="/pages/discover/coupons"
-						>查看全部 ›</navigator
+					<view
+						><text class="discovery-heading">生活好券</text
+						><text class="section-note">先看使用规则，再选适合的优惠</text></view
 					>
+					<navigator class="discovery-link" url="/pages/discover/coupons"
+						>全部优惠 <cl-icon name="arrow-right-up-line" :size="17"
+					/></navigator>
 				</view>
-				<view v-if="couponLoading" class="discovery-state" role="status">
-					<text>优惠券加载中…</text>
-				</view>
-				<view v-else-if="couponError" class="discovery-state">
-					<text>{{ couponError }}</text>
-					<button @tap="loadCoupons">重试</button>
-				</view>
-				<view v-else-if="coupons.length === 0" class="discovery-state">
-					<text>暂无已审核并上架的优惠券</text>
-					<text class="discovery-caption">平台优惠券通过审核并上架后会显示在这里</text>
-				</view>
-				<view v-else class="coupon-grid">
-					<view v-for="coupon in coupons" :key="String(coupon.id)" class="coupon-cell">
-						<client-coupon-card :coupon="coupon" />
-					</view>
-				</view>
+				<client-browse-state
+					v-if="couponLoading || couponError || coupons.length === 0"
+					:loading="couponLoading"
+					:error="couponError"
+					title="优惠券"
+					empty-title="新优惠正在路上"
+					description="暂无可展示优惠券，稍后再来看看"
+					icon="coupon-line"
+					@retry="loadCoupons"
+				/>
+				<view v-else class="coupon-grid"
+					><view v-for="coupon in coupons" :key="String(coupon.id)" class="coupon-cell"
+						><client-coupon-card :coupon="coupon" /></view
+				></view>
 			</view>
+			<client-floating-nav active="home" />
 		</view>
 	</cl-page>
 </template>
@@ -99,14 +106,16 @@ import { ref, onUnmounted } from "vue";
 import { isDark, isH5, isMp } from "@/.cool";
 import { getApiErrorMessage, listCoupons, listStores } from "@/api/discovery";
 import type { Coupon, Store } from "@/types/discovery";
+import ClientFloatingNav from "@/components/client-floating-nav.uvue";
+import ClientBrowseState from "@/components/client-browse-state.uvue";
 import ClientSearch from "@/components/client-search.uvue";
 import ClientMerchantCard from "@/components/client-merchant-card.uvue";
 import ClientCouponCard from "@/components/client-coupon-card.uvue";
 const homeServices = [
-	{ id: "takeaway", name: "外卖" },
-	{ id: "group-buy", name: "团购" },
-	{ id: "shows", name: "电影演出" },
-	{ id: "stays", name: "民宿" }
+	{ id: "takeaway", name: "外卖", icon: "shopping-bag-line" },
+	{ id: "group-buy", name: "团购", icon: "coupon-line" },
+	{ id: "shows", name: "电影演出", icon: "clapperboard-line" },
+	{ id: "stays", name: "民宿", icon: "home-2-line" }
 ];
 const keyword = ref("");
 const place = ref("");
@@ -194,83 +203,133 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 @import "@/styles/discovery.scss";
 .home-page {
-	padding-bottom: 24px;
-}
-.coupon-section-head {
-	margin-top: 24px;
-}
-.coupon-grid {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-}
-.coupon-cell {
-	width: 100%;
-}
-.home-header {
-	background: $discovery-bg;
+	padding-bottom: 0;
 }
 .home-header-inner {
 	width: 100%;
 	box-sizing: border-box;
-	max-width: 680px;
+	max-width: $discovery-width;
 	margin: 0 auto;
-	padding: 10px 16px 18px;
+	padding: 12px 20px 0;
 }
 .home-brand-row {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 	justify-content: space-between;
-	margin-bottom: 16px;
+	gap: 12px;
+	margin-bottom: 22px;
 }
 .home-brand {
-	font-size: 23px;
+	display: block;
+	font-size: 24px;
+	line-height: 1.4;
 	font-weight: 800;
 	letter-spacing: 1px;
 }
+.home-brand-dot {
+	color: $discovery-primary;
+	margin-left: 3px;
+}
+.home-brand-note {
+	display: block;
+	font-size: 12px;
+	color: $discovery-muted;
+	margin-top: 4px;
+}
 .home-location {
 	margin: 0;
-	max-width: 62%;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	font-size: 13px;
+	max-width: 48%;
 }
-.home-services {
-	background: $discovery-bg;
-	margin-top: 0;
-	position: relative;
+.home-location-arrow {
+	margin-left: 4px;
 }
 .home-services-inner {
-	width: 100%;
-	box-sizing: border-box;
 	display: flex;
 	flex-direction: row;
 	justify-content: space-between;
-	max-width: 680px;
-	margin: 0 auto;
-	padding: 8px 16px 22px;
+	padding: 22px 0 20px;
+	border-bottom: 1px solid $discovery-border;
 }
 .home-service {
-	width: calc(25% - 9px);
+	width: 25%;
 	min-width: 0;
 }
 .home-service-button {
 	width: 100%;
-	height: 64px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
 	margin: 0;
-	font-size: 14px;
-	font-weight: 600;
-	white-space: nowrap;
-	background: #ffffff;
+	padding: 0 2px;
+	background: transparent;
+	border-radius: 14px;
 	color: $discovery-ink;
-	border: 1px solid $discovery-border;
-	border-radius: 12px;
-	padding: 0;
-	line-height: 64px;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.6;
 }
 .home-service-button::after {
 	border: 0;
 }
+.home-service-label {
+	font-size: 13px;
+	white-space: nowrap;
+}
+.home-service-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 52px;
+	height: 52px;
+	background: white;
+	border: 1px solid rgba(255, 255, 255, 0.9);
+	border-radius: 18px;
+	color: $discovery-strong;
+	box-shadow: inset 0 -2px 0 rgba(82, 109, 136, 0.07);
+}
+.home-content {
+	padding-top: 20px;
+}
+.section-note {
+	display: block;
+	font-size: 12px;
+	color: $discovery-muted;
+	margin-top: 5px;
+}
+.coupon-section-head {
+	margin-top: 30px;
+}
+.coupon-grid {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+.coupon-cell {
+	width: 100%;
+}
+.is-dark .home-service-icon {
+	background: $discovery-dark-surface;
+	color: $discovery-dark-primary;
+	border-color: $discovery-dark-border;
+}
+.is-dark .home-service-button {
+	color: $discovery-dark-ink;
+}
+.is-dark .home-brand-note,
+.is-dark .section-note {
+	color: $discovery-dark-muted;
+}
+.is-dark .home-services-inner {
+	border-color: $discovery-dark-border;
+}
+// #ifdef H5
+.home-service-button:hover .home-service-icon {
+	background: $discovery-soft;
+}
+.home-service-button:active .home-service-icon {
+	transform: scale(0.94);
+}
+// #endif
 </style>

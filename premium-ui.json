@@ -12,7 +12,8 @@
     "apps/merchant-independent/pages/business",
     "apps/verification/pages/business",
     "apps/merchant/components",
-    "apps/merchant/api"
+    "apps/merchant/api",
+    "apps/merchant/composables"
   ],
   "locale": "zh-CN",
   "canonicalMap": "UX-CONTRACT.md",
@@ -21,12 +22,20 @@
     "Form": "authored",
     "Scrollbar": "authored"
   },
-  "requiredCommands": ["structure", "mock", "client", "merchant", "trade"],
+  "requiredCommands": [
+    "structure",
+    "mock",
+    "client",
+    "merchant",
+    "trade",
+    "glass"
+  ],
   "commands": {
     "structure": "pnpm check",
     "mock": "pnpm test:shared",
     "client": "pnpm test:client",
     "merchant": "pnpm test:merchant",
-    "trade": "pnpm test:trade"
+    "trade": "pnpm test:trade",
+    "glass": "pnpm test:glass"
   }
 }

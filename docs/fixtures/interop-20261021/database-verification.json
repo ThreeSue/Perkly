@@ -1,0 +1,13 @@
+{
+    "batchId": "interop_20261021_01",
+    "verifiedAtBeijing": "2026-10-21T22:05:16.961214300+08:00[Asia/Shanghai]",
+    "persistedCounts": {
+        "merchant_category": 6,
+        "merchant_info": 6,
+        "store_category": 6,
+        "store": 6,
+        "coupon_template": 12
+    },
+    "twoCouponsPerMerchant": true,
+    "dataRetained": true
+}

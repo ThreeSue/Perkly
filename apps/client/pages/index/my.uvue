@@ -1,88 +1,117 @@
 <template>
-	<cl-page>
+	<cl-page :back-top="false">
 		<cl-topbar
-			fixed
 			:height="44"
 			:show-back="false"
 			safe-area-top
 			title="我的"
 			:background-color="isDark ? '#191919' : '#eef2f6'"
-		>
-		</cl-topbar>
-
-		<view class="profile-card" :class="{ 'is-dark': isDark }">
-			<cl-avatar
-				:src="userInfo?.avatarUrl"
-				:size="76"
-				:pt="{ className: '!rounded-3xl', icon: { size: 30 } }"
-			></cl-avatar>
-			<view class="profile-info">
-				<cl-text :size="18" :pt="{ className: 'font-bold' }">
-					{{ userInfo?.nickName || (user.token == null ? "欢迎使用券管家" : "账户资料") }}
-				</cl-text>
-				<cl-text v-if="!user.isNull()" color="info" :size="12" :pt="{ className: 'mt-1' }">
-					{{ userInfo?.phone || "" }}
-				</cl-text>
-				<cl-text
-					v-else-if="user.token != null"
-					color="info"
-					:size="12"
-					:pt="{ className: 'mt-1' }"
-				>
-					{{
+		/>
+		<view class="profile-page" :class="{ 'is-dark': isDark }">
+			<view class="profile-card">
+				<cl-avatar
+					:src="userInfo?.avatarUrl"
+					:size="64"
+					:pt="{ className: '!rounded-3xl', icon: { size: 28 } }"
+				/>
+				<view class="profile-info">
+					<text class="profile-name">{{
+						userInfo?.nickName || (user.token == null ? "欢迎来到券管家" : "账户资料")
+					}}</text>
+					<text v-if="!user.isNull()" class="profile-caption">{{
+						userInfo?.phone || ""
+					}}</text>
+					<text v-else-if="user.token != null" class="profile-caption">{{
 						profileLoading
-							? "正在从服务端读取资料…"
+							? "正在读取账户资料…"
 							: profileLoadFailed
 								? "资料暂时无法加载"
 								: "正在读取账户资料"
-					}}
-				</cl-text>
-				<cl-button
-					v-if="user.token == null"
-					class="mt-3"
-					size="small"
-					type="primary"
-					@tap="toLogin"
-				>
-					登录 / 注册
-				</cl-button>
-				<cl-button
-					v-else-if="user.isNull() && profileLoadFailed"
-					class="mt-3"
-					size="small"
-					:disabled="profileLoading"
-					@tap="reloadProfile"
-				>
-					重试
-				</cl-button>
+					}}</text>
+					<text v-else class="profile-caption">登录后，收好每一份优惠</text>
+					<cl-button
+						v-if="user.token == null"
+						class="profile-login"
+						size="small"
+						type="primary"
+						@tap="toLogin"
+						>登录 / 注册 <cl-icon name="arrow-right-line" :size="15" color="#ffffff"
+					/></cl-button>
+					<cl-button
+						v-else-if="user.isNull() && profileLoadFailed"
+						class="profile-login"
+						size="small"
+						:disabled="profileLoading"
+						@tap="reloadProfile"
+						>重试</cl-button
+					>
+				</view>
 			</view>
+			<button
+				class="profile-wallet"
+				role="button"
+				tabindex="0"
+				@tap="openWallet"
+				@keydown="keyWallet"
+			>
+				<view class="profile-wallet-copy"
+					><text class="profile-wallet-kicker">我的优惠券</text
+					><text class="profile-wallet-title">好优惠，随身带</text
+					><text class="profile-wallet-note">查看券码与有效期</text></view
+				>
+				<view class="profile-wallet-symbol" aria-hidden="true"
+					><cl-icon name="coupon-line" :size="40" color="#d6e3ee" /></view
+				><cl-icon name="arrow-right-up-line" :size="22" color="#ffffff" />
+			</button>
+			<view class="profile-menu">
+				<navigator class="profile-menu-row" url="/pages/trade/orders"
+					><view class="profile-menu-icon"
+						><cl-icon name="file-list-line" :size="22" /></view
+					><view class="profile-menu-copy"
+						><text class="profile-menu-label">我的订单</text
+						><text class="profile-caption">购券进度与订单明细</text></view
+					><cl-icon name="arrow-right-s-line" :size="20" color="info"
+				/></navigator>
+				<button v-if="!user.isNull()" class="profile-menu-row" @tap="toEdit">
+					<view class="profile-menu-icon"><cl-icon name="user-line" :size="22" /></view
+					><view class="profile-menu-copy"
+						><text class="profile-menu-label">个人资料</text
+						><text class="profile-caption">昵称、头像与性别</text></view
+					><cl-icon name="arrow-right-s-line" :size="20" color="info" />
+				</button>
+				<button v-if="!user.isNull()" class="profile-menu-row" @tap="toSet">
+					<view class="profile-menu-icon"
+						><cl-icon name="settings-line" :size="22" /></view
+					><view class="profile-menu-copy"
+						><text class="profile-menu-label">设置</text
+						><text class="profile-caption">账户与登录管理</text></view
+					><cl-icon name="arrow-right-s-line" :size="20" color="info" />
+				</button>
+			</view>
+			<text class="profile-footer">券管家 · 让优惠融入日常</text>
 		</view>
-
-		<cl-list v-if="!user.isNull()" :pt="{ className: 'mx-4' }">
-			<cl-list-item
-				label="我的订单"
-				icon="coupon-line"
-				arrow
-				hoverable
-				@tap="router.to('/pages/trade/orders')"
-			/>
-			<cl-list-item label="个人资料" icon="user-line" arrow hoverable @tap="toEdit">
-			</cl-list-item>
-			<cl-list-item label="设置" icon="settings-line" arrow hoverable @tap="toSet">
-			</cl-list-item>
-		</cl-list>
-
-		<custom-tabbar></custom-tabbar>
+		<client-floating-nav active="my" />
 	</cl-page>
 </template>
-
 <script setup lang="ts">
 import { isDark, router, userInfo, useStore } from "@/.cool";
-import CustomTabbar from "./components/tabbar.uvue";
+import ClientFloatingNav from "@/components/client-floating-nav.uvue";
 
 const { user } = useStore();
 const profileLoading = user.profileLoading;
 const profileLoadFailed = user.profileLoadFailed;
+
+function keyWallet(event: KeyboardEvent) {
+	// #ifdef H5
+	if (event.key === "Enter" || event.key === " ") {
+		event.preventDefault();
+		openWallet();
+	}
+	// #endif
+}
+function openWallet() {
+	uni.switchTab({ url: "/pages/index/template" });
+}
 
 function toLogin() {
 	router.to("/pages/user/login");
@@ -107,23 +136,149 @@ onReady(() => {
 
 <style lang="scss" scoped>
 @import "@/styles/discovery-palette.scss";
-.profile-card.is-dark {
-	background: $discovery-dark-surface;
+.profile-page {
+	max-width: $discovery-width;
+	margin: 0 auto;
+	padding: 12px 20px 0;
+	box-sizing: border-box;
+	width: 100%;
 }
 .profile-card {
-	margin: 20px 16px 16px;
-	padding: 24px 20px;
-	border-radius: 18px;
-	background: #fff;
+	padding: 24px 0 28px;
 	display: flex;
 	flex-direction: row;
 	align-items: center;
+	gap: 16px;
 }
-
 .profile-info {
-	margin-left: 16px;
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
+	min-width: 0;
+	flex: 1;
 }
+.profile-name {
+	font-size: 21px;
+	font-weight: 700;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+.profile-caption {
+	display: block;
+	font-size: 13px;
+	line-height: 1.7;
+	color: $discovery-muted;
+	margin-top: 4px;
+}
+.profile-login {
+	margin-top: 12px;
+}
+.profile-wallet {
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	padding: 24px;
+	margin: 0 0 24px;
+	border-radius: 22px;
+	background: $discovery-strong;
+	color: white;
+	text-align: left;
+	line-height: 1.5;
+	box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+.profile-wallet::after {
+	border: 0;
+}
+.profile-wallet-copy {
+	flex: 1;
+	min-width: 0;
+}
+.profile-wallet-kicker,
+.profile-wallet-note {
+	display: block;
+	font-size: 12px;
+	color: #d6e3ee;
+}
+.profile-wallet-title {
+	display: block;
+	font-size: 21px;
+	font-weight: 650;
+	margin: 8px 0;
+}
+.profile-wallet-symbol {
+	color: #d6e3ee;
+	transform: rotate(-16deg);
+}
+.profile-menu {
+	background: white;
+	border-radius: $discovery-radius;
+	padding: 0 20px;
+}
+.profile-menu-row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 14px;
+	min-height: 84px;
+	box-sizing: border-box;
+	padding: 16px 0;
+	margin: 0;
+	width: 100%;
+	background: transparent;
+	color: $discovery-ink;
+	border-radius: 0;
+	text-align: left;
+	border-bottom: 1px solid $discovery-border;
+	line-height: 1.5;
+}
+.profile-menu-row:last-child {
+	border-bottom: 0;
+}
+.profile-menu-row::after {
+	border: 0;
+}
+.profile-menu-icon {
+	color: $discovery-primary;
+}
+.profile-menu-copy {
+	flex: 1;
+	min-width: 0;
+}
+.profile-menu-label {
+	font-size: 15px;
+	font-weight: 600;
+}
+.profile-footer {
+	display: block;
+	text-align: center;
+	font-size: 12px;
+	color: $discovery-muted;
+	margin: 32px 0 16px;
+}
+.is-dark .profile-name,
+.is-dark .profile-menu-row {
+	color: $discovery-dark-ink;
+}
+.is-dark .profile-menu {
+	background: $discovery-dark-surface;
+}
+.is-dark .profile-caption,
+.is-dark .profile-footer {
+	color: $discovery-dark-muted;
+}
+.is-dark .profile-menu-row {
+	border-color: $discovery-dark-border;
+}
+// #ifdef H5
+.profile-wallet:hover {
+	background: $discovery-primary;
+}
+.profile-menu-row:hover {
+	color: $discovery-primary;
+}
+// #endif
 </style>

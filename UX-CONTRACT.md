@@ -4,22 +4,22 @@
 
 ## Canonical UI Map
 
-| Capability | Canonical owner | Source of truth | Allowed variants | Verification |
-| --- | --- | --- | --- | --- |
-| Form | 客户端 cl-form + cl-input；其他端 uni input + cl-button, pages/business/login.uvue | 本文输入与登录约定 | 演示昵称、核销码 | pnpm check；H5 页面检查 |
-| Scrollbar | packages/shared/styles/business.scss | DESIGN.md | 各应用仅调整布局 | pnpm check 样式同步检查 |
+| Capability | Canonical owner                                                                            | Source of truth    | Allowed variants | Verification            |
+| ---------- | ------------------------------------------------------------------------------------------ | ------------------ | ---------------- | ----------------------- |
+| Form       | 客户端 cl-form + cl-input；其他端 uni input + cl-button, pages/business/login.uvue         | 本文输入与登录约定 | 演示昵称、核销码 | pnpm check；H5 页面检查 |
+| Scrollbar  | 客户端 client-system.scss；商家 merchant.scss；其他端 packages/shared/styles/business.scss | DESIGN.md          | 手机端与原运营端 | H5计算样式；pnpm check  |
 
-| 能力 | 统一实现 | 行为 |
-| --- | --- | --- |
-| 导航 | 每端 pages.json | 本端三项导航，模块详情 navigateTo，登录后返回原页面。 |
-| 登录 | Cool Unix user store + pages/user/login | 客户端登录调用已记录的普通用户接口；Token 由 Cool Unix 管理并随授权请求使用；订单、券等业务状态以后端为准。 |
-| 按钮 | Cool UI cl-button | 操作有具体中文标签；请求处理中禁用重复操作并显示 loading。 |
-| 列表 | pages/business/list、records | API 分页，每页 10 条；加载更多；失败保留可见数据并提供重试；空模块说明待开发。 |
-| 反馈 | 页面内 qgj-error / qgj-status | 错误持久可见，可更正或重试；H5 使用 alert / status 角色。 |
-| 异步 | 列表 version 标记 | 过期响应和卸载后的响应不能覆盖当前列表；request 层最多等待 10 秒。 |
-| 输入 | uni input 与关联 label | 券码及演示昵称有真实标签，禁止把 placeholder 当作唯一标签。 |
-| 核销 | verification 首页 | 输入或微信扫码 → 预览 → 明确确认 → 更新状态；失败保留券信息；已核销不再允许提交。 |
-| 滚动条 | packages/shared/styles/business.scss | H5 全局颜色和可见焦点，不依赖逐屏 opt-in。 |
+| 能力   | 统一实现                                | 行为                                                                                                        |
+| ------ | --------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 导航   | 每端 pages.json                         | 本端三项导航，模块详情 navigateTo，登录后返回原页面。                                                       |
+| 登录   | Cool Unix user store + pages/user/login | 客户端登录调用已记录的普通用户接口；Token 由 Cool Unix 管理并随授权请求使用；订单、券等业务状态以后端为准。 |
+| 按钮   | Cool UI cl-button                       | 操作有具体中文标签；请求处理中禁用重复操作并显示 loading。                                                  |
+| 列表   | pages/business/list、records            | API 分页，每页 10 条；加载更多；失败保留可见数据并提供重试；空模块说明待开发。                              |
+| 反馈   | 页面内 qgj-error / qgj-status           | 错误持久可见，可更正或重试；H5 使用 alert / status 角色。                                                   |
+| 异步   | 列表 version 标记                       | 过期响应和卸载后的响应不能覆盖当前列表；request 层最多等待 10 秒。                                          |
+| 输入   | uni input 与关联 label                  | 券码及演示昵称有真实标签，禁止把 placeholder 当作唯一标签。                                                 |
+| 核销   | verification 首页                       | 输入或微信扫码 → 预览 → 明确确认 → 更新状态；失败保留券信息；已核销不再允许提交。                           |
+| 滚动条 | packages/shared/styles/business.scss    | H5 全局颜色和可见焦点，不依赖逐屏 opt-in。                                                                  |
 
 未使用日期选择、多选表格或复杂弹窗；未来引入时先记录组件所有权和真实后端约束。真实登录、权限恢复、账户持久化、真实交易确认不由本地 mock 推定。
 
@@ -41,16 +41,15 @@
 
 ## 商家手机端（2026-10-20，覆盖上文该端演示约定）
 
-| 能力 | 统一实现 | 行为 |
-| --- | --- | --- |
-| 商家 Form | Cool Unix cl-form / cl-form-item / cl-input / cl-textarea | 字段具备可见标签；缺接口的登录/建券/反馈禁用，不收集无用凭据；券码和搜索只在当前页面临时输入，显式按钮清空 |
-| 商家反馈 | components/merchant-pending.uvue + api/index.ts 能力清单 | 明确待接入，不把未加载展示为 0 或空业务记录，不伪造成功 |
-| 商家导航 | pages.json + components/business-shell.uvue | 原生标题与 tabBar，工作台/核销记录/我的；详情 navigateTo；不自动弹出演示登录 |
-| 商家权限 | 后端员工身份及授权门店（待交付） | 不以视图切换、顾客或平台管理员 Token 推定权限；无授权不查数据、不开放提交 |
-| 商家 Scrollbar | styles/merchant.scss（H5 全局） | 沿用 client 灰底滚动条、可见焦点；高对比使用系统色 |
+| 能力           | 统一实现                                                  | 行为                                                                                                       |
+| -------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 商家 Form      | Cool Unix cl-form / cl-form-item / cl-input / cl-textarea | 字段具备可见标签；缺接口的登录/建券/反馈禁用，不收集无用凭据；券码和搜索只在当前页面临时输入，显式按钮清空 |
+| 商家反馈       | components/merchant-pending.uvue + api/index.ts 能力清单  | 明确待接入，不把未加载展示为 0 或空业务记录，不伪造成功                                                    |
+| 商家导航       | pages.json + components/business-shell.uvue               | 原生标题与 tabBar，工作台/核销记录/我的；详情 navigateTo；不自动弹出演示登录                               |
+| 商家权限       | 后端员工身份及授权门店（待交付）                          | 不以视图切换、顾客或平台管理员 Token 推定权限；无授权不查数据、不开放提交                                  |
+| 商家 Scrollbar | styles/merchant.scss（H5 全局）                           | 沿用 client 灰底滚动条、可见焦点；高对比使用系统色                                                         |
 
 接口缺口及接入后的异步、分页、会话清理、防重复和超时策略见 docs/MERCHANT-API-HANDOFF.md；当前阶段不把未接入能力描述为成功流程。
-
 
 ## 客户端范围清理（2026-10-20）
 
@@ -64,3 +63,25 @@
 - 进入券包、订单列表、持券详情时重新请求；不做后台轮询、不持久化业务状态。退出或切换账号通过会话版本让旧响应失效，刷新Token不改变账号版本。
 - 二维码直接显示后端详情返回的PNG数据，券码完整换行可复制。非待使用券显示明确不可核销文案；不把能看到二维码当作核销资格。
 - 本轮仅开发用户部分；三个商家核销接口按用户要求暂缓，商家端保持原有待接入状态。
+
+## 2026-10-23 手机端视觉与导航（当前，覆盖历史原生平底导航要求）
+
+用户提供参考图并明确要求胶囊导航、清透液态玻璃而非磨砂。apps/client 和 apps/merchant 保留 pages.json 的三个 tab 路由及 switchTab，仅隐藏系统底栏、由本端组件绘制悬浮胶囊；tabBar.custom 保持 false，不引入微信原生 custom-tab-bar 目录。依据 DCloud uni.hideTabBar 公开 API（https://doc.dcloud.net.cn/uni-app-x/api/set-tab-bar.html）。页面组件预留底部安全区，二级页面使用原返回链路、不显示主导航。保持原有数据刷新、登录后返回与页面缓存行为。
+
+| 能力           | 统一所有者                                               | 验证                                           |
+| -------------- | -------------------------------------------------------- | ---------------------------------------------- |
+| 主导航         | client-floating-nav / merchant-floating-nav              | 3项切换、当前项、键盘Enter/Space、窄屏、安全区 |
+| 视觉反馈       | 共享 floating-nav.scss；cl-button                        | 按压、焦点、禁用、减少动态效果                 |
+| Scrollbar      | client-system.scss / merchant.scss；其他端 business.scss | 全局基线与高对比回退                           |
+| Select/Listbox | 既有 cl-select（资料性别）                               | 保持现有选择契约，不新增选择器                 |
+| Toast/确认     | 既有 useUi；平台选址沿用 uni.showToast                   | 不新增局部弹窗体系                             |
+
+个人中心访客也可进入已有券包与订单路由，由原页面展示登录引导；编辑资料/设置仍仅在真实资料可用时显示。无新的业务权限。后端契约仍为 docs/BACKEND-DISCOVERY-API-20261020.md、docs/BACKEND-COUPON-TRADE-API-20261020.md；三个商家核销接口仍暂缓。未登录/缺接口时不得构造成功数据或写入持久业务状态。
+
+玻璃胶囊触摸/鼠标拖动：按实际测量容器归一化触点，边界收敛到三个导航中心；释放后按实际触点选择最近项、使用有限初始速度回弹，不能用拖尾位置误选导航。点击与拖动产生的合成tap去重，触摸后的合成鼠标事件忽略；触摸取消恢复当前页面。H5鼠标拖出胶囊继续跟随，页面内任意位置松手均可完成选择，窗口失焦则取消；非拖动鼠标移动不更新动画；白色高光已按最新要求移除。H5全局监听与待执行动画帧随页面隐藏/卸载注销，事件按帧合并；小程序保持触摸入口，不包含window监听。键盘Enter/Space提供同等导航，aria-current只反映实际页面。切页继承本端运动状态，不把视觉状态当作权限或业务数据；路由失败恢复原项。H5减少动态效果时拖动不变形、松手直接归位，小程序不使用浏览器专有滤镜。页面离开时清除未执行导航，不遗留业务副作用；弹簧900ms内结束。
+
+2026-10-23最新：正式导航已删除白色光斑、反光及光照计算，保留选中指示、果冻惯性与无拖动导航替代。docs/liquid-glass-research-20261023为独立前端研究实验，不属于业务页面，也不作为小程序真机或兼容性验收。
+
+## H5液态导航接入（2026-10-23）
+
+H5 Chromium导航增强按住放大、上下可露出外壳与细边色散；只改变视觉，不改变业务导航目的、权限和三个tab。键盘Enter/Space继续作为拖动替代。外观扩张不移动标签布局，实际按钮触达区域保持原有48px。移出胶囊仍能释放，失焦/隐藏取消按住状态并收回；跨tab共享扩张/位移的本端内存运动。SVG渲染只在显示时挂载，隐藏/卸载清理；异步解码通过代次校验防止离页后重启。尺寸变化时重建位移图，运动时仅变更几何。减少动态效果不放大或回弹，减少透明度/强制高对比/不支持浏览器使用原回退。小程序不包含H5渲染适配，不因本轮切换Skyline。白色高光仍禁止恢复。实现和验证见docs/h5-liquid-nav-20261023/README.md。

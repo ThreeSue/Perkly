@@ -1,0 +1,80 @@
+<template>
+	<view class="browse-state" :class="{ 'is-dark': isDark }" role="status" aria-live="polite">
+		<view class="browse-state-icon" aria-hidden="true"
+			><cl-icon :name="loading ? 'time-line' : error ? 'cloud-off-line' : icon" :size="24"
+		/></view>
+		<text class="browse-state-title">{{
+			loading ? "正在加载" : error ? title + "暂时无法加载" : emptyTitle
+		}}</text>
+		<text class="browse-state-note">{{
+			loading ? "请稍候，即将为你呈现" : error ? error : description
+		}}</text>
+		<cl-button
+			v-if="error && !loading"
+			class="browse-state-retry"
+			border
+			size="small"
+			@tap="$emit('retry')"
+			>重新加载</cl-button
+		>
+	</view>
+</template>
+<script setup lang="ts">
+import { isDark } from "@/.cool";
+withDefaults(
+	defineProps<{
+		loading?: boolean;
+		error?: string;
+		title: string;
+		emptyTitle: string;
+		description?: string;
+		icon?: string;
+	}>(),
+	{ loading: false, error: "", description: "", icon: "store-2-line" }
+);
+defineEmits<{ retry: [] }>();
+</script>
+<style lang="scss" scoped>
+@import "@/styles/discovery-palette.scss";
+.browse-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 146px;
+	padding: 20px;
+	box-sizing: border-box;
+	background: white;
+	border: 1px solid $discovery-border;
+	border-radius: $discovery-radius;
+	text-align: center;
+}
+.browse-state-icon {
+	color: $discovery-primary;
+	margin-bottom: 8px;
+}
+.browse-state-title {
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.6;
+}
+.browse-state-note {
+	display: block;
+	font-size: 13px;
+	color: $discovery-muted;
+	line-height: 1.7;
+	margin-top: 6px;
+	overflow-wrap: anywhere;
+}
+.browse-state-retry {
+	margin-top: 12px;
+}
+.browse-state.is-dark {
+	background: $discovery-dark-surface;
+	border-color: $discovery-dark-border;
+	color: $discovery-dark-ink;
+}
+.is-dark .browse-state-note {
+	color: $discovery-dark-muted;
+}
+</style>

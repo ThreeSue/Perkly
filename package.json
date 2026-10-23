@@ -20,7 +20,8 @@
     "dev:verification": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App verification -Run",
     "test:client": "node --test tests/client.test.mjs",
     "test:merchant": "node --test tests/merchant.test.mjs",
-    "test:trade": "node --test tests/trade.test.mjs tests/trade-flow.test.mjs"
+    "test:trade": "node --test tests/trade.test.mjs tests/trade-flow.test.mjs",
+    "test:glass": "node --test tests/glass-navigation.test.mjs"
   },
   "devDependencies": {
     "prettier": "3.5.3",

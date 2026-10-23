@@ -1,5 +1,9 @@
 <template>
-	<business-shell title="核销记录与数据" description="核对每一笔核销，了解门店当日情况">
+	<business-shell
+		tab="records"
+		title="核销记录与数据"
+		description="核对每一笔核销，了解门店当日情况"
+	>
 		<view class="merchant-tabs" role="tablist" aria-label="记录范围">
 			<button
 				class="merchant-tab"

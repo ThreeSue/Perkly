@@ -1,0 +1,556 @@
+{
+    "batchId": "interop_20261021_01",
+    "createdAtBeijing": "2026-10-21T22:00:30.049705+08:00[Asia/Shanghai]",
+    "database": "cool",
+    "retention": "保留，直到用户明确要求清理",
+    "records": {
+        "merchant_category": [
+            {
+                "id": 21,
+                "name": "餐饮美食",
+                "sort": 10,
+                "show_on_front": 1,
+                "status": 1
+            },
+            {
+                "id": 22,
+                "name": "休闲娱乐",
+                "sort": 20,
+                "show_on_front": 1,
+                "status": 1
+            },
+            {
+                "id": 23,
+                "name": "生活服务",
+                "sort": 30,
+                "show_on_front": 1,
+                "status": 1
+            },
+            {
+                "id": 24,
+                "name": "美容美发",
+                "sort": 40,
+                "show_on_front": 1,
+                "status": 1
+            },
+            {
+                "id": 25,
+                "name": "运动健身",
+                "sort": 50,
+                "show_on_front": 1,
+                "status": 1
+            },
+            {
+                "id": 26,
+                "name": "酒店住宿",
+                "sort": 60,
+                "show_on_front": 1,
+                "status": 1
+            }
+        ],
+        "merchant_info": [
+            {
+                "id": 11,
+                "name": "【联调测试】食味小馆",
+                "category_id": 21,
+                "contact_name": "联调测试联系人",
+                "contact_phone": "000-00000000",
+                "address": "联调专用虚拟地址",
+                "introduction": "联调测试商家，仅用于前后端数据互通测试。",
+                "status": 1,
+                "remark": "interop_20261021_01；保留至用户要求清理"
+            },
+            {
+                "id": 12,
+                "name": "【联调测试】乐聚空间",
+                "category_id": 22,
+                "contact_name": "联调测试联系人",
+                "contact_phone": "000-00000000",
+                "address": "联调专用虚拟地址",
+                "introduction": "联调测试商家，仅用于前后端数据互通测试。",
+                "status": 1,
+                "remark": "interop_20261021_01；保留至用户要求清理"
+            },
+            {
+                "id": 13,
+                "name": "【联调测试】便民生活馆",
+                "category_id": 23,
+                "contact_name": "联调测试联系人",
+                "contact_phone": "000-00000000",
+                "address": "联调专用虚拟地址",
+                "introduction": "联调测试商家，仅用于前后端数据互通测试。",
+                "status": 1,
+                "remark": "interop_20261021_01；保留至用户要求清理"
+            },
+            {
+                "id": 14,
+                "name": "【联调测试】清颜造型",
+                "category_id": 24,
+                "contact_name": "联调测试联系人",
+                "contact_phone": "000-00000000",
+                "address": "联调专用虚拟地址",
+                "introduction": "联调测试商家，仅用于前后端数据互通测试。",
+                "status": 1,
+                "remark": "interop_20261021_01；保留至用户要求清理"
+            },
+            {
+                "id": 15,
+                "name": "【联调测试】轻动健身",
+                "category_id": 25,
+                "contact_name": "联调测试联系人",
+                "contact_phone": "000-00000000",
+                "address": "联调专用虚拟地址",
+                "introduction": "联调测试商家，仅用于前后端数据互通测试。",
+                "status": 1,
+                "remark": "interop_20261021_01；保留至用户要求清理"
+            },
+            {
+                "id": 16,
+                "name": "【联调测试】安栖客栈",
+                "category_id": 26,
+                "contact_name": "联调测试联系人",
+                "contact_phone": "000-00000000",
+                "address": "联调专用虚拟地址",
+                "introduction": "联调测试商家，仅用于前后端数据互通测试。",
+                "status": 1,
+                "remark": "interop_20261021_01；保留至用户要求清理"
+            }
+        ],
+        "store_category": [
+            {
+                "id": 11,
+                "merchant_id": 11,
+                "name": "联调门店",
+                "sort": 0,
+                "show_on_front": 1,
+                "status": 1
+            },
+            {
+                "id": 12,
+                "merchant_id": 12,
+                "name": "联调门店",
+                "sort": 0,
+                "show_on_front": 1,
+                "status": 1
+            },
+            {
+                "id": 13,
+                "merchant_id": 13,
+                "name": "联调门店",
+                "sort": 0,
+                "show_on_front": 1,
+                "status": 1
+            },
+            {
+                "id": 14,
+                "merchant_id": 14,
+                "name": "联调门店",
+                "sort": 0,
+                "show_on_front": 1,
+                "status": 1
+            },
+            {
+                "id": 15,
+                "merchant_id": 15,
+                "name": "联调门店",
+                "sort": 0,
+                "show_on_front": 1,
+                "status": 1
+            },
+            {
+                "id": 16,
+                "merchant_id": 16,
+                "name": "联调门店",
+                "sort": 0,
+                "show_on_front": 1,
+                "status": 1
+            }
+        ],
+        "store": [
+            {
+                "id": 21,
+                "merchant_id": 11,
+                "category_id": 11,
+                "name": "【联调测试】食味小馆·测试门店",
+                "address": "联调专用虚拟地址（不对应真实经营场所）",
+                "phone": "000-00000000",
+                "business_hours": "09:00-22:00（测试）",
+                "status": 1
+            },
+            {
+                "id": 22,
+                "merchant_id": 12,
+                "category_id": 12,
+                "name": "【联调测试】乐聚空间·测试门店",
+                "address": "联调专用虚拟地址（不对应真实经营场所）",
+                "phone": "000-00000000",
+                "business_hours": "09:00-22:00（测试）",
+                "status": 1
+            },
+            {
+                "id": 23,
+                "merchant_id": 13,
+                "category_id": 13,
+                "name": "【联调测试】便民生活馆·测试门店",
+                "address": "联调专用虚拟地址（不对应真实经营场所）",
+                "phone": "000-00000000",
+                "business_hours": "09:00-22:00（测试）",
+                "status": 1
+            },
+            {
+                "id": 24,
+                "merchant_id": 14,
+                "category_id": 14,
+                "name": "【联调测试】清颜造型·测试门店",
+                "address": "联调专用虚拟地址（不对应真实经营场所）",
+                "phone": "000-00000000",
+                "business_hours": "09:00-22:00（测试）",
+                "status": 1
+            },
+            {
+                "id": 25,
+                "merchant_id": 15,
+                "category_id": 15,
+                "name": "【联调测试】轻动健身·测试门店",
+                "address": "联调专用虚拟地址（不对应真实经营场所）",
+                "phone": "000-00000000",
+                "business_hours": "09:00-22:00（测试）",
+                "status": 1
+            },
+            {
+                "id": 26,
+                "merchant_id": 16,
+                "category_id": 16,
+                "name": "【联调测试】安栖客栈·测试门店",
+                "address": "联调专用虚拟地址（不对应真实经营场所）",
+                "phone": "000-00000000",
+                "business_hours": "09:00-22:00（测试）",
+                "status": 1
+            }
+        ],
+        "coupon_template": [
+            {
+                "id": 6,
+                "merchant_id": 11,
+                "name": "【联调测试】餐饮美食免费满100减20券",
+                "type": "FULL_REDUCTION",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 0,
+                "scope_type": 0,
+                "min_spend": 100,
+                "discount_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            },
+            {
+                "id": 7,
+                "merchant_id": 11,
+                "name": "【联调测试】餐饮美食9.9元购20元代金券",
+                "type": "CASH",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 9.9,
+                "scope_type": 0,
+                "min_spend": 0,
+                "deduct_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            },
+            {
+                "id": 8,
+                "merchant_id": 12,
+                "name": "【联调测试】休闲娱乐免费满100减20券",
+                "type": "FULL_REDUCTION",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 0,
+                "scope_type": 0,
+                "min_spend": 100,
+                "discount_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            },
+            {
+                "id": 9,
+                "merchant_id": 12,
+                "name": "【联调测试】休闲娱乐9.9元购20元代金券",
+                "type": "CASH",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 9.9,
+                "scope_type": 0,
+                "min_spend": 0,
+                "deduct_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            },
+            {
+                "id": 10,
+                "merchant_id": 13,
+                "name": "【联调测试】生活服务免费满100减20券",
+                "type": "FULL_REDUCTION",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 0,
+                "scope_type": 0,
+                "min_spend": 100,
+                "discount_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            },
+            {
+                "id": 11,
+                "merchant_id": 13,
+                "name": "【联调测试】生活服务9.9元购20元代金券",
+                "type": "CASH",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 9.9,
+                "scope_type": 0,
+                "min_spend": 0,
+                "deduct_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            },
+            {
+                "id": 12,
+                "merchant_id": 14,
+                "name": "【联调测试】美容美发免费满100减20券",
+                "type": "FULL_REDUCTION",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 0,
+                "scope_type": 0,
+                "min_spend": 100,
+                "discount_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            },
+            {
+                "id": 13,
+                "merchant_id": 14,
+                "name": "【联调测试】美容美发9.9元购20元代金券",
+                "type": "CASH",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 9.9,
+                "scope_type": 0,
+                "min_spend": 0,
+                "deduct_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            },
+            {
+                "id": 14,
+                "merchant_id": 15,
+                "name": "【联调测试】运动健身免费满100减20券",
+                "type": "FULL_REDUCTION",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 0,
+                "scope_type": 0,
+                "min_spend": 100,
+                "discount_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            },
+            {
+                "id": 15,
+                "merchant_id": 15,
+                "name": "【联调测试】运动健身9.9元购20元代金券",
+                "type": "CASH",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 9.9,
+                "scope_type": 0,
+                "min_spend": 0,
+                "deduct_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            },
+            {
+                "id": 16,
+                "merchant_id": 16,
+                "name": "【联调测试】酒店住宿免费满100减20券",
+                "type": "FULL_REDUCTION",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 0,
+                "scope_type": 0,
+                "min_spend": 100,
+                "discount_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            },
+            {
+                "id": 17,
+                "merchant_id": 16,
+                "name": "【联调测试】酒店住宿9.9元购20元代金券",
+                "type": "CASH",
+                "description": "联调测试券；批次 interop_20261021_01。仅供功能测试，不对应真实交易；下单和核销以后端真实响应为准。",
+                "sale_price": 9.9,
+                "scope_type": 0,
+                "min_spend": 0,
+                "deduct_amount": 20,
+                "issue_limit": 1000,
+                "issued_count": 0,
+                "per_customer_limit": 20,
+                "validity_type": "AFTER_ISSUE",
+                "valid_days": 30,
+                "allow_combine": 0,
+                "rule_version": 1,
+                "status": 1
+            }
+        ]
+    },
+    "summary": [
+        {
+            "category": "餐饮美食",
+            "categoryId": 21,
+            "merchant": "【联调测试】食味小馆",
+            "merchantId": 11,
+            "storeId": 21,
+            "storeCategoryId": 11,
+            "couponTemplateIds": [
+                6,
+                7
+            ],
+            "plannedProduct": "双人简餐套餐",
+            "productState": "NOT_INSERTED_MISSING_TABLE",
+            "publicationState": "NOT_INSERTED_MISSING_TABLE"
+        },
+        {
+            "category": "休闲娱乐",
+            "categoryId": 22,
+            "merchant": "【联调测试】乐聚空间",
+            "merchantId": 12,
+            "storeId": 22,
+            "storeCategoryId": 12,
+            "couponTemplateIds": [
+                8,
+                9
+            ],
+            "plannedProduct": "双人桌游体验",
+            "productState": "NOT_INSERTED_MISSING_TABLE",
+            "publicationState": "NOT_INSERTED_MISSING_TABLE"
+        },
+        {
+            "category": "生活服务",
+            "categoryId": 23,
+            "merchant": "【联调测试】便民生活馆",
+            "merchantId": 13,
+            "storeId": 23,
+            "storeCategoryId": 13,
+            "couponTemplateIds": [
+                10,
+                11
+            ],
+            "plannedProduct": "基础家政保洁",
+            "productState": "NOT_INSERTED_MISSING_TABLE",
+            "publicationState": "NOT_INSERTED_MISSING_TABLE"
+        },
+        {
+            "category": "美容美发",
+            "categoryId": 24,
+            "merchant": "【联调测试】清颜造型",
+            "merchantId": 14,
+            "storeId": 24,
+            "storeCategoryId": 14,
+            "couponTemplateIds": [
+                12,
+                13
+            ],
+            "plannedProduct": "基础洗剪吹",
+            "productState": "NOT_INSERTED_MISSING_TABLE",
+            "publicationState": "NOT_INSERTED_MISSING_TABLE"
+        },
+        {
+            "category": "运动健身",
+            "categoryId": 25,
+            "merchant": "【联调测试】轻动健身",
+            "merchantId": 15,
+            "storeId": 25,
+            "storeCategoryId": 15,
+            "couponTemplateIds": [
+                14,
+                15
+            ],
+            "plannedProduct": "单次健身体验",
+            "productState": "NOT_INSERTED_MISSING_TABLE",
+            "publicationState": "NOT_INSERTED_MISSING_TABLE"
+        },
+        {
+            "category": "酒店住宿",
+            "categoryId": 26,
+            "merchant": "【联调测试】安栖客栈",
+            "merchantId": 16,
+            "storeId": 26,
+            "storeCategoryId": 16,
+            "couponTemplateIds": [
+                16,
+                17
+            ],
+            "plannedProduct": "标准房入住体验",
+            "productState": "NOT_INSERTED_MISSING_TABLE",
+            "publicationState": "NOT_INSERTED_MISSING_TABLE"
+        }
+    ],
+    "pending": "商品及券发布记录需要后端提供现有版本缺失的实体/建表脚本与接口；不根据规划臆造业务表。plannedProduct仅存档，尚未写入不存在的product表。",
+    "state": "COMMITTED_RETAIN_UNTIL_USER_REQUESTS_DELETE"
+}

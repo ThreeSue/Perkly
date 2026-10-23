@@ -6,16 +6,16 @@
 }
 .trade-content {
 	width: 100%;
-	max-width: 680px;
+	max-width: $discovery-width;
 	margin: 0 auto;
-	padding: 16px 16px 32px;
+	padding: 20px 20px 32px;
 	box-sizing: border-box;
 }
 .trade-card,
 .trade-state {
 	padding: 20px;
 	margin-bottom: 12px;
-	border-radius: 16px;
+	border-radius: $discovery-radius;
 	background: white;
 }
 .trade-state {
@@ -24,7 +24,7 @@
 }
 .trade-title {
 	display: block;
-	font-size: 20px;
+	font-size: 18px;
 	font-weight: 700;
 	line-height: 1.5;
 }
@@ -62,21 +62,27 @@
 	margin-top: 16px;
 }
 .trade-tabs {
+	padding: 6px;
+	border-radius: 18px;
+	background: $discovery-soft;
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
-	gap: 8px;
-	margin-bottom: 16px;
+	gap: 4px;
+	margin-bottom: 24px;
 }
 .trade-filter {
+	box-sizing: border-box;
+	width: calc(33.333% - 3px);
+	min-height: 42px;
 	margin: 0;
 	padding: 8px 12px;
 	font-size: 13px;
 	line-height: 1.6;
-	background: white;
+	background: transparent;
 	color: $discovery-muted;
-	border: 1px solid $discovery-border;
-	border-radius: 20px;
+	border: 1px solid transparent;
+	border-radius: 12px;
 }
 .trade-filter::after {
 	border: 0;
@@ -146,4 +152,42 @@
 }
 .is-dark .trade-error {
 	color: #ffb4ab;
+}
+
+.trade-page-title {
+	display: block;
+	font-size: 24px;
+	line-height: 1.5;
+	font-weight: 750;
+	margin-bottom: 4px;
+}
+.trade-page-note {
+	display: block;
+	color: $discovery-muted;
+	font-size: 13px;
+	line-height: 1.7;
+	margin-bottom: 24px;
+}
+.wallet-entry {
+	border-left: 3px solid $discovery-primary;
+}
+.wallet-entry .trade-row {
+	border-bottom: 1px dashed $discovery-border;
+	padding-bottom: 14px;
+	margin: 0;
+	align-items: flex-start;
+}
+.wallet-entry .trade-title {
+	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+.trade-status {
+	flex-shrink: 0;
+}
+.is-dark .trade-tabs {
+	background: $discovery-dark-raised;
+}
+.is-dark .trade-page-note {
+	color: $discovery-dark-muted;
 }

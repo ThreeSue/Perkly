@@ -149,7 +149,7 @@ function selectType(type: CouponType | "") {
 onLoad((options) => {
 	const rawKeyword = String(options?.keyword ?? "");
 	try {
-		keyword.value = decodeURIComponent(rawKeyword);
+		keyword.value = decodeURIComponent(rawKeyword) ?? rawKeyword;
 	} catch {
 		keyword.value = rawKeyword;
 	}
@@ -176,6 +176,6 @@ onUnmounted(() => {
 	width: 100%;
 	padding: 12px;
 	text-align: center;
-	color: #526d88;
+	color: $discovery-primary;
 }
 </style>

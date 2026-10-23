@@ -8,9 +8,16 @@
 		/>
 		<view class="trade-page" :class="{ 'is-dark': isDark }"
 			><view class="trade-content">
-				<view class="trade-row"
-					><text class="trade-title">我的券包</text
-					><cl-button size="small" border @tap="router.to('/pages/trade/orders')"
+				<view class="wallet-header"
+					><view class="wallet-header-copy"
+						><text class="wallet-eyebrow">我的券包</text
+						><text class="wallet-headline">优惠随行</text
+						><text class="wallet-note">到店出示券码，使用前确认有效期</text></view
+					><cl-button
+						class="wallet-orders"
+						size="small"
+						type="primary"
+						@tap="router.to('/pages/trade/orders')"
 						>我的订单</cl-button
 					></view
 				>
@@ -37,7 +44,7 @@
 				<navigator
 					v-for="coupon in items"
 					:key="String(coupon.id)"
-					class="trade-card"
+					class="trade-card wallet-entry"
 					:url="'/pages/trade/wallet?id=' + encodeURIComponent(String(coupon.id))"
 				>
 					<view class="trade-row"
@@ -59,14 +66,15 @@
 						@tap="load(false)"
 						>加载更多</cl-button
 					></view
-				>
-			</view></view
-		>
+				> </view
+			><client-floating-nav active="wallet"
+		/></view>
 	</cl-page>
 </template>
 <script setup lang="ts">
 import { ref } from "vue";
 import { isDark, router } from "@/.cool";
+import ClientFloatingNav from "@/components/client-floating-nav.uvue";
 import ClientTradeState from "@/components/client-trade-state.uvue";
 import { usePrivatePage } from "@/composables/use-private-page";
 import { listWallet } from "@/api/trade";
@@ -92,4 +100,42 @@ onHide(clear);
 </script>
 <style lang="scss" scoped>
 @import "@/styles/trade.scss";
+.wallet-header {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 12px;
+	background: $discovery-strong;
+	color: white;
+	padding: 24px 20px;
+	margin-bottom: 24px;
+	border-radius: 22px;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.wallet-header-copy {
+	flex: 1;
+	min-width: 0;
+}
+.wallet-orders {
+	flex-shrink: 0;
+}
+.wallet-eyebrow {
+	display: block;
+	font-size: 12px;
+	color: #d6e3ee;
+}
+.wallet-headline {
+	display: block;
+	font-size: 27px;
+	font-weight: 700;
+	line-height: 1.4;
+	margin: 10px 0;
+}
+.wallet-note {
+	display: block;
+	font-size: 12px;
+	color: #d6e3ee;
+	line-height: 1.7;
+}
 </style>

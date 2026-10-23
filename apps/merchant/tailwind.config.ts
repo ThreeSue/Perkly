@@ -12,6 +12,7 @@ type primaryColor =
 	| "teal"
 	| "cyan"
 	| "sky"
+	| "bluegray"
 	| "blue"
 	| "indigo"
 	| "violet"
@@ -24,6 +25,22 @@ type surfaceColor = "slate" | "gray" | "zinc" | "neutral" | "stone" | "soho" | "
  * 主题主色调色板
  */
 export const PRIMARY_COLOR_PALETTES = [
+	{
+		name: "bluegray",
+		palette: {
+			50: "#f3f6f9",
+			100: "#e6ebf1",
+			200: "#cbd5e0",
+			300: "#a8b7c8",
+			400: "#71869f",
+			500: "#526d88",
+			600: "#435d76",
+			700: "#384d63",
+			800: "#303f50",
+			900: "#273542",
+			950: "#1c2833"
+		}
+	},
 	{
 		name: "emerald",
 		palette: {
@@ -452,7 +469,7 @@ export default {
 	theme: {
 		extend: {
 			colors: {
-				...getPrimary("teal"),
+				...getPrimary("bluegray"),
 				...getSurface("zinc")
 			},
 			fontSize: {

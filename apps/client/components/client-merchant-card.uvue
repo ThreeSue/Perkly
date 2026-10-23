@@ -9,11 +9,17 @@
 					mode="aspectFill"
 					@error="imageFailed = true"
 				/>
-				<text v-else class="merchant-photo-fallback">{{ store.merchantName }}</text>
+				<view v-else class="merchant-photo-fallback"
+					><text class="merchant-monogram">{{
+						(store.merchantName || store.name).slice(0, 1)
+					}}</text
+					><text class="merchant-photo-label">门店影像待上传</text></view
+				>
 			</view>
 			<view class="merchant-info">
 				<text class="merchant-name">{{ store.name }}</text>
-				<text class="merchant-offer">{{ store.merchantName }} · {{ store.categoryName }}</text>
+				<text class="merchant-offer">{{ store.categoryName || store.merchantName }}</text
+				><text v-if="store.address" class="merchant-address">{{ store.address }}</text>
 			</view>
 		</navigator>
 	</view>
@@ -30,8 +36,8 @@ const imageFailed = ref(false);
 .merchant-entry {
 	position: relative;
 	width: 100%;
-	height: 300px;
-	border-radius: 14px;
+	height: auto;
+	border-radius: $discovery-radius;
 	overflow: hidden;
 	background: #fff;
 }
@@ -46,42 +52,57 @@ const imageFailed = ref(false);
 .merchant-photo {
 	display: flex;
 	width: 100%;
-	height: 70%;
+	height: 0;
+	padding-top: 86%;
+	position: relative;
 	flex-shrink: 0;
 	background: #e6ebf1;
 	align-items: center;
 	justify-content: center;
 }
 .merchant-image {
+	position: absolute;
+	top: 0;
+	left: 0;
 	width: 100%;
 	height: 100%;
 }
 .merchant-photo-fallback {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	justify-content: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
 	font-size: 17px;
-	color: #71808d;
+	color: $discovery-muted;
 }
 .merchant-info {
 	display: flex;
 	flex-direction: column;
 	width: 100%;
-	height: 30%;
+	min-height: 100px;
 	flex-shrink: 0;
-	padding: 9px 10px;
+	padding: 14px 12px;
 	box-sizing: border-box;
-	justify-content: space-between;
+	gap: 7px;
 }
 .merchant-name {
 	display: block;
 	font-size: 16px;
 	font-weight: 700;
 	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
 }
 .merchant-offer {
 	display: block;
 	font-size: 13px;
-	color: #71808d;
+	color: $discovery-muted;
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -97,7 +118,37 @@ const imageFailed = ref(false);
 	}
 	.merchant-offer,
 	.merchant-photo-fallback {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		justify-content: center;
 		color: $discovery-dark-muted;
 	}
 }
+.merchant-monogram {
+	font-size: 40px;
+	line-height: 1.3;
+	font-weight: 500;
+	color: $discovery-primary;
+}
+.merchant-photo-label {
+	font-size: 11px;
+	color: $discovery-muted;
+}
+.merchant-address {
+	display: block;
+	font-size: 12px;
+	line-height: 1.5;
+	color: $discovery-muted;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+// #ifdef H5
+.merchant-link:hover {
+	background: $discovery-bg;
+}
+// #endif
 </style>

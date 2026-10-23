@@ -98,8 +98,7 @@
 				{
 					"path": "login",
 					"style": {
-						"navigationStyle": "custom",
-						"disableScroll": true
+						"navigationStyle": "custom"
 					}
 				},
 				{

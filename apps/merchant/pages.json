@@ -64,14 +64,14 @@
 	"globalStyle": {
 		"navigationBarTitleText": "券管家 · 商家端",
 		"navigationBarTextStyle": "black",
-		"navigationBarBackgroundColor": "#ffe23f",
-		"backgroundColor": "#f5f5f5",
-		"backgroundColorContent": "#f5f5f5"
+		"navigationBarBackgroundColor": "#eef2f6",
+		"backgroundColor": "#eef2f6",
+		"backgroundColorContent": "#eef2f6"
 	},
 	"tabBar": {
 		"custom": false,
-		"color": "#707070",
-		"selectedColor": "#242424",
+		"color": "#647585",
+		"selectedColor": "#526d88",
 		"backgroundColor": "#ffffff",
 		"list": [
 			{

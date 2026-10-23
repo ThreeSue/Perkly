@@ -1,0 +1,342 @@
+<template>
+	<view class="floating-nav-space" aria-hidden="true" />
+	<view class="floating-nav-wrap">
+		<view
+			class="floating-nav"
+			:id="navId"
+			:class="{ 'is-dark': isDark, 'is-dragging': pressing, 'has-refraction': opticalReady }"
+			role="navigation"
+			aria-label="主导航"
+			@touchstart="touchStart"
+			@touchmove.stop.prevent="touchMove"
+			@touchend="release"
+			@touchcancel="cancel"
+			@mousedown="mouseStart"
+		>
+			<!-- #ifdef H5 -->
+			<view class="floating-nav-refraction" aria-hidden="true" />
+			<!-- #endif -->
+			<view class="floating-nav-track" aria-hidden="true">
+				<view class="floating-nav-lens" :style="lensStyle" />
+			</view>
+			<button
+				v-for="(item, index) in items"
+				:key="item.path"
+				class="floating-nav-item"
+				:class="{ 'is-active': litIndex === index }"
+				:aria-current="active === item.id ? 'page' : undefined"
+				:aria-label="item.label"
+				role="button"
+				tabindex="0"
+				@tap="tap(index)"
+				@keydown="keySelect($event, index)"
+			>
+				<cl-icon :name="item.icon" :size="21" :color="itemColor(index)" /><text
+					class="floating-nav-label"
+					>{{ item.label }}</text
+				>
+			</button>
+		</view>
+	</view>
+</template>
+<script setup lang="ts">
+import { computed, getCurrentInstance, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { isDark } from "@/.cool";
+import { useNavGlass } from "@/composables/use-nav-glass";
+import { glassGeometry, type GlassBounds } from "../../../packages/shared/src/glass-navigation.js";
+// #ifdef H5
+import {
+	mountNavRefraction,
+	type NavRefraction
+} from "../../../packages/shared/h5/nav-refraction.js";
+// #endif
+const props = defineProps<{ active: string }>();
+const items = [
+	{ id: "home", path: "/pages/index/home", label: "首页", icon: "home-2-line" },
+	{ id: "wallet", path: "/pages/index/template", label: "我的券", icon: "coupon-line" },
+	{ id: "my", path: "/pages/index/my", label: "我的", icon: "user-line" }
+];
+
+const { proxy } = getCurrentInstance()!;
+const activeIndex = () =>
+	Math.max(
+		0,
+		items.findIndex((item) => item.id === props.active)
+	);
+const {
+	progress,
+	stretch,
+	squash,
+	tilt,
+	expansion,
+	expandTo,
+	align,
+	springTo,
+	stopSpring,
+	shapeReset
+} = useNavGlass(activeIndex());
+const navId = "client-nav-" + props.active;
+const opticalReady = ref(false);
+function itemColor(index: number) {
+	// #ifdef H5
+	if (opticalReady.value) return isDark.value ? "#f1f5f9" : "#263746";
+	// #endif
+	return litIndex.value === index ? "#304b65" : "#f1f5f9";
+}
+// #ifdef H5
+let refraction: NavRefraction | null = null;
+function startRefraction() {
+	if (refraction !== null) return;
+	const host = document.getElementById(navId);
+	if (host === null) return;
+	refraction = mountNavRefraction(host, (enabled: boolean) => {
+		opticalReady.value = enabled;
+	});
+	refraction?.update(progress.value, stretch.value, squash.value, expansion.value, tilt.value);
+}
+function stopRefraction() {
+	refraction?.destroy();
+	refraction = null;
+}
+watch(
+	[progress, stretch, squash],
+	() => {
+		refraction?.update(
+			progress.value,
+			stretch.value,
+			squash.value,
+			expansion.value,
+			tilt.value
+		);
+	},
+	{ flush: "post" }
+);
+// #endif
+const pressing = ref(false);
+let reduceMotion = false;
+const litIndex = computed(() =>
+	Math.max(0, Math.min(items.length - 1, Math.round(progress.value)))
+);
+const lensStyle = computed(() => {
+	let sx = stretch.value;
+	let sy = squash.value;
+	// #ifdef H5
+	if (opticalReady.value) {
+		const amount = Math.max(0, Math.min(1.08, expansion.value));
+		sx *= 1 - 0.12 * amount;
+		sy += 0.58 * amount;
+	}
+	// #endif
+	return {
+		left: (progress.value * 100) / items.length + "%",
+		transform: "scale(" + sx + "," + sy + ") rotate(" + tilt.value + "deg)"
+	};
+});
+let bounds: GlassBounds = { left: 0, top: 0, width: 0, height: 64 };
+let previousX = 0;
+let previousAt = 0;
+let suppressTapUntil = 0;
+let touchAt = 0;
+let slotVelocity = 0;
+let pressX = 0;
+let pressIndex = 0;
+let dragged = false;
+let dragIndex = 0;
+let navigationTimer: ReturnType<typeof setTimeout> | null = null;
+function clearNavigation() {
+	if (navigationTimer !== null) {
+		clearTimeout(navigationTimer);
+		navigationTimer = null;
+	}
+}
+function measure() {
+	uni.createSelectorQuery()
+		.in(proxy)
+		.select(".floating-nav")
+		.boundingClientRect((node) => {
+			if (node != null) {
+				const rect = node as NodeInfo;
+				bounds = {
+					left: rect.left ?? 0,
+					top: rect.top ?? 0,
+					width: rect.width ?? 0,
+					height: rect.height ?? 64
+				};
+			}
+		})
+		.exec();
+}
+function update(x: number, y: number, moving: boolean) {
+	if (bounds.width <= 0) return;
+	const now = Date.now();
+	const velocity = moving ? (x - previousX) / Math.max(16, now - previousAt) : 0;
+	const geometry = glassGeometry(x, y, bounds, items.length, velocity);
+	if (moving) slotVelocity = (velocity * items.length * 1000) / Math.max(1, bounds.width - 14);
+	if (pressing.value && moving && (dragged || Math.abs(x - pressX) >= 6)) {
+		dragged = true;
+		dragIndex = geometry.index;
+		const lag = reduceMotion ? 0 : Math.max(-0.1, Math.min(0.1, velocity * 0.055));
+		progress.value = Math.max(0, Math.min(items.length - 1, geometry.progress - lag));
+		stretch.value = reduceMotion ? 1 : geometry.stretch;
+		squash.value = reduceMotion ? 1 : geometry.squash;
+		tilt.value = reduceMotion ? 0 : geometry.tilt;
+	}
+	previousX = x;
+	previousAt = now;
+}
+function begin(x: number, y: number) {
+	if (bounds.width <= 0) {
+		measure();
+		return;
+	}
+	pressX = x;
+	pressIndex = glassGeometry(x, y, bounds, items.length).index;
+	dragged = false;
+	stopSpring();
+	slotVelocity = 0;
+	clearNavigation();
+	pressing.value = true;
+	expandTo(1);
+	previousX = x;
+	previousAt = Date.now();
+	update(x, y, false);
+}
+function touchStart(event: TouchEvent) {
+	touchAt = Date.now();
+	const point = event.touches[0];
+	if (point != null) begin(point.clientX, point.clientY);
+}
+function touchMove(event: TouchEvent) {
+	const point = event.touches[0];
+	if (pressing.value && point != null) update(point.clientX, point.clientY, true);
+}
+function mouseStart(event: MouseEvent) {
+	if (Date.now() - touchAt < 700) return;
+	begin(event.clientX, event.clientY);
+}
+// #ifdef H5
+let pointerFrame = 0;
+let pointerX = 0;
+let pointerY = 0;
+let tracking = false;
+function flushPointer() {
+	if (pointerFrame === 0) return;
+	window.cancelAnimationFrame(pointerFrame);
+	pointerFrame = 0;
+	update(pointerX, pointerY, pressing.value);
+}
+function mouseMove(event: MouseEvent) {
+	if (!pressing.value || Date.now() - touchAt < 700) return;
+	pointerX = event.clientX;
+	pointerY = event.clientY;
+	if (pointerFrame !== 0) return;
+	pointerFrame = window.requestAnimationFrame(() => {
+		pointerFrame = 0;
+		update(pointerX, pointerY, pressing.value);
+	});
+}
+function mouseRelease() {
+	flushPointer();
+	release();
+}
+function mouseBlur() {
+	if (pointerFrame !== 0) window.cancelAnimationFrame(pointerFrame);
+	pointerFrame = 0;
+	if (pressing.value) cancel();
+}
+function startTracking() {
+	if (tracking) return;
+	tracking = true;
+	reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+	window.addEventListener("mousemove", mouseMove, { passive: true });
+	window.addEventListener("mouseup", mouseRelease);
+	window.addEventListener("blur", mouseBlur);
+}
+function stopTracking() {
+	if (!tracking) return;
+	tracking = false;
+	window.removeEventListener("mousemove", mouseMove);
+	window.removeEventListener("mouseup", mouseRelease);
+	window.removeEventListener("blur", mouseBlur);
+	if (pointerFrame !== 0) window.cancelAnimationFrame(pointerFrame);
+	pointerFrame = 0;
+}
+// #endif
+function release() {
+	if (!pressing.value) return;
+	expandTo(0);
+	pressing.value = false;
+	suppressTapUntil = Date.now() + 450;
+	shapeReset();
+	select(dragged ? dragIndex : pressIndex, dragged ? slotVelocity : 0);
+}
+function keySelect(event: KeyboardEvent, index: number) {
+	// #ifdef H5
+	if (event.key === "Enter" || event.key === " ") {
+		event.preventDefault();
+		select(index);
+	}
+	// #endif
+}
+function tap(index: number) {
+	if (Date.now() >= suppressTapUntil) select(index);
+}
+function select(index: number, inertia = 0) {
+	clearNavigation();
+	springTo(index, inertia);
+	if (index === activeIndex()) return;
+	navigationTimer = setTimeout(() => {
+		navigationTimer = null;
+		uni.switchTab({
+			url: items[index].path,
+			fail: () => {
+				springTo(activeIndex());
+			}
+		});
+	}, 16);
+}
+function cancel() {
+	expandTo(0);
+	clearNavigation();
+	pressing.value = false;
+	springTo(activeIndex());
+}
+function show() {
+	pressing.value = false;
+	align(activeIndex());
+	uni.hideTabBar({ animation: false });
+	nextTick(() => {
+		measure();
+		// #ifdef H5
+		startRefraction();
+		// #endif
+	});
+	// #ifdef H5
+	startTracking();
+	// #endif
+}
+onMounted(show);
+onShow(show);
+onResize(measure);
+onHide(() => {
+	if (pressing.value) expandTo(0);
+	// #ifdef H5
+	stopTracking();
+	stopRefraction();
+	// #endif
+	pressing.value = false;
+	clearNavigation();
+});
+onUnmounted(() => {
+	if (pressing.value) expandTo(0);
+	clearNavigation();
+	// #ifdef H5
+	stopTracking();
+	stopRefraction();
+	// #endif
+});
+</script>
+<style lang="scss" scoped>
+@import "../../../packages/shared/styles/commerce-tokens.scss";
+@import "../../../packages/shared/styles/floating-nav.scss";
+</style>

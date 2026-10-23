@@ -1,5 +1,9 @@
 <template>
-	<navigator class="coupon-card" :class="{ 'is-dark': isDark }" :url="'/pages/discover/coupon?id=' + coupon.id">
+	<navigator
+		class="coupon-card"
+		:class="{ 'is-dark': isDark }"
+		:url="'/pages/discover/coupon?id=' + coupon.id"
+	>
 		<view class="coupon-cover">
 			<image
 				v-if="coupon.cover && !imageFailed"
@@ -13,7 +17,9 @@
 		<view class="coupon-info">
 			<view class="coupon-main">
 				<text class="coupon-title">{{ coupon.name }}</text>
-				<text class="coupon-caption">{{ coupon.merchantName }} · {{ coupon.typeText }}</text>
+				<text class="coupon-caption"
+					>{{ coupon.merchantName }} · {{ coupon.typeText }}</text
+				>
 			</view>
 			<view class="coupon-price-row">
 				<text class="coupon-price">¥{{ formatMoney(coupon.salePrice) }}</text>
@@ -39,13 +45,14 @@ const imageFailed = ref(false);
 	display: flex;
 	flex-direction: row;
 	min-height: 108px;
-	border-radius: 14px;
+	border-radius: $discovery-radius;
 	background: #ffffff;
-	color: #26313b;
+	color: $discovery-ink;
 	overflow: hidden;
 }
 .coupon-cover {
-	width: 104px;
+	border-right: 1px dashed $discovery-border;
+	width: 88px;
 	min-height: 108px;
 	flex-shrink: 0;
 	display: flex;
@@ -59,7 +66,7 @@ const imageFailed = ref(false);
 }
 .coupon-cover-fallback {
 	font-size: 13px;
-	color: #526d88;
+	color: $discovery-primary;
 }
 .coupon-info {
 	flex: 1;
@@ -78,25 +85,26 @@ const imageFailed = ref(false);
 	font-size: 16px;
 	font-weight: 700;
 	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
 }
 .coupon-caption,
 .coupon-state {
+	line-height: 1.6;
 	font-size: 12px;
-	color: #71808d;
+	color: $discovery-muted;
 }
 .coupon-price-row {
 	display: flex;
 	flex-direction: row;
-	align-items: baseline;
+	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
 }
 .coupon-price {
-	font-size: 17px;
+	font-size: 21px;
 	font-weight: 700;
-	color: #b35332;
+	color: $discovery-price;
 }
 .coupon-card.is-dark {
 	background: $discovery-dark-surface;

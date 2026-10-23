@@ -9,9 +9,11 @@
 				</view>
 			</view>
 			<view class="merchant-content"><slot /></view>
+			<merchant-floating-nav v-if="tab" :active="tab" />
 		</view>
 	</cl-page>
 </template>
 <script setup lang="ts">
-defineProps<{ title: string; description?: string }>();
+import MerchantFloatingNav from "@/components/merchant-floating-nav.uvue";
+defineProps<{ title: string; description?: string; tab?: string }>();
 </script>

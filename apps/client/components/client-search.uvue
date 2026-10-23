@@ -1,18 +1,32 @@
 <template>
 	<view class="client-search" :class="{ 'is-dark': isDark }">
+		<cl-icon name="search-line" :size="19" color="primary" />
 		<cl-input
+			ref="searchInput"
 			class="client-search-input"
 			:model-value="value"
 			:pt="{ inner: { className: 'client-search-native' } }"
 			placeholder="搜索商家、优惠"
+			aria-label="搜索商家、优惠"
 			confirm-type="search"
 			:border="false"
 			:maxlength="60"
-			clearable
+			:clearable="false"
 			@update:model-value="updateValue"
 			@confirm="$emit('submit')"
 			@clear="$emit('clear')"
 		></cl-input>
+		<button
+			v-if="value"
+			class="client-search-clear"
+			role="button"
+			tabindex="0"
+			aria-label="清空搜索"
+			@tap="clearSearch"
+			@keydown="keyClear"
+		>
+			<cl-icon name="close-circle-fill" :size="18" color="info" />
+		</button>
 		<cl-button
 			class="client-search-submit"
 			type="primary"
@@ -24,8 +38,22 @@
 	</view>
 </template>
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { isDark } from "@/.cool";
+const searchInput = ref<any>(null);
+function clearSearch() {
+	emit("update:modelValue", "");
+	emit("clear");
+	searchInput.value?.focus();
+}
+function keyClear(event: KeyboardEvent) {
+	// #ifdef H5
+	if (event.key === "Enter" || event.key === " ") {
+		event.preventDefault();
+		clearSearch();
+	}
+	// #endif
+}
 const props = defineProps<{ modelValue: string }>();
 const emit = defineEmits(["update:modelValue", "submit", "clear"]);
 const value = computed({
@@ -43,9 +71,10 @@ function updateValue(value: string) {
 	flex-direction: row;
 	align-items: center;
 	background: white;
-	border-radius: 24px;
-	padding: 6px 6px 6px 16px;
-	height: 48px;
+	border: 1px solid $discovery-border;
+	border-radius: 16px;
+	padding: 7px 7px 7px 14px;
+	height: 52px;
 	box-sizing: border-box;
 }
 .client-search-input {
@@ -59,9 +88,25 @@ function updateValue(value: string) {
 .client-search.is-dark {
 	background: $discovery-dark-surface;
 }
+.client-search-clear {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 36px;
+	height: 36px;
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	line-height: 1;
+	border-radius: 12px;
+}
+.client-search-clear::after {
+	border: 0;
+}
 .client-search-submit {
 	margin: 0;
-	border-radius: 20px;
+	border-radius: 12px;
 }
 // #ifdef H5
 .client-search-submit {

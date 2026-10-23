@@ -1,15 +1,14 @@
 <template>
-	<business-shell title="门店工作台" description="核销、查券、看记录，日常工作从这里开始">
+	<business-shell
+		tab="home"
+		title="门店工作台"
+		description="核销、查券、看记录，日常工作从这里开始"
+	>
 		<view class="merchant-card">
 			<text class="merchant-heading">员工身份</text>
 			<text class="merchant-muted">尚未登录 · 商家与当前角色待验证</text>
 			<view class="merchant-actions"
-				><cl-button
-					:style="{ backgroundColor: '#ffe23f' }"
-					:pt="{ label: { color: '#242424' } }"
-					@tap="open('login')"
-					>员工登录</cl-button
-				></view
+				><cl-button type="primary" @tap="open('login')">员工登录</cl-button></view
 			>
 		</view>
 		<view class="merchant-card">
@@ -18,14 +17,22 @@
 			<view class="merchant-actions"
 				><cl-button border disabled>选择授权门店 · 待接入</cl-button></view
 			>
-			<text class="merchant-label">今日核销</text><text class="merchant-stat">—</text>
+			<view class="merchant-stat-inline"
+				><text class="merchant-label">今日核销</text
+				><text class="merchant-stat">—</text></view
+			>
 			<text class="merchant-field-note">统计待接入，尚无可展示的核销数量</text>
 		</view>
 		<text class="merchant-heading">常用功能</text>
 		<view class="merchant-grid">
 			<view v-for="entry in entries" :key="entry.page" class="merchant-tile">
 				<button class="merchant-tile-button" @tap="open(entry.page)">
-					<text class="merchant-tile-icon">{{ entry.mark }}</text>
+					<view class="merchant-tile-icon"
+						><cl-icon
+							:name="entry.icon"
+							:size="23"
+							:color="entry.page === 'verify' ? '#ffffff' : '#526d88'"
+					/></view>
 					<text class="merchant-tile-title">{{ entry.title }}</text>
 					<text class="merchant-tile-caption">{{ entry.caption }}</text>
 				</button>
@@ -39,13 +46,45 @@ import BusinessShell from "@/components/business-shell.uvue";
 import MerchantPending from "@/components/merchant-pending.uvue";
 
 const entries = [
-	{ page: "verify", mark: "扫", title: "优惠券核销", caption: "扫描二维码 / 手动输入券码" },
-	{ page: "coupons", mark: "券", title: "券信息查询", caption: "适用门店、商品与使用规则" },
-	{ page: "records", mark: "记", title: "核销记录", caption: "本人记录 / 店长门店汇总" },
-	{ page: "create", mark: "建", title: "快速建券", caption: "填写优惠信息，提交平台审核" }
+	{
+		page: "verify",
+		icon: "qr-scan-line",
+		title: "优惠券核销",
+		caption: "扫描二维码 / 手动输入券码"
+	},
+	{
+		page: "coupons",
+		icon: "coupon-line",
+		title: "券信息查询",
+		caption: "适用门店、商品与使用规则"
+	},
+	{
+		page: "records",
+		icon: "file-list-line",
+		title: "核销记录",
+		caption: "本人记录 / 店长门店汇总"
+	},
+	{ page: "create", icon: "edit-line", title: "快速建券", caption: "填写优惠信息，提交平台审核" }
 ];
 function open(page: string) {
 	if (page === "records") uni.switchTab({ url: "/pages/business/records" });
 	else uni.navigateTo({ url: "/pages/business/" + page });
 }
 </script>
+
+<style lang="scss" scoped>
+.merchant-stat-inline {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 12px;
+	margin-top: 16px;
+}
+.merchant-stat-inline .merchant-label {
+	margin: 0;
+}
+.merchant-stat-inline .merchant-stat {
+	font-size: 22px;
+	margin: 0;
+}
+</style>
