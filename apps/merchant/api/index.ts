@@ -9,8 +9,8 @@ export const merchantCapabilities = {
 		reason: "券码查询及核销资格校验接口待接入，暂不能进入核销确认。"
 	},
 	redeem: { label: "确认核销", reason: "核销提交与结果查询接口待接入，暂不能核销。" },
-	records: { label: "核销记录", reason: "本人核销记录、记录详情及筛选接口待接入。" },
-	managerRecords: { label: "门店汇总", reason: "店长权限与门店员工核销记录接口待接入。" },
+	records: { label: "核销记录", reason: "核销记录与时间筛选待接入，登录及门店权限尚待验证。" },
+	managerRecords: { label: "全店核销记录", reason: "店长授权与当前门店全店核销记录接口待接入。" },
 	coupons: { label: "门店可用优惠券", reason: "门店可用券列表、详情及规则接口待接入。" },
 	create: { label: "快速建券", reason: "券类型字典、建券、适用门店及提交审核接口待接入。" },
 	audits: { label: "审核进度", reason: "审核状态与驳回原因查询接口待接入。" },

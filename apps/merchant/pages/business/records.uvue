@@ -2,57 +2,119 @@
 	<business-shell
 		tab="records"
 		title="核销记录与数据"
-		description="核对每一笔核销，了解门店当日情况"
+		description="核对每一笔核销，按登录权限查看记录"
 	>
-		<view class="merchant-tabs" role="tablist" aria-label="记录范围">
-			<button
-				class="merchant-tab"
-				:class="{ 'merchant-tab-active': scope === 'self' }"
-				role="tab"
-				:aria-selected="scope === 'self'"
-				@tap="scope = 'self'"
-			>
-				本人记录
-			</button>
-			<button
-				class="merchant-tab"
-				:class="{ 'merchant-tab-active': scope === 'store' }"
-				role="tab"
-				:aria-selected="scope === 'store'"
-				@tap="scope = 'store'"
-			>
-				店长记录
-			</button>
-		</view>
-		<merchant-pending :capability="scope === 'self' ? 'records' : 'managerRecords'" />
+		<merchant-pending capability="records" />
 		<view class="merchant-card">
-			<text class="merchant-heading">{{
-				scope === "self" ? "本人今日核销记录" : "本门店今日核销汇总"
-			}}</text>
-			<text v-if="scope === 'store'" class="merchant-muted"
-				>仅店长获授权后可查看门店汇总及员工核销记录；当前未加载门店数据。</text
-			>
-			<text v-if="scope === 'store'" class="merchant-stat">—</text>
-			<cl-form label-position="top">
-				<cl-form-item label="时间范围"
-					><cl-input disabled placeholder="今日 · 时间筛选待接入"
-				/></cl-form-item>
-				<cl-form-item label="券类型"
-					><cl-input disabled placeholder="全部类型 · 字典待接入"
-				/></cl-form-item>
-			</cl-form>
-			<view class="merchant-empty"
-				><text class="merchant-muted">记录待接入，暂不能展示核销明细</text
-				><text class="merchant-field-note"
-					>接口接入后可查看核销时间、券信息和核销详情。</text
-				></view
-			>
+			<text class="merchant-heading">{{ recordTitle }}</text>
+			<text class="merchant-muted">{{ scopeDescription }}</text>
+			<view class="merchant-record-filters">
+				<cl-form label-position="top">
+					<cl-form-item label="搜索记录">
+						<cl-input v-model="keyword" placeholder="搜索接口待接入" :maxlength="100" />
+					</cl-form-item>
+				</cl-form>
+				<view class="merchant-actions">
+					<cl-button disabled>搜索 · 待接入</cl-button>
+					<cl-button v-if="keyword" border @tap="keyword = ''">清空搜索</cl-button>
+				</view>
+				<text class="merchant-label" id="record-date-label">时间范围</text>
+				<button
+					class="merchant-date-trigger"
+					role="button"
+					tabindex="0"
+					aria-labelledby="record-date-label record-date-value"
+					aria-haspopup="dialog"
+					@tap="openDatePicker"
+					@keydown="onDateKey"
+				>
+					<text id="record-date-value">{{ rangeLabel }}</text>
+					<cl-icon name="calendar-line" :size="20" color="#526d88" />
+				</button>
+				<cl-select-date
+					ref="datePickerRef"
+					:values="[...dateRange]"
+					type="date"
+					rangeable
+					:show-trigger="false"
+					:pt="{ popup: { className: 'merchant-date-popup' } }"
+					title="选择时间范围"
+					:headers="['年', '月', '日']"
+					:shortcuts="dateShortcuts"
+					:end="today"
+					range-separator="至"
+					confirm-text="确定"
+					cancel-text="取消"
+					@update:values="setDateRange"
+				/>
+				<text class="merchant-field-note"
+					>点击后上下滑动选择起止日期，按北京时间筛选。</text
+				>
+				<text class="merchant-label" id="record-coupon-type-label">券类型</text>
+				<view
+					class="merchant-type-placeholder"
+					role="textbox"
+					aria-labelledby="record-coupon-type-label"
+					aria-disabled="true"
+				/>
+			</view>
+			<view class="merchant-empty" role="status" aria-live="polite">
+				<text class="merchant-muted">{{
+					recordScope ? "核销记录待接入" : "登录并验证门店权限后查看核销记录"
+				}}</text>
+				<text class="merchant-field-note">{{
+					recordScope
+						? "记录与时间筛选接口接入后，将展示所选日期的核销明细。"
+						: "员工仅查看本人记录，店长直接查看当前门店全店记录。"
+				}}</text>
+			</view>
 		</view>
 	</business-shell>
 </template>
 <script setup lang="ts">
 import BusinessShell from "@/components/business-shell.uvue";
 import MerchantPending from "@/components/merchant-pending.uvue";
-import { ref } from "vue";
-const scope = ref("self");
+import { computed, ref } from "vue";
+import { merchantRecordAccess } from "@/stores/session";
+import { createRecordDateShortcuts, shanghaiDate } from "@/utils/merchant-records";
+
+const recordScope = computed(() => merchantRecordAccess.value?.scope ?? null);
+const keyword = ref("");
+const recordTitle = computed(() =>
+	recordScope.value === "store"
+		? "全店核销记录"
+		: recordScope.value === "self"
+			? "我的核销记录"
+			: "核销记录"
+);
+const scopeDescription = computed(() =>
+	recordScope.value === "store"
+		? "当前授权门店的全部员工核销记录"
+		: recordScope.value === "self"
+			? "仅展示当前门店中由本人完成的核销记录"
+			: "记录范围由登录身份和当前门店授权决定"
+);
+const today = shanghaiDate();
+const dateRange = ref<string[]>([today, today]);
+const dateShortcuts = createRecordDateShortcuts(today);
+const rangeLabel = computed(() =>
+	dateRange.value[0] === today && dateRange.value[1] === today
+		? "今天"
+		: dateRange.value[0] + " 至 " + dateRange.value[1]
+);
+const datePickerRef = ref<ClSelectDateComponentPublicInstance | null>(null);
+function openDatePicker() {
+	datePickerRef.value?.open();
+}
+function onDateKey(event: any) {
+	// #ifdef H5
+	if (event.key === "Enter" || event.key === " ") {
+		event.preventDefault();
+		openDatePicker();
+	}
+	// #endif
+}
+function setDateRange(values: string[]) {
+	if (values.length === 2) dateRange.value = [...values];
+}
 </script>

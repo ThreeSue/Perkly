@@ -85,21 +85,26 @@ function itemColor(index: number) {
 }
 // #ifdef H5
 let refraction: NavRefraction | null = null;
+// Ignore late readiness callbacks from a previous page/renderer instance.
+let refractionRevision = 0;
 function startRefraction() {
 	if (refraction !== null) return;
 	const host = document.getElementById(navId);
 	if (host === null) return;
+	const revision = ++refractionRevision;
 	refraction = mountNavRefraction(host, (enabled: boolean) => {
-		opticalReady.value = enabled;
+		if (revision === refractionRevision) opticalReady.value = enabled;
 	});
 	refraction?.update(progress.value, stretch.value, squash.value, expansion.value, tilt.value);
 }
 function stopRefraction() {
+	refractionRevision++;
 	refraction?.destroy();
+	opticalReady.value = false;
 	refraction = null;
 }
 watch(
-	[progress, stretch, squash],
+	[progress, stretch, squash, expansion, tilt],
 	() => {
 		refraction?.update(
 			progress.value,
@@ -301,11 +306,14 @@ function cancel() {
 	pressing.value = false;
 	springTo(activeIndex());
 }
+let visibilityRevision = 0;
 function show() {
+	const revision = ++visibilityRevision;
 	pressing.value = false;
 	align(activeIndex());
 	uni.hideTabBar({ animation: false });
 	nextTick(() => {
+		if (revision !== visibilityRevision) return;
 		measure();
 		// #ifdef H5
 		startRefraction();
@@ -319,6 +327,7 @@ onMounted(show);
 onShow(show);
 onResize(measure);
 onHide(() => {
+	visibilityRevision++;
 	if (pressing.value) expandTo(0);
 	// #ifdef H5
 	stopTracking();
@@ -328,6 +337,7 @@ onHide(() => {
 	clearNavigation();
 });
 onUnmounted(() => {
+	visibilityRevision++;
 	if (pressing.value) expandTo(0);
 	clearNavigation();
 	// #ifdef H5

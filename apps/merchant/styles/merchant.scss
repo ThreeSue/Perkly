@@ -83,6 +83,56 @@ $merchant-bg: $discovery-bg;
 	gap: 12px;
 	margin-top: 16px;
 }
+.merchant-actions > * {
+	min-width: 0;
+	max-width: 100%;
+}
+// 商家操作保持至少44px触达高度，长标签随可用宽度换行。
+.merchant-page .cl-button,
+.merchant-date-popup .cl-button {
+	min-height: 44px;
+	height: auto;
+	box-sizing: border-box;
+	padding: 10px 16px;
+	max-width: 100%;
+}
+.merchant-page .cl-button__label,
+.merchant-date-popup .cl-button__label {
+	white-space: normal;
+	line-height: 22px;
+	text-align: center;
+}
+.merchant-record-filters {
+	margin-top: 20px;
+}
+.merchant-date-trigger,
+.merchant-type-placeholder {
+	width: 100%;
+	min-height: 46px;
+	box-sizing: border-box;
+	border: 1px solid $discovery-border;
+	border-radius: 12px;
+}
+.merchant-date-trigger {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0;
+	padding: 12px;
+	background: $discovery-surface;
+	color: $merchant-ink;
+	font-size: 14px;
+	line-height: 22px;
+	text-align: left;
+}
+.merchant-date-trigger::after {
+	border: 0;
+}
+.merchant-type-placeholder {
+	background: $merchant-bg;
+}
 .merchant-grid {
 	display: flex;
 	flex-direction: row;
@@ -159,31 +209,6 @@ $merchant-bg: $discovery-bg;
 	margin: 6px 0 12px;
 	line-height: 1.6;
 }
-.merchant-tabs {
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-bottom: 16px;
-}
-.merchant-tab {
-	margin: 0;
-	padding: 10px 16px;
-	min-height: 44px;
-	font-size: 14px;
-	border-radius: 24px;
-	background: white;
-	color: $merchant-ink;
-	line-height: 24px;
-}
-.merchant-tab::after {
-	border: 0;
-}
-.merchant-tab-active {
-	color: white;
-	background: $merchant-primary;
-	font-weight: 600;
-}
 .merchant-empty {
 	text-align: center;
 	padding: 28px 12px;
@@ -231,10 +256,12 @@ page,
 	cursor: default;
 }
 .merchant-tile-button:hover,
-.merchant-link:hover {
+.merchant-link:hover,
+.merchant-date-trigger:hover {
 	background: $discovery-bg;
 }
-.merchant-tile-button:active {
+.merchant-tile-button:active,
+.merchant-date-trigger:active {
 	background: $discovery-soft;
 }
 .merchant-page textarea {

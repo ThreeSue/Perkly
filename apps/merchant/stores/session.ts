@@ -1,3 +1,26 @@
-// 当前未交付员工身份契约，禁止创建演示身份或从客户端/管理员 Token 推定员工权限。
-// 接入时：仅接受后端验证的商家、角色、权限和授权门店；退出/过期清空私有数据。
-export const merchantSessionReady = false;
+import { computed, readonly, shallowRef } from "vue";
+import { resolveMerchantRecordAccess, type MerchantRecordContext } from "@/utils/merchant-records";
+
+// 正式员工身份契约尚未交付，运行时保持未认证；不读取 URL、缓存或演示角色。
+const verifiedContext = shallowRef<MerchantRecordContext | null>(null);
+export const merchantSession = readonly(verifiedContext);
+export const merchantRecordAccess = computed(() =>
+	resolveMerchantRecordAccess(verifiedContext.value)
+);
+export const merchantSessionReady = computed(() => merchantRecordAccess.value !== null);
+
+// 仅供未来正式认证适配器使用。role 是前端标准化角色，不推测后端权限码。
+// 门店/账号/授权变更应整体替换上下文，不能由页面自行切换记录范围。
+export function applyVerifiedMerchantContext(context: MerchantRecordContext) {
+	verifiedContext.value = resolveMerchantRecordAccess(context)
+		? {
+				...context,
+				stores: context.stores.map((store) => ({ ...store }))
+			}
+		: null;
+}
+
+// 正式适配器在退出、过期或撤销授权时调用，并同时清除私有数据及使在途响应失效。
+export function clearMerchantSession() {
+	verifiedContext.value = null;
+}

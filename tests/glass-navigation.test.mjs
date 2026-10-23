@@ -4,6 +4,55 @@ import {
   glassGeometry,
   glassSpringFrame,
 } from "../packages/shared/src/glass-navigation.js";
+import { supportsNavRefraction } from "../packages/shared/h5/nav-refraction.js";
+
+test("iPhone模拟UA不会关闭真实Chromium内核的H5折射", () => {
+  const iPhone =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1";
+  const oldCheck = /Chrome|Chromium|Edg\//.test(iPhone);
+  assert.equal(oldCheck, false, "复现旧UA判断误判iPhone模拟模式");
+  assert.equal(
+    supportsNavRefraction({
+      userAgent: iPhone,
+      chromiumRuntime: true,
+      backdropFilter: true,
+    }),
+    true,
+  );
+  assert.equal(
+    supportsNavRefraction({
+      userAgent: iPhone,
+      brands: [{ brand: "Chromium" }],
+      backdropFilter: true,
+    }),
+    true,
+  );
+  assert.equal(
+    supportsNavRefraction({
+      userAgent: "Chrome/130.0 Mobile Safari/537.36",
+      backdropFilter: true,
+    }),
+    true,
+  );
+});
+
+test("真实WebKit/Firefox和缺少背板滤镜的环境继续安全回退", () => {
+  for (const userAgent of [
+    "Version/17.0 Mobile Safari/604.1",
+    "CriOS/130 Mobile Safari/604.1",
+    "EdgiOS/130 Mobile Safari/604.1",
+    "Firefox/130.0",
+  ]) {
+    assert.equal(
+      supportsNavRefraction({ userAgent, backdropFilter: true }),
+      false,
+    );
+  }
+  assert.equal(
+    supportsNavRefraction({ chromiumRuntime: true, backdropFilter: false }),
+    false,
+  );
+});
 
 test("玻璃滑块按实际容器尺寸定位，三个触点中心映射到三个导航", () => {
   for (const width of [272, 342, 370]) {
@@ -107,11 +156,16 @@ for (const app of ["client", "merchant"]) {
     const fixture = `
    import { glassGeometry } from ${JSON.stringify(mathUrl)};
    const ref = value => ({ value });
-   const watch = () => {};
+   export const watchers = [];
+   const watch = (sources, callback) => watchers.push({ sources, callback });
    const computed = getter => ({ get value() { return getter(); } });
    const defineProps = () => ({ active: "home" });
    const isDark = ref(false), getCurrentInstance = () => ({ proxy: {} });
-   const onMounted = () => {}, onUnmounted = () => {}, onShow = () => {}, onResize = () => {}, onHide = () => {}, nextTick = fn => fn();
+   export const hooks = {}, ticks = [], mounts = [];
+   const onMounted = fn => hooks.mounted = fn, onUnmounted = fn => hooks.unmounted = fn, onShow = fn => hooks.show = fn, onResize = () => {}, onHide = fn => hooks.hide = fn, nextTick = fn => ticks.push(fn);
+   const document = { getElementById: () => ({}) };
+   const window = { matchMedia: () => ({ matches: false }), addEventListener() {}, removeEventListener() {} };
+   const mountNavRefraction = (host, ready) => { const renderer = { ready, updates: [], update(...values) { this.updates.push(values); }, destroy() { ready(false); } }; mounts.push(renderer); return renderer; };
    export const springCalls = [], navigation = [], timers = [];
    const setTimeout = fn => { timers.push(fn); return timers.length; }, clearTimeout = () => {};
    const useNavGlass = () => ({ progress: ref(0), stretch: ref(1), squash: ref(1), tilt: ref(0), expansion: ref(0), expandTo() {}, align() {}, stopSpring() {}, shapeReset() {}, springTo(index, velocity) { springCalls.push({ index, velocity }); } });
@@ -123,7 +177,7 @@ for (const app of ["client", "merchant"]) {
       Buffer.from(
         fixture +
           script +
-          "\nexport { measure, begin, update, release, tap, progress };\n",
+          "\nexport { measure, begin, update, release, tap, progress, opticalReady, expansion, tilt };\n",
       ).toString("base64");
     const controller = await import(url);
     controller.measure();
@@ -145,6 +199,36 @@ for (const app of ["client", "merchant"]) {
     controller.release();
     assert.equal(controller.springCalls.at(-1).index, 2);
     assert.ok(controller.springCalls.at(-1).velocity > 0);
+
+    // A page hidden before Vue's next tick must not install an invisible renderer.
+    controller.hooks.show();
+    controller.hooks.hide();
+    controller.ticks.shift()();
+    assert.equal(controller.mounts.length, 0);
+    controller.hooks.show();
+    controller.ticks.shift()();
+    controller.mounts[0].ready(true);
+    assert.equal(controller.opticalReady.value, true);
+    controller.hooks.hide();
+    assert.equal(controller.opticalReady.value, false);
+    controller.hooks.show();
+    controller.ticks.shift()();
+    controller.mounts[1].ready(true);
+    controller.mounts[0].ready(false);
+    assert.equal(
+      controller.opticalReady.value,
+      true,
+      "旧渲染器不能关闭新页面折射",
+    );
+    controller.expansion.value = 0.8;
+    controller.tilt.value = 1.2;
+    const watcher = controller.watchers[0];
+    assert.ok(watcher.sources.includes(controller.expansion));
+    assert.ok(watcher.sources.includes(controller.tilt));
+    watcher.callback();
+    assert.deepEqual(controller.mounts[1].updates.at(-1).slice(3), [0.8, 1.2]);
+    controller.hooks.unmounted();
+    assert.equal(controller.opticalReady.value, false);
   });
 }
 

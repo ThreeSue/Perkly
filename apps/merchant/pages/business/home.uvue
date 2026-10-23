@@ -62,7 +62,7 @@ const entries = [
 		page: "records",
 		icon: "file-list-line",
 		title: "核销记录",
-		caption: "本人记录 / 店长门店汇总"
+		caption: "按登录权限查看核销明细"
 	},
 	{ page: "create", icon: "edit-line", title: "快速建券", caption: "填写优惠信息，提交平台审核" }
 ];

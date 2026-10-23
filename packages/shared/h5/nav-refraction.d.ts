@@ -8,6 +8,12 @@ export type NavRefraction = {
   ): void;
   destroy(): void;
 };
+export function supportsNavRefraction(signals?: {
+  userAgent?: string;
+  brands?: { brand: string }[];
+  chromiumRuntime?: boolean;
+  backdropFilter?: boolean;
+}): boolean;
 export function mountNavRefraction(
   host: HTMLElement,
   ready: (enabled: boolean) => void,

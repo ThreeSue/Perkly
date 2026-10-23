@@ -17,10 +17,11 @@
   ],
   "locale": "zh-CN",
   "canonicalMap": "UX-CONTRACT.md",
-  "requiredCapabilities": ["Form", "Scrollbar"],
+  "requiredCapabilities": ["Form", "Scrollbar", "Date"],
   "ownership": {
     "Form": "authored",
-    "Scrollbar": "authored"
+    "Scrollbar": "authored",
+    "Date": "authored"
   },
   "requiredCommands": [
     "structure",

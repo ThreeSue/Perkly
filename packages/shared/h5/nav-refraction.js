@@ -1,24 +1,66 @@
-// H5-only renderer. Import only inside an H5 conditional block; no uni APIs.
+// H5-only renderer. Import inside an H5 conditional block; no uni APIs.
 import {
   capsuleRefractionMap,
   refractionLensBounds,
 } from "../src/glass-refraction.js";
 
 const NS = "http://www.w3.org/2000/svg";
+const OWNER = "data-nav-refraction-owner";
+const DISPOSE = Symbol.for("qgj.nav-refraction.dispose");
 let sequence = 0;
-export function mountNavRefraction(host, ready) {
+const renderers = new Set();
+// Vite can replace this adapter while page components are still transitioning.
+// Retire old SVG definitions before the module sequence starts over.
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    for (const renderer of renderers) renderer.destroy();
+  });
+}
+// Device emulation can replace the UA without changing the engine. Prefer runtime
+// evidence so Chromium emulating an iPhone is not mistaken for real WebKit.
+export function supportsNavRefraction({
+  userAgent = "",
+  brands = [],
+  chromiumRuntime = false,
+  backdropFilter = false,
+} = {}) {
   const chromium =
-    /Chrome|Chromium|Edg\//.test(navigator.userAgent) &&
-    !/CriOS|EdgiOS/.test(navigator.userAgent);
-  if (!chromium || !CSS.supports("backdrop-filter", 'url("#nav-test")'))
+    chromiumRuntime ||
+    brands.some(({ brand }) =>
+      /Chromium|Google Chrome|Microsoft Edge/.test(brand),
+    ) ||
+    (/Chrome|Chromium|Edg\//.test(userAgent) &&
+      !/CriOS|EdgiOS/.test(userAgent));
+  return chromium && backdropFilter;
+}
+export function mountNavRefraction(host, ready) {
+  if (
+    !supportsNavRefraction({
+      userAgent: navigator.userAgent,
+      brands: navigator.userAgentData?.brands,
+      chromiumRuntime:
+        typeof window.chrome === "object" && window.chrome !== null,
+      backdropFilter: CSS.supports("backdrop-filter", 'url("#nav-test")'),
+    })
+  ) {
     return null;
+  }
   const plane = host.querySelector(".floating-nav-refraction");
   if (!plane) return null;
-  const id = "nav-refraction-" + ++sequence;
+  // HBuilder hot reload can recreate a page without unloading its old adapter.
+  // The owned SVG keeps its disposer across module instances, including observers.
+  for (const previous of document.querySelectorAll(`svg[${OWNER}]`)) {
+    if (previous.getAttribute(OWNER) === host.id) previous[DISPOSE]?.();
+  }
+  let id;
+  do {
+    id = "nav-refraction-" + ++sequence;
+  } while (document.getElementById(id));
   const svg = document.createElementNS(NS, "svg");
   svg.setAttribute("width", "0");
   svg.setAttribute("height", "0");
   svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute(OWNER, host.id);
   svg.style.cssText =
     "position:fixed;pointer-events:none;width:0;height:0;overflow:hidden";
   const defs = document.createElementNS(NS, "defs");
@@ -218,18 +260,23 @@ export function mountNavRefraction(host, ready) {
   observer.observe(host);
   preference.addEventListener("change", applyPreference);
   resize();
-  return {
+  const renderer = {
     update(progress, stretch, squash, expansion = 0, tilt = 0) {
       current = { progress, stretch, squash, expansion, tilt };
       position();
     },
     destroy() {
+      if (disposed) return;
       disposed = true;
       generation++;
       observer.disconnect();
       preference.removeEventListener("change", applyPreference);
       applyPreference();
       svg.remove();
+      renderers.delete(renderer);
     },
   };
+  svg[DISPOSE] = () => renderer.destroy();
+  renderers.add(renderer);
+  return renderer;
 }
