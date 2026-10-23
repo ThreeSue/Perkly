@@ -49,8 +49,9 @@ spring:
   quartz:
     job-store-type: jdbc
     jdbc:
-      initialize-schema: always
-    autoStartup: true
+      # 调度表已存在；启动时不执行可能清空已有任务的框架建表脚本。
+      initialize-schema: never
+    auto-startup: true
     #相关属性配置
     properties:
       org:

@@ -253,4 +253,38 @@ class CouponTradePersistenceTest {
         assertEquals("双人套餐",items.getJSONObject(0).getStr("name"));
         assertEquals(2,items.getJSONObject(0).getInt("quantity"));assertEquals("USED",trade.walletInfo(customer,coupon).get("state"));
     }
+
+    @Test void singleStoreStaffCannotCrossStoreOrReadOthersOrUseWorkspace() throws Exception {
+
+        Long managerId=accounts.provision("manager_"+UUID.randomUUID().toString().substring(0,8),"试验店长","Manager123!",merchant);
+        jdbc.update("UPDATE base_sys_user SET merchant_role='MANAGER' WHERE id=?",managerId);
+        jdbc.update("UPDATE base_sys_user SET merchant_role='STAFF' WHERE id=?",operator);
+        jdbc.update("INSERT INTO base_sys_user_store(merchant_id,user_id,store_id) VALUES(?,?,?),(?,?,?)",merchant,operator,store,merchant,managerId,store);
+        session.clearCache();
+        var credentials = new com.cool.modules.base.dto.sys.BaseSysLoginDto();
+        credentials.setUsername(username); credentials.setPassword("MerchantTest123!");
+        credentials.setCaptchaId("staff_fixture_"+UUID.randomUUID()); credentials.setVerifyCode("1234");
+        cache.set("verify:img:"+credentials.getCaptchaId(),"1234",30);
+        String staffToken=JSONUtil.parseObj(accounts.login(credentials)).getStr("token");
+        MockMvc mvc=MockMvcBuilders.webAppContextSetup(web).addFilters(security).build();
+        mvc.perform(get("/merchant/staff/me").header("Authorization",staffToken))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.storeId").value(store));
+        mvc.perform(post("/merchant/workspace/store/save").header("Authorization",staffToken)
+            .contentType("application/json").content("{}" )).andExpect(status().isForbidden());
+        var order=trade.create(customer,templateId,1,"staff_pilot_123");
+        var paid=trade.simulatePay(customer,((Number)order.get("id")).longValue(),"SUCCESS");
+        Long couponId=((Number)((List<?>)paid.get("couponIds")).get(0)).longValue();
+        String code=(String)trade.walletInfo(customer,couponId).get("code");
+        assertThrows(CoolException.class,()->trade.preview(operator,otherStore,code,3000L));
+        assertThrows(CoolException.class,()->trade.preview(operator,store,"bad",3000L));
+        trade.redeem(operator,null,code,3000L);
+        assertThrows(CoolException.class,()->trade.redeem(operator,null,code,3000L));
+        assertEquals(1,trade.redemptions(operator,1,20,null,"self").getList().size());
+        assertThrows(CoolException.class,()->trade.redemptions(operator,1,20,null,"store"));
+        assertEquals(0,trade.redemptions(managerId,1,20,null,"self").getList().size());
+        assertEquals(1,trade.redemptions(managerId,1,20,null,"store").getList().size());
+        jdbc.update("DELETE FROM base_sys_user_store WHERE user_id=?",operator);
+        session.clearCache();
+        assertThrows(CoolException.class,()->trade.redemptions(operator,1,20,null,"self"));
+    }
 }

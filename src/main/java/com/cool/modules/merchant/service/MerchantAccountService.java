@@ -83,7 +83,8 @@ public class MerchantAccountService {
             Long sessionUser = cache.get("merchant:session:" + jwt.getPayload("sessionId"), Long.class);
             if (!Objects.equals(sessionUser, userId)
                     || !Objects.equals(user.getMerchantId().toString(), String.valueOf(jwt.getPayload("merchantId")))
-                    || !Objects.equals(String.valueOf(user.getPasswordV()), String.valueOf(jwt.getPayload("passwordVersion")))) unauthorized();
+                    || !Objects.equals(user.getMerchantRole(), String.valueOf(jwt.getPayload("merchantRole")))) unauthorized();
+            if (!Objects.equals(String.valueOf(user.getPasswordV()), String.valueOf(jwt.getPayload("passwordVersion")))) unauthorized();
             return user;
         } catch (Exception error) {
             throw new CoolException("商家登录已失效，请重新登录", 401);
@@ -182,14 +183,14 @@ public class MerchantAccountService {
 
     private void requireActive(BaseSysUserEntity user) {
         if (user == null || user.getMerchantId() == null || !Integer.valueOf(1).equals(user.getStatus())
-                || !"OWNER".equals(user.getMerchantRole()) || "admin".equals(user.getUsername())) unauthorized();
+                || !java.util.Set.of("OWNER", "MANAGER", "STAFF").contains(user.getMerchantRole() == null ? "" : user.getMerchantRole()) || "admin".equals(user.getUsername())) unauthorized();
         var merchant = merchants.selectOneById(user.getMerchantId());
         if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) unauthorized();
     }
 
     private Dict issue(BaseSysUserEntity user, String session) {
         Dict claims = Dict.create().set("userType", "MERCHANT").set("userId", user.getId())
-                .set("username", user.getUsername()).set("merchantId", user.getMerchantId())
+                .set("username", user.getUsername()).set("merchantId", user.getMerchantId()).set("merchantRole", user.getMerchantRole())
                 .set("passwordVersion", user.getPasswordV()).set("sessionId", session);
         return Dict.create().set("token", tokens.generateToken(claims)).set("expire", tokens.getExpire())
                 .set("refreshToken", tokens.generateRefreshToken(claims)).set("refreshExpire", tokens.getRefreshExpire());

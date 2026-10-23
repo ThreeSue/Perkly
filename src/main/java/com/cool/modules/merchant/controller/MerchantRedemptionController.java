@@ -22,20 +22,32 @@ import org.springframework.web.bind.annotation.*;
 public class MerchantRedemptionController {
     private final CouponTradeService trade;
     private final HttpServletRequest request;
-    public record RedeemInput(Long storeId, String code, Long consumptionAmount) {}
-    public record PageInput(Integer page, Integer size, Long storeId) {}
+
+    public record RedeemInput(Long storeId, String code, Long consumptionAmount) {
+    }
+
+    public record PageInput(Integer page, Integer size, Long storeId, String scope) {
+    }
+
     private Long operator() {
         Object id = request.getAttribute("merchantUserId");
-        if (!(id instanceof Long)) throw new CoolException("请使用商家账号登录",401);
-        return (Long)id;
+        if (!(id instanceof Long)) throw new CoolException("请使用商家账号登录", 401);
+        return (Long) id;
     }
-    @PostMapping("/preview") public R<?> preview(@RequestBody RedeemInput input) {
-        return R.ok(trade.preview(operator(),input.storeId(),input.code(),input.consumptionAmount()));
+
+    @PostMapping("/preview")
+    public R<?> preview(@RequestBody RedeemInput input) {
+        return R.ok(trade.preview(operator(), input.storeId(), input.code(), input.consumptionAmount()));
     }
-    @PostMapping("/confirm") public R<?> confirm(@RequestBody RedeemInput input) {
-        return R.ok(trade.redeem(operator(),input.storeId(),input.code(),input.consumptionAmount()));
+
+    @PostMapping("/confirm")
+    public R<?> confirm(@RequestBody RedeemInput input) {
+        return R.ok(trade.redeem(operator(), input.storeId(), input.code(), input.consumptionAmount()));
     }
-    @PostMapping("/page") public R<?> page(@RequestBody PageInput input) {
-        return R.ok(trade.redemptions(operator(),input.page(),input.size(),input.storeId()));
+
+    @PostMapping("/page")
+    public R<?> page(@RequestBody PageInput input) {
+        return R.ok(input.scope() == null ? trade.redemptions(operator(), input.page(), input.size(), input.storeId())
+                : trade.redemptions(operator(), input.page(), input.size(), input.storeId(), input.scope()));
     }
 }

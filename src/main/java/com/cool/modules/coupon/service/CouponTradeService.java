@@ -6,6 +6,7 @@ import cn.hutool.json.JSONObject;
 import com.cool.core.exception.CoolException;
 import com.cool.core.request.PageResult;
 import com.cool.modules.coupon.entity.CouponTemplateEntity;
+import com.cool.modules.coupon.entity.CouponRedemptionEntity;
 import com.cool.modules.coupon.mapper.CouponTemplateRelationsMapper;
 import com.cool.modules.coupon.mapper.CouponTradeMapper;
 import com.cool.modules.merchant.service.AppDiscoveryService;
@@ -39,6 +40,7 @@ public class CouponTradeService {
     private final CouponTemplateService templates;
     private final AppDiscoveryService discovery;
     private final MerchantAccountService merchants;
+    private final com.cool.modules.merchant.service.MerchantStaffService staff;
 
     public Map<String,Object> create(Long customerId, Long templateId, Integer quantity, String requestId) {
         customer(customerId, true);
@@ -199,12 +201,20 @@ public class CouponTradeService {
         return redemption(operatorId,storeId,code,consumptionAmount,true);
     }
     private Map<String,Object> redemption(Long operatorId, Long storeId, String code, Long consumptionAmount, boolean confirm) {
-        Long merchantId = merchants.current(operatorId).getMerchantId();
+        var operator = merchants.current(operatorId);
+        storeId = staff.requireStore(operator, storeId);
+        Long merchantId = operator.getMerchantId();
         require(code != null && code.matches("[a-f0-9]{64}"),"请输入有效券码或扫描本系统二维码");
         positive(storeId);
         Row coupon = mapper.lockCoupon(code,merchantId);
         require(coupon != null,"券不存在或不属于当前商家");
-        require("UNUSED".equals(couponState(coupon,new Date())),"此券未生效、已过期、已核销或已作废");
+        String state = couponState(coupon,new Date());
+        require("UNUSED".equals(state), switch(state) {
+            case "USED" -> "该优惠券已核销，请勿重复操作";
+            case "EXPIRED" -> "该优惠券已过期";
+            case "NOT_STARTED" -> "该优惠券尚未生效";
+            default -> "该优惠券已作废";
+        });
         customer(number(coupon.get("customer_id")),false);
         Map<String,Object> store = relations.store(storeId);
         require(store != null && number(store.get("merchant_id")) == merchantId && number(store.get("status")) == 1,"请选择本商家营业中的门店");
@@ -219,6 +229,10 @@ public class CouponTradeService {
         Row storeInfo = mapper.one("store",q().select("name").eq("id",storeId));
         result.put("storeName",storeInfo.get("name")); result.put("consumptionAmount",consumptionAmount);
         result.put("discountAmount",cents(discount)); result.put("contents",rule.get("contentItems"));
+        result.put("type",rule.getStr("type"));
+        result.put("description",rule.getStr("description"));
+        result.put("validFrom",time(coupon.get("valid_from"))); result.put("validTo",time(coupon.get("valid_to")));
+        result.put("minSpend",rule.get("minSpend") == null ? null : cents(rule.get("minSpend")));
         result.put("confirmed",confirm);
         if (confirm) {
             Date now = new Date();
@@ -234,16 +248,26 @@ public class CouponTradeService {
 
     @Transactional(readOnly=true)
     public PageResult<Map<String,Object>> redemptions(Long operatorId, Integer page, Integer size, Long storeId) {
-        Long merchantId = merchants.current(operatorId).getMerchantId();
-        QueryWrapper query = q().eq("merchant_id",merchantId);
+        return redemptions(operatorId,page,size,storeId,"OWNER".equals(merchants.current(operatorId).getMerchantRole()) ? "store" : "self");
+    }
+    @Transactional(readOnly=true)
+    public PageResult<Map<String,Object>> redemptions(Long operatorId, Integer page, Integer size, Long storeId, String scope) {
+        var operator = merchants.current(operatorId);
+        Long merchantId = operator.getMerchantId();
+        storeId = staff.requireStore(operator,storeId);
+        require(Set.of("self","store").contains(scope),"记录范围无效");
+        require(!"store".equals(scope) || Set.of("MANAGER","OWNER").contains(operator.getMerchantRole()),"只有店长可查看门店记录");
+        QueryWrapper query = q().eq(CouponRedemptionEntity::getMerchantId,merchantId);
+        if ("self".equals(scope)) query.eq(CouponRedemptionEntity::getOperatorId,operatorId).eq(CouponRedemptionEntity::getOperatorType,"MERCHANT");
         if (storeId != null) {
             require(mapper.one("store",q().eq("id",storeId).eq("merchant_id",merchantId)) != null,"门店不存在或无权访问");
-            query.eq("store_id",storeId);
+            query.eq(CouponRedemptionEntity::getStoreId,storeId);
         }
         return page("coupon_redemption",query,page,size,row->{
             Map<String,Object> result = new LinkedHashMap<>();
             result.put("id",row.get("id")); result.put("customerCouponId",row.get("customer_coupon_id"));
             result.put("storeId",row.get("store_id")); result.put("operatorId",row.get("operator_id"));
+            result.put("operatorName",staff.operatorName(number(row.get("operator_id"))));
             result.put("consumptionAmount",row.get("consumption_amount") == null ? null : cents(row.get("consumption_amount")));
             result.put("discountAmount",cents(row.get("discount_amount"))); result.put("redeemedAt",time(row.get("redeemed_at")));
             Row store = mapper.one("store",q().select("name").eq("id",row.get("store_id")));

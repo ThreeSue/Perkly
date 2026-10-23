@@ -80,6 +80,11 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
                         chain.doFilter(request, response); return;
                     }
                     var user = merchantAccounts.validate(authToken, false);
+                    if (!"OWNER".equals(user.getMerchantRole()) && !java.util.Set.of(
+                            "/merchant/staff/me", "/merchant/redemption/preview", "/merchant/redemption/confirm",
+                            "/merchant/redemption/page", "/merchant/auth/logout", "/merchant/auth/changePassword").contains(requestURI)) {
+                        response.sendError(403, "当前门店账号无此权限"); return;
+                    }
                     var principal = merchantAccounts.principal(user);
                     var authentication = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
                     SecurityContextHolder.getContext().setAuthentication(authentication);

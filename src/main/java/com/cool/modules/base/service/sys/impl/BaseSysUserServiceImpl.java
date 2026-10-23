@@ -17,6 +17,7 @@ import com.cool.core.base.BaseServiceImpl;
 import com.cool.core.base.ModifyEnum;
 import com.cool.core.cache.CoolCache;
 import com.cool.core.exception.CoolPreconditions;
+import com.cool.core.exception.CoolException;
 import com.cool.core.util.CoolSecurityUtil;
 import com.cool.core.util.DatabaseDialectUtils;
 import com.cool.modules.base.entity.sys.BaseSysDepartmentEntity;
@@ -33,6 +34,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Arrays;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 系统用户
@@ -89,6 +92,8 @@ public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, B
 
         // 不显示admin用户
         qw.and(BASE_SYS_USER_ENTITY.USERNAME.ne("admin"));
+        // 商家及门店账号由独立入口维护，不能混入平台角色和部门体系。
+        qw.isNull(BaseSysUserEntity::getMerchantId);
         // 筛选状态
         qw.and(BASE_SYS_USER_ENTITY.STATUS.eq(status, status != null));
         // 搜索关键字
@@ -113,6 +118,7 @@ public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, B
 
     @Override
     public void personUpdate(Long userId, Dict body) {
+        requirePlatformAccount(userId);
         BaseSysUserEntity userEntity = getById(userId);
         CoolPreconditions.checkEmpty(userEntity, "用户不存在");
         userEntity.setNickName(body.getStr("nickName"));
@@ -127,7 +133,9 @@ public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, B
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void move(Long departmentId, Long[] userIds) {
+        requirePlatformAccounts(userIds);
         UpdateChain.of(BaseSysUserEntity.class)
             .set(BaseSysUserEntity::getDepartmentId, departmentId)
             .in(BaseSysUserEntity::getId, (Object) userIds).update();
@@ -135,6 +143,7 @@ public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, B
 
     @Override
     public Long add(JSONObject requestParams, BaseSysUserEntity entity) {
+        rejectMerchantIdentity(entity);
         BaseSysUserEntity check = getOne(
             QueryWrapper.create().eq(BaseSysUserEntity::getUsername, entity.getUsername()));
         CoolPreconditions.check(check != null, "用户名已存在");
@@ -145,6 +154,8 @@ public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, B
 
     @Override
     public boolean update(JSONObject requestParams, BaseSysUserEntity entity) {
+        requirePlatformAccount(entity.getId());
+        rejectMerchantIdentity(entity);
         CoolPreconditions.check(
             StrUtil.isNotEmpty(entity.getUsername()) && entity.getUsername().equals("admin"),
             "非法操作");
@@ -176,6 +187,7 @@ public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, B
 
     @Override
     public BaseSysUserEntity info(Long id) {
+        requirePlatformAccount(id);
         BaseSysUserEntity userEntity = getById(id);
         Long[] roleIdList = baseSysPermsService.getRoles(id);
         BaseSysDepartmentEntity departmentEntity = baseSysDepartmentMapper.selectOneById(
@@ -187,5 +199,30 @@ public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, B
         userEntity.setDepartmentName(departmentEntity != null ? departmentEntity.getName() : userEntity.getDepartmentName()  );
         
         return userEntity;
+    }
+
+    private void rejectMerchantIdentity(BaseSysUserEntity entity) {
+        if (entity.getMerchantId() != null || entity.getMerchantRole() != null)
+            throw new CoolException("请在商家与门店账号入口维护商家身份", 403);
+    }
+
+    private void requirePlatformAccount(Long id) {
+        var target = id == null ? null : mapper.selectOneById(id);
+        if (target == null) throw new CoolException("平台账号不存在");
+        if (target.getMerchantId() != null || target.getMerchantRole() != null)
+            throw new CoolException("商家账号不能通过平台账号接口操作", 403);
+    }
+
+    private void requirePlatformAccounts(Long[] ids) {
+        if (ids == null || ids.length == 0 || Arrays.stream(ids).anyMatch(java.util.Objects::isNull))
+            throw new CoolException("请选择平台账号");
+        for (Long id : ids) requirePlatformAccount(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean delete(Long... ids) {
+        requirePlatformAccounts(ids);
+        return super.delete(ids);
     }
 }

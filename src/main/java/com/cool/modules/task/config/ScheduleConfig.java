@@ -15,7 +15,6 @@ public class ScheduleConfig implements SchedulerFactoryBeanCustomizer {
     @Override
     public void customize(SchedulerFactoryBean schedulerFactoryBean) {
         schedulerFactoryBean.setStartupDelay(2);
-        schedulerFactoryBean.setAutoStartup(true);
         schedulerFactoryBean.setOverwriteExistingJobs(true);
     }
 }
