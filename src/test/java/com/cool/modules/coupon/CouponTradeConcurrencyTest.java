@@ -34,6 +34,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @ActiveProfiles("local")
 class CouponTradeConcurrencyTest {
     @Autowired CouponTradeService trade;
+    @Autowired ConsumptionOrderService bills;
     @Autowired CouponTemplateService templates;
     @Autowired CouponPublicationService publications;
     @Autowired MerchantAccountService accounts;
@@ -106,16 +107,42 @@ class CouponTradeConcurrencyTest {
             assertEquals(5,redeemed.stream().filter(CoolException.class::isInstance).count());
             assertEquals(1L,trade.redemptions(f.operator(),1,20,null).getPagination().getTotal());
         } finally {
+            clean(f);
+        }
+    }
+    void clean(Fixture f) {
+        var tx=new TransactionTemplate(transactionManager);
             tx.execute(status->{
                 // 仅清理本测试新建商家和顾客的临时数据，绝不触碰既有业务记录。
                 auditRecords.deleteByQuery(com.mybatisflex.core.query.QueryWrapper.create()
                         .eq(com.cool.modules.approval.entity.AuditRecordEntity::getMerchantId, f.merchant()));
-                for(String table:List.of("coupon_redemption","customer_coupon","purchase_order_item","purchase_order","coupon_publication","coupon_store","coupon_product","coupon_template","store","base_sys_user_store","base_sys_user"))
+                for(String table:List.of("consumption_order","coupon_redemption","customer_coupon","purchase_order_item","purchase_order","coupon_publication","coupon_store","coupon_product","coupon_template","store","base_sys_user_store","base_sys_user"))
                     jdbc().update("DELETE FROM "+table+" WHERE merchant_id=?",f.merchant());
                 jdbc().update("DELETE FROM merchant_info WHERE id=?",f.merchant());
                 jdbc().update("DELETE FROM user_info WHERE id IN (?,?)",f.customerA(),f.customerB());return null;
             });
-        }
     }
+    @Test void concurrentBillCreationAndReceiptRetriesProduceOneOrderAndOneRedemption() throws Exception {
+        var tx=new TransactionTemplate(transactionManager);Fixture f=tx.execute(status->fixture());
+        try {
+            var bought=trade.create(f.customerA(),f.template(),1,UUID.randomUUID().toString());
+            var paid=trade.simulatePay(f.customerA(),((Number)bought.get("id")).longValue(),"SUCCESS");
+            Long coupon=((Number)((List<?>)paid.get("couponIds")).get(0)).longValue();
+            String code=(String)trade.walletInfo(f.customerA(),coupon).get("code");
+            var input=new ConsumptionOrderService.PrepareInput(f.store(),code,2000L,"并发测试",UUID.randomUUID().toString());
+            var created=race(repeated(()->bills.prepare(f.operator(),input)));
+            assertTrue(created.stream().allMatch(ConsumptionOrderService.OrderView.class::isInstance));
+            var first=(ConsumptionOrderService.OrderView)created.get(0);
+            assertTrue(created.stream().map(r->((ConsumptionOrderService.OrderView)r).id()).allMatch(first.id()::equals));
+            var duplicate=race(repeated(()->bills.prepare(f.operator(),new ConsumptionOrderService.PrepareInput(f.store(),code,2000L,"其他请求",UUID.randomUUID().toString()))));
+            assertTrue(duplicate.stream().allMatch(CoolException.class::isInstance));
+            var confirmed=race(repeated(()->bills.confirm(f.operator(),new ConsumptionOrderService.ConfirmInput(first.id(),1,1000L))));
+            assertTrue(confirmed.stream().allMatch(ConsumptionOrderService.OrderView.class::isInstance));
+            assertEquals(1,confirmed.stream().map(r->((ConsumptionOrderService.OrderView)r).redemptionId()).distinct().count());
+            assertEquals(1L,bills.page(f.operator(),new ConsumptionOrderService.PageInput(1,20,null,null,null,null,null)).getPagination().getTotal());
+            assertEquals(1L,trade.redemptions(f.operator(),1,20,f.store()).getPagination().getTotal());
+        } finally { clean(f); }
+    }
+
 }
 

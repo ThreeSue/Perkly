@@ -6,6 +6,8 @@ import com.cool.core.request.PageResult;
 import com.cool.core.request.R;
 import com.cool.modules.merchant.controller.app.req.DiscoveryPageReq;
 import com.cool.modules.merchant.service.AppDiscoveryService;
+import com.cool.modules.merchant.location.MerchantLocationService;
+import com.cool.modules.merchant.location.LocationModels.NearbyQuery;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Map;
@@ -26,6 +28,14 @@ import org.springframework.web.bind.annotation.*;
 @CoolRestController(api = {"page", "info"})
 public class AppMerchantStoreController {
     private final AppDiscoveryService discovery;
+    private final MerchantLocationService locations;
+
+    @TokenIgnore
+    @Operation(summary = "按GCJ-02坐标查询附近营业门店，距离单位为米")
+    @PostMapping("/nearby")
+    public R<?> nearby(@RequestBody NearbyQuery input) {
+        return R.ok(locations.nearby(input));
+    }
 
     @TokenIgnore
     @Operation(summary = "公开门店分页查询")

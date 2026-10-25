@@ -5,6 +5,9 @@ import com.cool.core.request.R;
 import com.cool.modules.coupon.entity.CouponTemplateEntity;
 import com.cool.modules.merchant.entity.MerchantStoreEntity;
 import com.cool.modules.merchant.service.MerchantWorkspaceService;
+import com.cool.modules.merchant.location.MerchantLocationService;
+import com.cool.modules.merchant.location.LocationModels.MapQuery;
+import com.cool.modules.merchant.location.LocationModels.LocationUpdate;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,7 @@ public class MerchantWorkspaceController {
     private final MerchantWorkspaceService workspace;
     private final com.cool.modules.merchant.service.MerchantAccountService accounts;
     private final HttpServletRequest request;
+    private final MerchantLocationService locations;
     private Long user() {
         Object id = request.getAttribute("merchantUserId");
         if (!(id instanceof Long)) throw new CoolException("请使用商家账号登录", 401);
@@ -47,6 +51,12 @@ public class MerchantWorkspaceController {
     @PostMapping("/store/page") public R<?> stores(@RequestBody PageInput p) { return R.ok(workspace.storePage(user(), p.pageNumber(), p.pageSize(), p.keyWord())); }
     @GetMapping("/store/info") public R<?> store(@RequestParam Long id) { return R.ok(workspace.storeInfo(user(), id)); }
     @GetMapping("/store/options") public R<?> storeOptions() { return R.ok(workspace.storeOptions(user())); }
+    @PostMapping("/store/map") public R<?> storeMap(@RequestBody(required = false) MapQuery input) {
+        return R.ok(locations.merchantMap(user(), input == null ? new MapQuery() : input));
+    }
+    @PostMapping("/store/location/update") public R<?> storeLocation(@RequestBody LocationUpdate input) {
+        return R.ok(locations.updateMerchant(user(), input));
+    }
     @PostMapping("/store/save") public R<?> saveStore(@RequestBody MerchantStoreEntity input) { return R.ok(workspace.storeSave(user(), input)); }
     @PostMapping("/store/delete") public R<?> deleteStore(@RequestBody IdsInput p) { return R.ok(workspace.storeDelete(user(), p.ids())); }
     @GetMapping("/category/options") public R<?> categories() { return R.ok(workspace.categoryOptions(user())); }

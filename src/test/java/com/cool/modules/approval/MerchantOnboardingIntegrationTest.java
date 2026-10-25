@@ -74,6 +74,8 @@ class MerchantOnboardingIntegrationTest {
     @Autowired MerchantAccountService accounts;
     @Autowired CouponTradeService trade;
     @Autowired UserInfoService customers;
+    @Autowired com.cool.modules.approval.service.GuestMerchantOnboardingService onboarding;
+    @org.springframework.boot.test.mock.mockito.MockBean com.cool.modules.user.util.UserSmsUtil sms;
     MockMvc mvc;
     String adminToken;
     BaseSysUserEntity operator;
@@ -132,8 +134,13 @@ class MerchantOnboardingIntegrationTest {
         review(second, true, "联调资料完整，同意入驻");
         JSONObject approved = ok(get("/merchant/auth/onboarding"), null, applicantToken).getJSONObject("data");
         assertEquals(2, approved.getInt("status"));
-        JSONObject session = ok(post("/merchant/auth/refreshToken"), Map.of("refreshToken", applicant.getStr("refreshToken")), null)
-                .getJSONObject("data"); trackSession(session);
+        assertEquals("PENDING_ACTIVATION",approved.getStr("activationState"));
+        assertNull(current().getMerchantId());
+        String phoneTicket=onboarding.verify(request.getContactPhone(),"123456");
+        String activationCode=onboarding.info(phoneTicket,second.getApplicationNo()).getActivationCode();
+        onboarding.activate(new com.cool.modules.approval.entity.req.GuestMerchantOnboardingParam.Activate(phoneTicket,activationCode,request.getUsername(),request.getPassword()));
+        cache.del("onboarding:"+cn.hutool.crypto.SecureUtil.sha256(phoneTicket));
+        JSONObject session = login();
         String merchantToken = session.getStr("token");
         BaseSysUserEntity owner = accounts.validate(merchantToken, false);
         assertNotNull(owner.getMerchantId()); assertEquals("OWNER", owner.getMerchantRole());
@@ -141,7 +148,7 @@ class MerchantOnboardingIntegrationTest {
         ok(get("/merchant/workspace/me"), null, merchantToken);
         var history = ok(get("/admin/approval/center/info").param("type", "MERCHANT").param("id", second.getId().toString()), null, adminToken)
                 .getJSONObject("data").getJSONArray("history");
-        assertEquals(List.of("SUBMIT", "REJECT", "SUBMIT", "APPROVE"),
+        assertEquals(List.of("SUBMIT", "REJECT", "SUBMIT", "APPROVE", "ACTIVATE"),
                 history.toList(JSONObject.class).stream().map(e -> e.getStr("action")).toList());
         assertEquals(operator.getUsername(), history.getJSONObject(3).getStr("actorName"));
 
@@ -197,7 +204,7 @@ class MerchantOnboardingIntegrationTest {
         review(application, true, "联调审核通过");
         assertNotEquals(1000, json(post("/admin/approval/center/review"), Map.of("type", "MERCHANT", "id", application.getId(),
                 "version", 1, "approved", true), adminToken).getInt("code"));
-        assertEquals(1, users.selectCountByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getUsername, request.getUsername())));
+        assertEquals(0, users.selectCountByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getUsername, request.getUsername())));
     }
 
     @Test void wrongPasswordCannotResubmitRejectedApplication() throws Exception {

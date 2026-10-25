@@ -53,6 +53,7 @@ class MerchantWorkspaceIsolationTest {
     @Autowired WebApplicationContext web;
     @Autowired JwtUserDetailsServiceImpl platformUsers;
     @Autowired @Qualifier("springSecurityFilterChain") Filter security;
+    @org.springframework.boot.test.mock.mockito.MockBean com.cool.modules.user.util.UserSmsUtil sms;
     Long merchantA, merchantB, userA, storeA, storeB, categoryA, categoryB;
     String username, access, refresh;
     MockMvc mvc;
@@ -296,9 +297,18 @@ class MerchantWorkspaceIsolationTest {
         assertThrows(CoolException.class,()->accounts.refresh(limited.getStr("refreshToken")));
         web.getBean(com.cool.modules.approval.service.ApprovalCenterService.class).review("MERCHANT",application.getId(),1,true,"");
         var next=loginInput();next.setUsername(input.getUsername());next.setPassword("123456");
-        var upgraded=(Dict)accounts.refresh(renewed.getStr("refreshToken"));
+        var stillLimited=(Dict)accounts.refresh(renewed.getStr("refreshToken"));
+        assertThrows(CoolException.class,()->accounts.validate(stillLimited.getStr("token"),false));
+        var onboarding=web.getBean(com.cool.modules.approval.service.GuestMerchantOnboardingService.class);
+        String ticket=onboarding.verify(input.getContactPhone(),"123456");
+        String code=onboarding.info(ticket,application.getApplicationNo()).getActivationCode();
+        onboarding.activate(new com.cool.modules.approval.entity.req.GuestMerchantOnboardingParam.Activate(ticket,code,input.getUsername(),"MerchantTest123!"));
+        cache.del("onboarding:"+cn.hutool.crypto.SecureUtil.sha256(ticket));
+        next.setPassword("MerchantTest123!");
+        var upgraded=(Dict)accounts.login(next);
         assertNotEquals(merchantA,accounts.validate(upgraded.getStr("token"),false).getMerchantId());
         assertThrows(CoolException.class,()->accounts.refresh(renewed.getStr("refreshToken")));
+        cache.set("verify:img:"+next.getCaptchaId(),"1234",60);
         var session=(Dict)accounts.login(next);
         assertNotEquals(merchantA,accounts.validate(session.getStr("token"),false).getMerchantId());
     }

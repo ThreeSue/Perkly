@@ -1,4 +1,5 @@
 HELP.md
+/config/tencent-map.local.yml
 *.log
 logs/
 target/

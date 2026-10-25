@@ -56,7 +56,7 @@ public class MerchantAccountService {
             var application = applications.selectOneByQuery(QueryWrapper.create()
                     .eq(com.cool.modules.approval.entity.MerchantApplicationEntity::getUsername, input.getUsername())
                     .eq(com.cool.modules.approval.entity.MerchantApplicationEntity::getCurrentFlag, 1));
-            if (application == null || !java.util.Set.of(1,3).contains(application.getStatus())
+            if (application == null || !java.util.Set.of(1,2,3).contains(application.getStatus()) || application.getMerchantId()!=null
                     || input.getPassword() == null || !passwords.matches(input.getPassword(), application.getPasswordHash())) unauthorized();
             return issueApplicant(application);
         }
@@ -103,6 +103,7 @@ public class MerchantAccountService {
             var application = validateApplicant(token, true);
             cache.del("merchant:applicant:" + tokens.getTokenInfo(token).getPayload("sessionId"));
             if (Integer.valueOf(2).equals(application.getStatus())) {
+                if (application.getMerchantId()==null) return issueApplicant(application);
                 var user = users.selectOneByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getUsername, application.getUsername()));
                 requireActive(user);
                 if (!Objects.equals(user.getMerchantId(), application.getMerchantId())
@@ -166,6 +167,7 @@ public class MerchantAccountService {
         return Dict.create().set("username", application.getUsername()).set("name", application.getSubmittedBy())
                 .set("merchantName", application.getMerchantName()).set("onboardingLocked", true)
                 .set("status", application.getStatus()).set("applicationNo", application.getApplicationNo())
+                .set("activationState",application.getMerchantId()!=null ? "ACTIVATED" : application.getStatus()==2 ? "PENDING_ACTIVATION" : "NOT_APPROVED")
                 .set("reason", Integer.valueOf(3).equals(application.getStatus()) && rejected != null ? rejected.getReason() : "")
                 .set("snapshot", cn.hutool.json.JSONUtil.parseObj(application.getSnapshot()));
     }

@@ -30,6 +30,9 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
     @org.springframework.beans.factory.annotation.Autowired
     private MerchantSummaryService summaries;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.coupon.mapper.ConsumptionOrderMapper consumptionOrders;
+
     @Override
     public Object page(cn.hutool.json.JSONObject params, com.mybatisflex.core.paginate.Page<MerchantStoreEntity> page, QueryWrapper query) {
         com.mybatisflex.core.paginate.Page<MerchantStoreEntity> result = (com.mybatisflex.core.paginate.Page<MerchantStoreEntity>) super.page(params, page, query);
@@ -52,6 +55,9 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
         for (Long id : ordered) {
             if (mapper.lockForCouponCheck(id) == null) throw new CoolException("门店不存在");
             if (mapper.couponReferenceCount(id) > 0) throw new CoolException("门店已关联优惠券或核销记录，不能删除");
+            if (consumptionOrders.selectCountByQuery(QueryWrapper.create()
+                    .eq(com.cool.modules.coupon.entity.ConsumptionOrderEntity::getStoreId,id)) > 0)
+                throw new CoolException("门店已关联消费账单，不能删除");
         }
         return super.delete(ordered);
     }

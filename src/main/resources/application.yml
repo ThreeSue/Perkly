@@ -7,6 +7,9 @@ server:
     mime-types: application/json,application/xml,text/html,text/plain
 
 spring:
+  config:
+    # 本机地图凭证，路径相对于后端启动工作目录；也可通过环境变量指定绝对路径。
+    import: optional:file:${TENCENT_MAP_CONFIG:./config/tencent-map.local.yml}
   application:
     name: cool-admin-java
   profiles:

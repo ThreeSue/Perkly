@@ -21,9 +21,13 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class MerchantRedemptionController {
     private final CouponTradeService trade;
+    private final com.cool.modules.coupon.service.ConsumptionOrderService orders;
     private final HttpServletRequest request;
 
     public record RedeemInput(Long storeId, String code, Long consumptionAmount) {
+    }
+
+    public record InspectInput(Long storeId, String code) {
     }
 
     public record PageInput(Integer page, Integer size, Long storeId, String scope) {
@@ -35,14 +39,19 @@ public class MerchantRedemptionController {
         return (Long) id;
     }
 
+    @PostMapping("/inspect")
+    public R<?> inspect(@RequestBody InspectInput input) {
+        return R.ok(trade.inspect(operator(), input.storeId(), input.code()));
+    }
+
     @PostMapping("/preview")
     public R<?> preview(@RequestBody RedeemInput input) {
         return R.ok(trade.preview(operator(), input.storeId(), input.code(), input.consumptionAmount()));
     }
 
     @PostMapping("/confirm")
-    public R<?> confirm(@RequestBody RedeemInput input) {
-        return R.ok(trade.redeem(operator(), input.storeId(), input.code(), input.consumptionAmount()));
+    public R<?> confirm(@RequestBody com.cool.modules.coupon.service.ConsumptionOrderService.ConfirmInput input) {
+        return R.ok(orders.confirm(operator(), input));
     }
 
     @PostMapping("/page")

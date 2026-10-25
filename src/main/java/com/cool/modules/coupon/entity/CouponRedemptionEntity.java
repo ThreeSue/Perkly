@@ -24,6 +24,7 @@ public class CouponRedemptionEntity {
     @Id(keyType = KeyType.Auto) private Long id;
     private Long merchantId;
     private Long customerCouponId;
+    private Long consumptionOrderId;
     private Long storeId;
     private String operatorType;
     private Long operatorId;

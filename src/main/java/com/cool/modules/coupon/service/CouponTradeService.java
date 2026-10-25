@@ -36,6 +36,7 @@ import static com.cool.modules.coupon.service.CouponTradeRules.*;
 @Transactional(rollbackFor = Exception.class, isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
 public class CouponTradeService {
     private final CouponTradeMapper mapper;
+    private final com.cool.modules.coupon.mapper.ConsumptionOrderMapper consumptionOrders;
     private final CouponTemplateRelationsMapper relations;
     private final CouponTemplateService templates;
     private final AppDiscoveryService discovery;
@@ -194,13 +195,27 @@ public class CouponTradeService {
         return qrPng((String)row.get("code"));
     }
 
+    private enum RedemptionStep { INSPECT, PREVIEW, CONFIRM }
+
+    public Map<String,Object> inspect(Long operatorId, Long storeId, String code) {
+        return redemption(operatorId,storeId,code,null,RedemptionStep.INSPECT);
+    }
     public Map<String,Object> preview(Long operatorId, Long storeId, String code, Long consumptionAmount) {
-        return redemption(operatorId,storeId,code,consumptionAmount,false);
+        return redemption(operatorId,storeId,code,consumptionAmount,RedemptionStep.PREVIEW);
     }
     public Map<String,Object> redeem(Long operatorId, Long storeId, String code, Long consumptionAmount) {
-        return redemption(operatorId,storeId,code,consumptionAmount,true);
+        return redemption(operatorId,storeId,code,consumptionAmount,RedemptionStep.CONFIRM);
     }
-    private Map<String,Object> redemption(Long operatorId, Long storeId, String code, Long consumptionAmount, boolean confirm) {
+    public Map<String,Object> redeemForOrder(Long operatorId, Long storeId, String code, Long consumptionAmount, Long orderId) {
+        require(orderId != null && orderId > 0,"请提供消费账单ID");
+        return redemption(operatorId,storeId,code,consumptionAmount,RedemptionStep.CONFIRM,orderId);
+    }
+    private Map<String,Object> redemption(Long operatorId, Long storeId, String code, Long consumptionAmount, RedemptionStep step) {
+        return redemption(operatorId,storeId,code,consumptionAmount,step,null);
+    }
+    private Map<String,Object> redemption(Long operatorId, Long storeId, String code, Long consumptionAmount, RedemptionStep step, Long orderId) {
+        boolean confirm = step == RedemptionStep.CONFIRM;
+        boolean inspectionOnly = step == RedemptionStep.INSPECT;
         var operator = merchants.current(operatorId);
         storeId = staff.requireStore(operator, storeId);
         Long merchantId = operator.getMerchantId();
@@ -222,24 +237,48 @@ public class CouponTradeService {
         require(number(coupon.get("merchant_id")) == rule.getLong("merchantId"),"持券规则归属异常");
         boolean allStores = Integer.valueOf(0).equals(rule.getInt("scopeType"));
         require(allStores || (rule.getJSONArray("storeIds") != null && rule.getJSONArray("storeIds").toList(Long.class).contains(storeId)),"此券不适用于所选门店");
-        BigDecimal discount = discount(rule,consumptionAmount);
+        String type = rule.getStr("type");
+        String typeText = type == null ? null : Map.of("FULL_REDUCTION","满减券","DISCOUNT","折扣券",
+                "CASH","代金券","PACKAGE","套餐券","EXPERIENCE","体验券","EXCHANGE","兑换券").get(type);
+        require(typeText != null,"优惠券类型不可用");
+        boolean requiresConsumptionAmount = Set.of("FULL_REDUCTION","DISCOUNT","CASH").contains(type);
+        BigDecimal discount = inspectionOnly ? null : discount(rule,consumptionAmount);
         Map<String,Object> result = new LinkedHashMap<>();
         result.put("customerCouponId",coupon.get("id")); result.put("couponName",rule.getStr("name"));
         result.put("merchantName",rule.getStr("merchantName")); result.put("storeId",storeId);
         Row storeInfo = mapper.one("store",q().select("name").eq("id",storeId));
-        result.put("storeName",storeInfo.get("name")); result.put("consumptionAmount",consumptionAmount);
-        result.put("discountAmount",cents(discount)); result.put("contents",rule.get("contentItems"));
-        result.put("type",rule.getStr("type"));
+        result.put("storeName",storeInfo.get("name"));
+        if (!inspectionOnly) {
+            result.put("consumptionAmount",consumptionAmount);
+            result.put("discountAmount",cents(discount));
+        }
+        result.put("contents",rule.get("contentItems"));
+        result.put("type",type);
+        result.put("typeText",typeText);
+        result.put("requiresConsumptionAmount",requiresConsumptionAmount);
+        result.put("nextAction",requiresConsumptionAmount ? "ENTER_BILL" : "CONFIRM_CONTENT");
+        if (inspectionOnly) result.put("rule",couponSummary(coupon,true).get("rule"));
         result.put("description",rule.getStr("description"));
         result.put("validFrom",time(coupon.get("valid_from"))); result.put("validTo",time(coupon.get("valid_to")));
         result.put("minSpend",rule.get("minSpend") == null ? null : cents(rule.get("minSpend")));
         result.put("confirmed",confirm);
         if (confirm) {
+            if (orderId == null) {
+                require(consumptionOrders.selectCountByQuery(QueryWrapper.create()
+                    .eq(com.cool.modules.coupon.entity.ConsumptionOrderEntity::getActiveCouponId,number(coupon.get("id")))) == 0,
+                    "此券已关联消费账单，请通过账单确认核销");
+            } else {
+                var bill = consumptionOrders.selectOneById(orderId);
+                require(bill != null && "PENDING".equals(bill.getStatus())
+                    && Objects.equals(bill.getMerchantId(),merchantId) && Objects.equals(bill.getStoreId(),storeId)
+                    && Objects.equals(bill.getCustomerCouponId(),number(coupon.get("id")))
+                    && Objects.equals(bill.getConsumptionAmount(),consumptionAmount),"核销与消费账单不匹配");
+            }
             Date now = new Date();
             Long receiptId = mapper.create("coupon_redemption",Row.of("merchant_id",merchantId).set("customer_coupon_id",coupon.get("id"))
                     .set("store_id",storeId).set("operator_type","MERCHANT").set("operator_id",operatorId)
                     .set("consumption_amount",consumptionAmount == null ? null : BigDecimal.valueOf(consumptionAmount,2))
-                    .set("discount_amount",discount).set("redeemed_at",now));
+                    .set("discount_amount",discount).set("redeemed_at",now).set("consumption_order_id",orderId));
             mapper.change("customer_coupon",number(coupon.get("id")),Row.of("status",1).set("used_at",now).setRaw("update_time","NOW()"));
             result.put("redemptionId",receiptId); result.put("redeemedAt",time(now));
         }
@@ -266,6 +305,9 @@ public class CouponTradeService {
         return page("coupon_redemption",query,page,size,row->{
             Map<String,Object> result = new LinkedHashMap<>();
             result.put("id",row.get("id")); result.put("customerCouponId",row.get("customer_coupon_id"));
+            result.put("consumptionOrderId",row.get("consumption_order_id"));
+            var bill = row.get("consumption_order_id") == null ? null : consumptionOrders.selectOneById(number(row.get("consumption_order_id")));
+            result.put("orderNo",bill == null ? null : bill.getOrderNo());
             result.put("storeId",row.get("store_id")); result.put("operatorId",row.get("operator_id"));
             result.put("operatorName",staff.operatorName(number(row.get("operator_id"))));
             result.put("consumptionAmount",row.get("consumption_amount") == null ? null : cents(row.get("consumption_amount")));

@@ -22,4 +22,5 @@ public class ApprovalItemResp {
     private Integer status;
     private Integer version;
     private Integer publishStatus;
+    private String activationState;
 }

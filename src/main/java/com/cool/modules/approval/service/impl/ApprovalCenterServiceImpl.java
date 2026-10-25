@@ -1,19 +1,17 @@
 package com.cool.modules.approval.service.impl;
 import com.cool.modules.approval.service.ApprovalCenterService;
 import com.cool.modules.approval.service.ApprovalHistoryService;
+import com.cool.modules.approval.service.GuestMerchantOnboardingService;
 
 import cn.hutool.json.JSONUtil;
 import com.cool.core.exception.CoolException;
 import com.cool.modules.approval.entity.*;
 import com.cool.modules.approval.mapper.*;
-import com.cool.modules.base.entity.sys.BaseSysUserEntity;
-import com.cool.modules.base.mapper.sys.BaseSysUserMapper;
 import com.cool.modules.coupon.entity.CouponTemplateEntity;
 import com.cool.modules.coupon.mapper.CouponTemplateMapper;
 import com.cool.modules.coupon.service.CouponPublicationService;
 import com.cool.modules.merchant.entity.MerchantInfoEntity;
 import com.cool.modules.merchant.mapper.MerchantInfoMapper;
-import com.cool.modules.merchant.service.MerchantInfoService;
 import com.mybatisflex.core.query.QueryWrapper;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -42,10 +40,9 @@ public class ApprovalCenterServiceImpl implements ApprovalCenterService {
     private final CouponPublicationMapper publications;
     private final CouponTemplateMapper coupons;
     private final MerchantInfoMapper merchants;
-    private final MerchantInfoService merchantService;
-    private final BaseSysUserMapper accounts;
     private final CouponPublicationService couponService;
     private final ApprovalHistoryService records;
+    private final GuestMerchantOnboardingService onboarding;
 
 
     @Transactional(readOnly=true)
@@ -110,7 +107,7 @@ public class ApprovalCenterServiceImpl implements ApprovalCenterService {
             item=couponItem(p,coupons.selectOneById(p.getCouponTemplateId()),merchants.selectOneById(p.getMerchantId()),submitter);
             snapshot=p.getSubmittedSnapshot();
         }
-        String next=item.getStatus()==1 ? "运营人员审核" : item.getStatus()==3 ? "申请人修改并重新提交" : item.getStatus()==0 ? "申请人重新提交" : "MERCHANT".equals(type) ? "已开通经营权限" : Integer.valueOf(1).equals(item.getPublishStatus()) ? "已上架" : "等待商家上架";
+        String next=item.getStatus()==1 ? "运营人员审核" : item.getStatus()==3 ? "申请人修改并重新提交" : item.getStatus()==0 ? "申请人重新提交" : "MERCHANT".equals(type) ? item.getActivationState().equals("ACTIVATED") ? "已开通经营权限" : "审核通过，请申请人获取营业码并在商家端确认开通" : Integer.valueOf(1).equals(item.getPublishStatus()) ? "已上架" : "等待商家上架";
         ApprovalDetailResp result=new ApprovalDetailResp();
         result.setItem(item);
         result.setSnapshot(snapshot==null ? Map.of() : JSONUtil.parseObj(snapshot));
@@ -133,17 +130,7 @@ public class ApprovalCenterServiceImpl implements ApprovalCenterService {
         var a=applications.selectOneByQuery(QueryWrapper.create().eq(MerchantApplicationEntity::getId,id).forUpdate());
         if (a==null || a.getCurrentFlag()!=1 || a.getStatus()!=1 || !version.equals(a.getSubmissionNo())) throw new CoolException("申请已处理或版本已变化，请刷新");
         if (approved) {
-            if (accounts.selectCountByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getUsername,a.getUsername()))>0) throw new CoolException("申请账号已被使用，不能覆盖已有账号");
-            var input=JSONUtil.parseObj(a.getSnapshot());
-            MerchantInfoEntity merchant=new MerchantInfoEntity();
-            merchant.setName(a.getMerchantName()); merchant.setCategoryId(input.getLong("categoryId"));
-            merchant.setContactName(input.getStr("contactName")); merchant.setContactPhone(input.getStr("contactPhone"));
-            merchant.setAddress(input.getStr("address")); merchant.setIntroduction(input.getStr("introduction")); merchant.setStatus(1);
-            Long merchantId=merchantService.add(merchant);
-            BaseSysUserEntity account=new BaseSysUserEntity();
-            account.setUsername(a.getUsername()); account.setName(merchant.getContactName()); account.setNickName(merchant.getContactName());
-            account.setPassword(a.getPasswordHash()); account.setPasswordV(1); account.setStatus(1); account.setMerchantId(merchantId); account.setMerchantRole("OWNER");
-            accounts.insertSelective(account); a.setMerchantId(merchantId);
+            onboarding.issue(a);
         }
         a.setStatus(approved ? 2 : 3); applications.update(a);
         records.append("MERCHANT_APPLICATION",a.getId(),a.getMerchantId(),a.getSubmissionNo(),a.getSubmissionNo(),approved ? "APPROVE" : "REJECT",reason,null,null);
@@ -151,7 +138,8 @@ public class ApprovalCenterServiceImpl implements ApprovalCenterService {
 
     private ApprovalItemResp merchantItem(MerchantApplicationEntity a) {
         ApprovalItemResp item=new ApprovalItemResp(); item.setId(a.getId()); item.setTitle(a.getMerchantName()); item.setMerchantName(a.getMerchantName());
-        item.setSubmittedBy(a.getSubmittedBy()); item.setSubmittedAt(a.getSubmittedAt()); item.setVersion(a.getSubmissionNo()); item.setStatus(a.getStatus()); return item;
+        item.setSubmittedBy(a.getSubmittedBy()); item.setSubmittedAt(a.getSubmittedAt()); item.setVersion(a.getSubmissionNo()); item.setStatus(a.getStatus());
+        item.setActivationState(a.getMerchantId()!=null ? "ACTIVATED" : a.getStatus()==2 ? "PENDING_ACTIVATION" : "NOT_APPROVED");return item;
     }
     private ApprovalItemResp couponItem(CouponPublicationEntity p,CouponTemplateEntity c,MerchantInfoEntity m,AuditRecordEntity submitter) {
         ApprovalItemResp item=new ApprovalItemResp(); item.setId(p.getId()); item.setTemplateId(p.getCouponTemplateId()); item.setTitle(c==null ? "券资料已失效" : c.getName());
