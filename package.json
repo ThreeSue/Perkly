@@ -19,9 +19,10 @@
     "open:verification": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App verification",
     "dev:verification": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1 -App verification -Run",
     "test:client": "node --test tests/client.test.mjs",
-    "test:merchant": "node --test tests/merchant.test.mjs",
+    "test:merchant": "node --test tests/merchant.test.mjs tests/merchant-auth.test.mjs tests/merchant-redemption.test.mjs",
     "test:trade": "node --test tests/trade.test.mjs tests/trade-flow.test.mjs",
-    "test:glass": "node --test tests/glass-navigation.test.mjs"
+    "test:glass": "node --test tests/glass-navigation.test.mjs tests/merchant-nav-motion.test.mjs",
+    "test:theme": "node --test tests/light-theme.test.mjs"
   },
   "devDependencies": {
     "prettier": "3.5.3",

@@ -1,0 +1,82 @@
+{
+  "passed": true,
+  "evidence": [
+    {
+      "name": "held-still",
+      "transform": "matrix(1, 0, 0, 1.08, 0, 0)",
+      "lens": {
+        "x": 32,
+        "y": 770.0800170898438,
+        "width": 105.328125,
+        "height": 51.8399658203125
+      },
+      "scales": [
+        26.4,
+        24,
+        21.6
+      ],
+      "paintedRims": 0,
+      "pseudoContent": "none"
+    },
+    {
+      "name": "slow",
+      "transform": "matrix(0.990941, 0.00241619, -0.00215374, 1.1117, 29.154, 0)",
+      "lens": {
+        "x": 61.57942199707031,
+        "y": 769.1920776367188,
+        "width": 104.47734069824219,
+        "height": 53.6158447265625
+      },
+      "scales": [
+        28.4377358490566,
+        26.037735849056602,
+        23.637735849056604
+      ],
+      "paintedRims": 0,
+      "pseudoContent": "none"
+    },
+    {
+      "name": "fast",
+      "transform": "matrix(0.973007, 0.00760175, -0.00629828, 1.17438, 121.389, 0)",
+      "lens": {
+        "x": 154.65985107421875,
+        "y": 767.41455078125,
+        "width": 102.787353515625,
+        "height": 57.1708984375
+      },
+      "scales": [
+        32.46878813264884,
+        30.06878813264884,
+        27.668788132648842
+      ],
+      "paintedRims": 0,
+      "pseudoContent": "none"
+    },
+    {
+      "name": "stopped",
+      "transform": "matrix(1, 0, 0, 1.08, 121.389, 0)",
+      "lens": {
+        "x": 153.38946533203125,
+        "y": 770.0800170898438,
+        "width": 105.328125,
+        "height": 51.8399658203125
+      },
+      "scales": [
+        26.4,
+        24,
+        21.6
+      ],
+      "paintedRims": 0,
+      "pseudoContent": "none"
+    }
+  ],
+  "timings": [
+    424,
+    239,
+    79,
+    127
+  ],
+  "pageErrors": [],
+  "businessWrites": [],
+  "mockedTransport": true
+}

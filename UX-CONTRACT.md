@@ -4,9 +4,11 @@
 
 ## Canonical UI Map
 
+主题由客户端与商家各自的 `.cool/theme/index.ts` 统一适配。两端固定浅色，不读取或监听设备深色偏好，不提供切换入口；Cool 组件继续通过只读 `isDark=false` 使用浅色分支。微信/H5 平台开关、原生标题栏与页面样式保持一致。回归命令：`pnpm test:theme`。
+
 | Capability | Canonical owner                                                                            | Source of truth    | Allowed variants | Verification            |
 | ---------- | ------------------------------------------------------------------------------------------ | ------------------ | ---------------- | ----------------------- |
-| Form       | 客户端 cl-form + cl-input；其他端 uni input + cl-button, pages/business/login.uvue         | 本文输入与登录约定 | 演示昵称、核销码 | pnpm check；H5 页面检查 |
+| Form       | 客户端 cl-form + cl-input；商家 merchant-auth-field/button + cl-form + useMerchantAuthForm；其余端既有登录表单         | 本文输入与登录约定 | 账号、核销码 | pnpm check；H5 页面检查 |
 | Scrollbar  | 客户端 client-system.scss；商家 merchant.scss；其他端 packages/shared/styles/business.scss | DESIGN.md          | 手机端与原运营端 | H5计算样式；pnpm check  |
 | Date | Cool cl-select-date + cl-picker-view；records.uvue原生按钮触发 | 商家记录补充、需求补充文档 | authored滚轮日期范围 | merchant测试；H5弹窗确认/取消；微信开发编译 |
 
@@ -25,6 +27,8 @@
 日期由既有 Cool cl-select-date / cl-picker-view 负责，见下文商家记录补充；未使用多选表格。真实登录、权限恢复、账户持久化、真实交易确认不由本地 mock 推定。
 
 ## 商家记录补充（2026-10-23）
+
+2026-10-24 展示更新：商家三主页面采用已选黑白灰修订布局，局部样式由 merchant-monochrome.scss 持有；此处蓝灰白历史描述由该决定覆盖。“我的”员工登录/账号权限复用原登录路由，帮助与反馈复用原页面；未登录不显示假姓名、门店或退出成功。工作台扫码/手输复用原核销页入口，不宣称已扫码或已核销；统计以待接入提示表示。正式底部导航实现保持既有版本，实验四Tab不改变三项switchTab规则。记录日期、权限派生、搜索及接口缺口保持下述行为。
 
 业务规则来源：用户本轮需求，归档于 docs/需求补充-20261023.md；接口限制见 docs/MERCHANT-API-HANDOFF.md。
 
@@ -97,3 +101,20 @@
 H5 Chromium导航增强按住放大、上下可露出外壳与细边色散；只改变视觉，不改变业务导航目的、权限和三个tab。键盘Enter/Space继续作为拖动替代。外观扩张不移动标签布局，实际按钮触达区域保持原有48px。移出胶囊仍能释放，失焦/隐藏取消按住状态并收回；跨tab共享扩张/位移的本端内存运动。SVG渲染只在显示时挂载，隐藏/卸载清理；异步解码通过代次校验防止离页后重启。尺寸变化时重建位移图，运动时仅变更几何。减少动态效果不放大或回弹，减少透明度/强制高对比/不支持浏览器使用原回退。小程序不包含H5渲染适配，不因本轮切换Skyline。白色高光仍禁止恢复。实现和验证见docs/h5-liquid-nav-20261023/README.md。
 
 手机设备模拟的UA不能独自决定增强开关：Chromium运行时与Client Hints优先，仍要求背板滤镜语法支持；真实WebKit/Firefox保留既有回退。页面显示后的延迟初始化须校验显示代次，隐藏/卸载后不能再挂载；旧渲染器回调不能关闭新实例。按压扩张和倾斜变化都需同步到折射轮廓。
+
+## 商家欢迎、入驻与登录（2026-10-25，最新人员管理边界已更新）
+
+- 范围仅 apps/merchant。公开 welcome/login/onboard；私有页必须通过 merchant-auth-guard（导航拦截+页面显示检查），business-shell 未认证不渲染私有内容。首次路由 welcome，登录可回到被拦截的页面；不存在查询参数选角色。首页核销、记录、我的由已开通账号进入；员工与店长权限由已验证身份决定，不提供角色切换。正式服务仍负责最终权限。
+- 入驻分门店资料与店长账号两步，首店名称选填，位置必填；微信 chooseLocation，取消保留原值、失败持久提示；H5未配置地图时给出说明。不提供示例位置或伪造坐标；未取得位置时不进入下一步。上一步保留两步已填内容；自定义返回/转登录时有未提交确认，真实H5卸载启用 beforeunload。小程序系统手势返回的丢稿确认待真机验收，不承诺跨刷新草稿。
+- Canonical owner：merchant-auth-field（真实标签、提示/错误关联、密码显示及清空）/merchant-auth-button（52px主次按钮）/merchant-auth-shell（认证页布局）/useMerchantAuthForm（提交锁、首错定位、卸载隔离）。H5 cl-input 把无障碍/自动填充属性同步到真正的原生input；cl-button 提供语义、禁用状态及键盘激活。敏感值只在内存，不进入URL、日志和持久存储。
+- 两步校验错误保持已有值并定位首错；登录失败保留手机号、清除密码并聚焦密码。加载时禁用重复提交和离开按钮，按钮尺寸稳定。提示明确指向纠错或重新尝试，不使用原生 alert/confirm。
+- 员工邀请、加入注册、撤销或移除、人员列表均由商家后台负责，本端不提供页面、路由或API；员工使用后台开通的账号登录，角色和门店范围由已验证身份决定。
+- 商家认证已接真实 captcha/login/staff/me/logout/changePassword；不提供开发测试账号或预置身份。退出、过期与改密会清理本地凭证并回到登录页；真实核销只接受服务端 COMPLETED 与 redemptionId。
+
+## 商家入驻审核（2026-10-25，用户已授权实施）
+
+- 登录、商家入驻资格、账号角色/门店授权、审核结果确认分开。新申请默认待审，登录后可进首页、我的、申请和帮助；经营路由由 merchant-access + merchant-auth-guard 拦截，business-shell 也不渲染被拒绝的业务内容。首页经营操作禁用并给出原因。通过后按原角色开放前端入口，不由弹窗确认赋权，不自动上架商品/券；正式服务仍需独立拦截业务写请求。
+- Canonical owner：stores/merchant-admission 管理状态及查询/提交隔离；merchant-admission-progress 管理首页展开；use-merchant-admission-home + Cool cl-confirm 管理提醒；application 页面管理申请与历史/驳回重提；merchant-place-field 复用选址及首错焦点。进度默认收起，展开占约半屏且自然滚动，Enter/Space 等效触摸，状态不只由颜色表达。
+- 首页显示及登录后同步，待审时仅首页前台每30秒查询，隐藏/卸载停止。请求按账号会话代次和查询代次提交；换号、退出、旧查询/旧确认均不能覆盖当前账号或新结果。查询失败显示重试且不开放经营；确认提醒失败保持原资格与提示，允许重试。
+- 非待审且未确认的结果在进入首页时提醒，离线通过则下次进入首页提醒。点击确定向服务确认指定结果；通过且确认后隐藏首页进度，驳回确认后仍保留修改提示。Esc 仅关闭本次提醒，不写已确认；首页隐藏关闭弹窗与焦点监听。历史入口保留在我的，重提保留所有历史且生成新版本，旧审核/确认不能操作新版本。
+- 当前 merchantOnboardingAvailable=false：申请提交、进度查询、结果确认、驳回重提均明确拒绝，不模拟审核、不写入假状态；申请页展示待后端对齐说明。首页进度组件和状态机保留，待正式契约接通后按上述规则启用。跨设备持久确认、真实平台审核、正式权限同步等待后端契约，不用本地缓存冒充完成。

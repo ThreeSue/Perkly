@@ -1,0 +1,102 @@
+[
+  {
+    "app": "client",
+    "route": "/pages/index/home",
+    "dark": {
+      "darkSystem": true,
+      "darkClass": false,
+      "darkComponents": 0,
+      "colorScheme": "light only",
+      "background": "rgb(238, 242, 246)",
+      "color": "rgb(38, 49, 59)",
+      "navBackground": "rgba(0, 0, 0, 0)",
+      "themeButtons": 0
+    },
+    "light": {
+      "darkSystem": false,
+      "darkClass": false,
+      "darkComponents": 0,
+      "colorScheme": "light only",
+      "background": "rgb(238, 242, 246)",
+      "color": "rgb(38, 49, 59)",
+      "navBackground": "rgba(0, 0, 0, 0)",
+      "themeButtons": 0
+    },
+    "parentMessageIgnored": true
+  },
+  {
+    "app": "client",
+    "route": "/pages/user/login",
+    "dark": {
+      "darkSystem": true,
+      "darkClass": false,
+      "darkComponents": 0,
+      "colorScheme": "light only",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(38, 49, 59)",
+      "navBackground": null,
+      "themeButtons": 0
+    },
+    "light": {
+      "darkSystem": false,
+      "darkClass": false,
+      "darkComponents": 0,
+      "colorScheme": "light only",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(38, 49, 59)",
+      "navBackground": null,
+      "themeButtons": 0
+    },
+    "parentMessageIgnored": true
+  },
+  {
+    "app": "merchant",
+    "route": "/pages/business/home",
+    "dark": {
+      "darkSystem": true,
+      "darkClass": false,
+      "darkComponents": 0,
+      "colorScheme": "light only",
+      "background": "rgb(238, 238, 238)",
+      "color": "rgb(32, 32, 32)",
+      "navBackground": "rgba(0, 0, 0, 0)",
+      "themeButtons": 0
+    },
+    "light": {
+      "darkSystem": false,
+      "darkClass": false,
+      "darkComponents": 0,
+      "colorScheme": "light only",
+      "background": "rgb(238, 238, 238)",
+      "color": "rgb(32, 32, 32)",
+      "navBackground": "rgba(0, 0, 0, 0)",
+      "themeButtons": 0
+    },
+    "parentMessageIgnored": true
+  },
+  {
+    "app": "merchant",
+    "route": "/pages/business/profile",
+    "dark": {
+      "darkSystem": true,
+      "darkClass": false,
+      "darkComponents": 0,
+      "colorScheme": "light only",
+      "background": "rgb(238, 238, 238)",
+      "color": "rgb(32, 32, 32)",
+      "navBackground": "rgba(0, 0, 0, 0)",
+      "themeButtons": 0
+    },
+    "light": {
+      "darkSystem": false,
+      "darkClass": false,
+      "darkComponents": 0,
+      "colorScheme": "light only",
+      "background": "rgb(238, 238, 238)",
+      "color": "rgb(32, 32, 32)",
+      "navBackground": "rgba(0, 0, 0, 0)",
+      "themeButtons": 0
+    },
+    "parentMessageIgnored": true
+  }
+]

@@ -25,6 +25,11 @@
 
 		<!-- @vue-ignore -->
 		<input
+			:id="inputId"
+			:aria-label="inputLabel"
+			:aria-describedby="inputDescription"
+			:aria-invalid="inputInvalid"
+			:autocomplete="autocomplete"
 			class="cl-input__inner"
 			:class="[
 				{
@@ -64,32 +69,54 @@
 			></cl-icon>
 		</view>
 
-		<view class="cl-input__icon" @tap="clear" v-if="showClear">
+		<button
+			role="button"
+			tabindex="0"
+			@keydown.enter.stop.prevent="clear"
+			@keydown.space.stop.prevent="clear"
+			class="cl-input__icon cl-input__action"
+			aria-label="清空输入"
+			@tap.stop="clear"
+			v-if="showClear"
+		>
 			<cl-icon
 				name="close-circle-fill"
 				:size="16"
 				:pt="{ className: '!text-surface-400' }"
 			></cl-icon>
-		</view>
+		</button>
 
-		<view class="cl-input__icon" @tap="showPassword" v-if="password">
+		<button
+			role="button"
+			tabindex="0"
+			@keydown.enter.stop.prevent="showPassword"
+			@keydown.space.stop.prevent="showPassword"
+			class="cl-input__icon cl-input__action"
+			:aria-label="isPassword ? '显示密码' : '隐藏密码'"
+			:aria-pressed="!isPassword"
+			@tap.stop="showPassword"
+			v-if="password"
+		>
 			<cl-icon
 				:name="isPassword ? 'eye-line' : 'eye-off-line'"
 				:size="16"
 				:pt="{ className: '!text-surface-300' }"
 			></cl-icon>
-		</view>
+		</button>
 
 		<slot name="append"></slot>
 	</view>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, type PropType } from "vue";
+import { computed, nextTick, onMounted, ref, watch, type PropType } from "vue";
 import type { ClInputType, PassThroughProps } from "../../types";
 import type { ClIconProps } from "../cl-icon/props";
 import { useForm, useFormItem, useSize } from "../../hooks";
 import { getColor, isDark, parseClass, parsePt, t } from "@/.cool";
+// #ifdef H5
+import { syncAuthInput, focusAuthInput } from "@/h5/auth-controls.js";
+// #endif
 
 defineOptions({
 	name: "cl-input"
@@ -97,6 +124,11 @@ defineOptions({
 
 // 组件属性定义
 const props = defineProps({
+	inputId: { type: String, default: "" },
+	inputLabel: { type: String, default: "" },
+	inputDescription: { type: String, default: "" },
+	inputInvalid: { type: Boolean, default: false },
+	autocomplete: { type: String, default: "off" },
 	// 透传样式
 	pt: {
 		type: Object,
@@ -259,6 +291,30 @@ const placeholderStyle = computed(() => {
 	return `font-size: ${fontSize.value}; color: ${getColor("surface-400")}; ${props.placeholderStyle}`;
 });
 
+// #ifdef H5
+// uni-input 的自定义属性落在宿主节点；把表单语义同步到真正的原生输入框。
+function syncNativeInput() {
+	syncAuthInput(
+		props.inputId,
+		props.inputLabel,
+		props.inputDescription,
+		props.inputInvalid,
+		props.autocomplete
+	);
+}
+onMounted(() => nextTick(syncNativeInput));
+watch(
+	() => [
+		props.inputId,
+		props.inputLabel,
+		props.inputDescription,
+		props.inputInvalid,
+		props.autocomplete
+	],
+	() => nextTick(syncNativeInput)
+);
+// #endif
+
 // 绑定值
 const value = ref<string>("");
 
@@ -350,6 +406,13 @@ function onKeyboardheightchange(e: UniInputKeyboardHeightChangeEvent) {
 
 // 聚焦方法
 function focus() {
+	// #ifdef H5
+	if (props.inputId) {
+		syncNativeInput();
+		focusAuthInput(props.inputId);
+		return;
+	}
+	// #endif
 	setTimeout(() => {
 		isFocusing.value = false;
 
@@ -417,6 +480,17 @@ defineExpose({
 	&__icon {
 		@apply flex items-center justify-center h-full;
 		padding-left: 10px;
+	}
+	&__action {
+		margin: 0;
+		padding: 0;
+		min-width: 44px;
+		min-height: 44px;
+		border: 0;
+		background: transparent;
+		&::after {
+			border: 0;
+		}
 	}
 
 	&--border {

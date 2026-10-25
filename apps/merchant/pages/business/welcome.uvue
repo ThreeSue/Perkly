@@ -1,0 +1,83 @@
+<template>
+	<cl-page :back-top="false"
+		><view class="merchant-auth-page"
+			><view class="merchant-welcome">
+				<view class="merchant-welcome-brand"
+					><view class="merchant-welcome-symbol"
+						><cl-icon name="coupon-line" :size="29" color="#202020" /></view
+					><view
+						><text class="merchant-welcome-brand-title">PERKLY</text
+						><text class="merchant-welcome-brand-caption"
+							>券管家 · 商家核销端</text
+						></view
+					></view
+				>
+				<view class="merchant-welcome-hero"
+					><text class="merchant-welcome-title">门店经营，</text
+					><text class="merchant-welcome-title">从这里开始。</text
+					><text class="merchant-welcome-copy"
+						>加入券管家，把门店、优惠券和日常核销放在一起管理。</text
+					></view
+				>
+				<view class="merchant-welcome-features"
+					><view class="merchant-welcome-feature"
+						><view
+							><text class="merchant-welcome-feature-title">创建你的商家与门店</text
+							><text class="merchant-welcome-feature-copy"
+								>填写资料、设置账号并提交平台审核</text
+							></view
+						></view
+					><view class="merchant-welcome-feature"
+						><view
+							><text class="merchant-welcome-feature-title">扫码一次，完成一笔</text
+							><text class="merchant-welcome-feature-copy"
+								>自动识别券类型，核对金额或内容后确认使用</text
+							></view
+						></view
+					></view
+				>
+				<view class="merchant-welcome-bottom"
+					><merchant-auth-button
+						label="申请商家入驻"
+						:disabled="restoring"
+						@tap="apply"
+					/><view class="merchant-auth-footer"
+						><button
+							class="uni-merchant-button merchant-text-action"
+							:disabled="restoring"
+							@tap="login"
+							@keydown.enter.prevent="login"
+							@keydown.space.prevent="login"
+						>
+							我已有账号，去登录
+						</button></view
+					><text
+						class="merchant-auth-caption"
+						style="text-align: center; margin-top: 16px"
+						>员工账号由商家后台开通，使用同一登录入口。</text
+					></view
+				>
+			</view></view
+		></cl-page
+	>
+</template>
+<script setup lang="ts">
+import MerchantAuthButton from "@/components/merchant-auth-button.uvue";
+import {
+	merchantSignedIn,
+	merchantRestoring as restoring,
+	restoreMerchantAuthentication
+} from "@/stores/merchant-auth";
+import { enterMerchantWorkspace } from "@/composables/merchant-auth-guard";
+function login() {
+	uni.navigateTo({ url: "/pages/business/login" });
+}
+function apply() {
+	uni.navigateTo({ url: "/pages/business/onboard" });
+}
+onShow(() => {
+	void restoreMerchantAuthentication().then(() => {
+		if (merchantSignedIn.value) enterMerchantWorkspace();
+	});
+});
+</script>

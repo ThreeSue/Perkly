@@ -27,7 +27,11 @@ for (const app of apps) {
   );
   assert.equal(
     pages.pages[0].path,
-    app === "client" ? "pages/index/home" : "pages/business/home",
+    app === "client"
+      ? "pages/index/home"
+      : app === "merchant"
+        ? "pages/business/welcome"
+        : "pages/business/home",
   );
   for (const page of pages.pages)
     assert.ok(

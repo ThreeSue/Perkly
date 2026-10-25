@@ -1,0 +1,77 @@
+TAP version 13
+# Subtest: iPhone模拟UA不会关闭真实Chromium内核的H5折射
+ok 1 - iPhone模拟UA不会关闭真实Chromium内核的H5折射
+  ---
+  duration_ms: 4.008
+  ...
+# Subtest: 真实WebKit/Firefox和缺少背板滤镜的环境继续安全回退
+ok 2 - 真实WebKit/Firefox和缺少背板滤镜的环境继续安全回退
+  ---
+  duration_ms: 0.4987
+  ...
+# Subtest: 玻璃滑块按实际容器尺寸定位，三个触点中心映射到三个导航
+ok 3 - 玻璃滑块按实际容器尺寸定位，三个触点中心映射到三个导航
+  ---
+  duration_ms: 1.0834
+  ...
+# Subtest: 拖出两端不越界，快速拖动形变受限，停止后恢复
+ok 4 - 拖出两端不越界，快速拖动形变受限，停止后恢复
+  ---
+  duration_ms: 0.6275
+  ...
+# Subtest: 容器尚未测量时计算有界且无 NaN
+ok 5 - 容器尚未测量时计算有界且无 NaN
+  ---
+  duration_ms: 0.79
+  ...
+# Subtest: 果冻弹簧带惯性越过目标并回弹，有限帧内精确静止
+ok 6 - 果冻弹簧带惯性越过目标并回弹，有限帧内精确静止
+  ---
+  duration_ms: 1.464
+  ...
+# Subtest: 挂起后大时间步与快速反向切换不会造成弹簧发散
+ok 7 - 挂起后大时间步与快速反向切换不会造成弹簧发散
+  ---
+  duration_ms: 2.9754
+  ...
+# (node:24528) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: client导航点击从原位置起弹、拖动跟手且合成tap不重复导航
+ok 8 - client导航点击从原位置起弹、拖动跟手且合成tap不重复导航
+  ---
+  duration_ms: 598.5373
+  ...
+# Subtest: merchant导航点击从原位置起弹、拖动跟手且合成tap不重复导航
+ok 9 - merchant导航点击从原位置起弹、拖动跟手且合成tap不重复导航
+  ---
+  duration_ms: 25.3518
+  ...
+# Subtest: 拖动中即有可见形变，速度加快增强，反向倾斜反转
+ok 10 - 拖动中即有可见形变，速度加快增强，反向倾斜反转
+  ---
+  duration_ms: 1.2394
+  ...
+# Subtest: 折射场边缘有位移，中心和外部保持中性，不制造透明缺口
+ok 11 - 折射场边缘有位移，中心和外部保持中性，不制造透明缺口
+  ---
+  duration_ms: 47.0742
+  ...
+# Subtest: 折射区域跟随实际选中项中心及果冻缩放，不随形变偏移中心
+ok 12 - 折射区域跟随实际选中项中心及果冻缩放，不随形变偏移中心
+  ---
+  duration_ms: 1.1334
+  ...
+# Subtest: 按住透镜纵向超过外壳、横向收窄，松手恢复原几何
+ok 13 - 按住透镜纵向超过外壳、横向收窄，松手恢复原几何
+  ---
+  duration_ms: 0.4715
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 954.7393

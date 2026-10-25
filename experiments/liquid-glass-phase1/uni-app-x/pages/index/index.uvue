@@ -1,0 +1,2 @@
+<template><view><liquid-probe /></view></template>
+<script setup lang="uts"></script>

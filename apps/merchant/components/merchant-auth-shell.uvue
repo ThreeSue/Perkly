@@ -1,0 +1,38 @@
+<template>
+	<cl-page :back-top="false">
+		<view class="merchant-auth-page">
+			<view class="merchant-auth-topbar">
+				<button
+					role="button"
+					tabindex="0"
+					@keydown.enter.prevent="emit('back')"
+					@keydown.space.prevent="emit('back')"
+					class="uni-merchant-button merchant-auth-back"
+					aria-label="返回上一步"
+					:disabled="busy"
+					@tap="emit('back')"
+				>
+					<cl-icon name="arrow-left-line" :size="21" color="#202020" /><text
+						>返回上一步</text
+					>
+				</button>
+				<text class="merchant-auth-brand-small">PERKLY</text>
+			</view>
+			<view class="merchant-auth-body">
+				<view class="merchant-auth-heading"
+					><text class="merchant-auth-eyebrow">{{ eyebrow }}</text
+					><text class="merchant-auth-title">{{ title }}</text
+					><text class="merchant-auth-description">{{ description }}</text></view
+				>
+				<slot />
+			</view>
+		</view>
+	</cl-page>
+</template>
+<script setup lang="ts">
+withDefaults(
+	defineProps<{ title: string; description: string; eyebrow?: string; busy?: boolean }>(),
+	{ eyebrow: "PERKLY BUSINESS", busy: false }
+);
+const emit = defineEmits<{ back: [] }>();
+</script>

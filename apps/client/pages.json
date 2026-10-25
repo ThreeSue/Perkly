@@ -119,17 +119,17 @@
 	],
 	"globalStyle": {
 		"navigationBarTitleText": "券管家",
-		"navigationBarTextStyle": "@navTextStyle",
-		"backgroundColorContent": "@bgContentColor",
-		"backgroundColor": "@bgColor",
-		"navigationBarBackgroundColor": "@navBgColor"
+		"navigationBarTextStyle": "black",
+		"backgroundColorContent": "#eef2f6",
+		"backgroundColor": "#eef2f6",
+		"navigationBarBackgroundColor": "#ffffff"
 	},
 	"tabBar": {
 		"custom": false,
-		"color": "@tabColor",
-		"selectedColor": "@tabSelectedColor",
-		"backgroundColor": "@tabBgColor",
-		"borderStyle": "@tabBorderStyle",
+		"color": "#999999",
+		"selectedColor": "#526d88",
+		"backgroundColor": "#ffffff",
+		"borderStyle": "white",
 		"height": "60px",
 		"list": [
 			{

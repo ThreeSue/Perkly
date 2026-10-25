@@ -1,0 +1,171 @@
+<template>
+	<merchant-auth-shell
+		title="申请商家入驻"
+		:description="
+			step === 1
+				? '填写商家与首家门店资料，提交平台审核。'
+				: '设置店长账号，提交后等待平台审核。'
+		"
+		:busy="busy"
+		@back="back"
+	>
+		<text class="merchant-auth-caption">第 {{ step }} 步，共2步</text>
+		<view class="merchant-auth-card"
+			><cl-form label-position="top" :show-asterisk="false">
+				<template v-if="step === 1">
+					<merchant-auth-field
+						:ref="refs.set('merchantName')"
+						v-model="merchantName"
+						name="merchantName"
+						label="商家名称"
+						placeholder="填写商家名称"
+						:maxlength="40"
+						:error="errors.merchantName"
+					/>
+					<merchant-auth-field
+						v-model="storeName"
+						name="storeName"
+						label="首家门店名称"
+						optional
+						placeholder="填写首家门店名称"
+						:maxlength="40"
+					/>
+					<merchant-place-field v-model="place" :error="errors.place" />
+					<merchant-auth-button label="下一步，设置账号" @tap="next" />
+				</template>
+				<template v-else>
+					<merchant-auth-field
+						:ref="refs.set('phone')"
+						v-model="phone"
+						name="phone"
+						label="店长手机号"
+						type="number"
+						:maxlength="11"
+						:error="errors.phone"
+						:disabled="!available"
+					/>
+					<merchant-auth-field
+						:ref="refs.set('password')"
+						v-model="password"
+						name="password"
+						label="登录密码"
+						secret
+						:maxlength="32"
+						:error="errors.password"
+						:disabled="!available"
+					/>
+					<merchant-auth-field
+						:ref="refs.set('confirmation')"
+						v-model="confirmation"
+						name="confirmation"
+						label="确认密码"
+						secret
+						:maxlength="32"
+						:error="errors.confirmation"
+						:disabled="!available"
+					/>
+					<text class="merchant-auth-caption"
+						>提交后可用店长账号登录。审核通过即开放经营权限，结果确认仅用于收起首页提示；申请与审核历史始终保留。</text
+					>
+					<view v-if="message" class="merchant-auth-message" role="alert">{{
+						message
+					}}</view>
+					<merchant-auth-button
+						label="提交入驻申请"
+						:busy="busy"
+						:disabled="!available"
+						@tap="submit"
+					/>
+				</template> </cl-form
+			><text v-if="!available" class="merchant-auth-caption" style="margin-top: 16px">{{
+				contractMessage
+			}}</text></view
+		>
+	</merchant-auth-shell>
+</template>
+<script setup lang="ts">
+// 两步表单：资料与门店位置 → 店长账号。提交与审核契约待后端按原流程对齐。
+import { ref } from "vue";
+import { useUi } from "@/uni_modules/cool-ui";
+import MerchantAuthShell from "@/components/merchant-auth-shell.uvue";
+import MerchantAuthField from "@/components/merchant-auth-field.uvue";
+import MerchantAuthButton from "@/components/merchant-auth-button.uvue";
+import MerchantPlaceField from "@/components/merchant-place-field.uvue";
+import { useMerchantAuthForm } from "@/composables/use-merchant-auth-form";
+import { merchantAuthBack } from "@/utils/merchant-auth-navigation";
+import {
+	merchantOnboardingAvailable as available,
+	onboardingContractMessage as contractMessage,
+	submitMerchantOnboarding
+} from "@/api/merchant-onboarding";
+import type { MerchantPlace } from "@/types/merchant-admission";
+const ui = useUi(),
+	step = ref(1),
+	merchantName = ref(""),
+	storeName = ref(""),
+	place = ref<MerchantPlace | null>(null),
+	phone = ref(""),
+	password = ref(""),
+	confirmation = ref("");
+const { busy, errors, message, refs, validate, run } = useMerchantAuthForm();
+function next() {
+	if (
+		validate({
+			...(merchantName.value.trim().length < 2
+				? { merchantName: "请输入2—40个字的商家名称" }
+				: {}),
+			...(!place.value ? { place: "请选择真实门店位置" } : {})
+		})
+	)
+		step.value = 2;
+}
+function back() {
+	if (busy.value) return;
+	if (step.value === 2) {
+		step.value = 1;
+		return;
+	}
+	if (merchantName.value || storeName.value || place.value)
+		ui.showConfirm({
+			title: "离开入驻申请？",
+			message: "尚未提交的申请资料不会保存。",
+			confirmText: "离开",
+			cancelText: "继续填写",
+			callback(result) {
+				if (result === "confirm") merchantAuthBack();
+			}
+		});
+	else merchantAuthBack();
+}
+async function submit() {
+	if (
+		!available ||
+		!validate({
+			...(!/^1\d{10}$/.test(phone.value) ? { phone: "请输入11位大陆手机号" } : {}),
+			...(password.value.length < 8 ? { password: "请设置8—32位密码" } : {}),
+			...(confirmation.value !== password.value
+				? { confirmation: "两次输入的密码不一致" }
+				: {})
+		})
+	)
+		return;
+	await run(
+		() =>
+			submitMerchantOnboarding({
+				merchantName: merchantName.value.trim(),
+				storeName: storeName.value.trim(),
+				place: place.value,
+				phone: phone.value,
+				password: password.value
+			}),
+		() => {
+			password.value = "";
+			confirmation.value = "";
+		}
+	);
+}
+onHide(() => {
+	password.value = "";
+	confirmation.value = "";
+});
+</script>

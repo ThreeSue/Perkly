@@ -1,90 +1,81 @@
 <template>
-	<business-shell
-		tab="home"
-		title="门店工作台"
-		description="核销、查券、看记录，日常工作从这里开始"
-	>
-		<view class="merchant-card">
-			<text class="merchant-heading">员工身份</text>
-			<text class="merchant-muted">尚未登录 · 商家与当前角色待验证</text>
-			<view class="merchant-actions"
-				><cl-button type="primary" @tap="open('login')">员工登录</cl-button></view
+	<business-shell tab="home" title="工作台" monochrome>
+		<merchant-admission-progress @notice="showNotice" />
+		<view class="mono-work-hero">
+			<view class="mono-store-row"
+				><cl-icon name="store-2-line" :size="23" color="#202020" /><text
+					class="mono-store-title"
+					>{{ identity?.storeName || "正在验证门店" }}</text
+				><text class="merchant-role-badge">{{ isManager ? "店长" : "员工" }}</text></view
 			>
-		</view>
-		<view class="merchant-card">
-			<text class="merchant-heading">当前门店</text>
-			<text class="merchant-muted">仅可选择本人获授权的门店</text>
-			<view class="merchant-actions"
-				><cl-button border disabled>选择授权门店 · 待接入</cl-button></view
+			<button
+				class="uni-merchant-button mono-scan"
+				role="button"
+				:disabled="!canOperate || working"
+				@tap="redemption?.scan()"
+				@keydown.enter.prevent="redemption?.scan()"
+				@keydown.space.prevent="redemption?.scan()"
 			>
-			<view class="merchant-stat-inline"
-				><text class="merchant-label">今日核销</text
-				><text class="merchant-stat">—</text></view
+				<cl-icon name="qr-scan-line" :size="72" color="#202020" /><text>扫码核销</text>
+			</button>
+			<merchant-auth-button
+				label="手动输入券码"
+				secondary
+				:disabled="!canOperate || working"
+				@tap="redemption?.manual()"
+			/>
+		</view>
+		<view class="mono-sheet mono-home-sheet">
+			<text class="mono-section-title">核销说明</text>
+			<text class="mono-secondary mono-store-note"
+				>满减、折扣、代金券：填写本次消费金额，核对优惠和补款，线下收款后确认核销。</text
 			>
-			<text class="merchant-field-note">统计待接入，尚无可展示的核销数量</text>
+			<text class="mono-secondary mono-store-note"
+				>套餐、体验、兑换券：核对内容后确认使用，自动开单并核销。</text
+			>
+			<button
+				class="uni-merchant-button mono-menu-row"
+				role="button"
+				@tap="records"
+				@keydown.enter.prevent="records"
+				@keydown.space.prevent="records"
+			>
+				<view class="mono-menu-icon"
+					><cl-icon name="file-list-line" :size="27" color="#202020" /></view
+				><view class="mono-menu-copy"
+					><text class="mono-feature-title">{{
+						isManager ? "全店核销记录" : "我的核销记录"
+					}}</text
+					><text class="mono-secondary"
+						>查看流水及消费账单，继续处理待结算账单</text
+					></view
+				><cl-icon name="arrow-right-s-line" :size="23" color="#606060" />
+			</button>
+			<text class="mono-footnote">扫描或输入一次券码即可完成本笔处理。</text>
 		</view>
-		<text class="merchant-heading">常用功能</text>
-		<view class="merchant-grid">
-			<view v-for="entry in entries" :key="entry.page" class="merchant-tile">
-				<button class="merchant-tile-button" @tap="open(entry.page)">
-					<view class="merchant-tile-icon"
-						><cl-icon
-							:name="entry.icon"
-							:size="23"
-							:color="entry.page === 'verify' ? '#ffffff' : '#526d88'"
-					/></view>
-					<text class="merchant-tile-title">{{ entry.title }}</text>
-					<text class="merchant-tile-caption">{{ entry.caption }}</text>
-				</button>
-			</view>
-		</view>
-		<merchant-pending capability="stores" hint="门店、角色和核销权限均以后端验证结果为准。" />
 	</business-shell>
+	<merchant-redemption ref="redemption" @working="working = $event" />
+	<cl-confirm ref="notice" />
 </template>
 <script setup lang="ts">
+import { ref } from "vue";
 import BusinessShell from "@/components/business-shell.uvue";
-import MerchantPending from "@/components/merchant-pending.uvue";
-
-const entries = [
-	{
-		page: "verify",
-		icon: "qr-scan-line",
-		title: "优惠券核销",
-		caption: "扫描二维码 / 手动输入券码"
-	},
-	{
-		page: "coupons",
-		icon: "coupon-line",
-		title: "券信息查询",
-		caption: "适用门店、商品与使用规则"
-	},
-	{
-		page: "records",
-		icon: "file-list-line",
-		title: "核销记录",
-		caption: "按登录权限查看核销明细"
-	},
-	{ page: "create", icon: "edit-line", title: "快速建券", caption: "填写优惠信息，提交平台审核" }
-];
-function open(page: string) {
-	if (page === "records") uni.switchTab({ url: "/pages/business/records" });
-	else uni.navigateTo({ url: "/pages/business/" + page });
+import MerchantAuthButton from "@/components/merchant-auth-button.uvue";
+import MerchantRedemption from "@/components/merchant-redemption.uvue";
+import MerchantAdmissionProgress from "@/components/merchant-admission-progress.uvue";
+import { useMerchantAdmissionHome } from "@/composables/use-merchant-admission-home";
+import {
+	merchantCanOperate as canOperate,
+	merchantIdentity as identity,
+	merchantIsManager as isManager
+} from "@/stores/merchant-auth";
+const working = ref(false);
+const redemption = ref<InstanceType<typeof MerchantRedemption> | null>(null);
+const { notice, showNotice, show, hide } = useMerchantAdmissionHome();
+onShow(show);
+onHide(hide);
+function records() {
+	uni.switchTab({ url: "/pages/business/records" });
 }
+onHide(() => redemption.value?.hide());
 </script>
-
-<style lang="scss" scoped>
-.merchant-stat-inline {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	gap: 12px;
-	margin-top: 16px;
-}
-.merchant-stat-inline .merchant-label {
-	margin: 0;
-}
-.merchant-stat-inline .merchant-stat {
-	font-size: 22px;
-	margin: 0;
-}
-</style>

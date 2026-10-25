@@ -11,6 +11,7 @@ export type ClButtonPassThrough = {
 };
 
 export type ClButtonProps = {
+	ariaLabel?: string;
 	className?: string;
 	pt?: ClButtonPassThrough;
 	type?: ClButtonType;
@@ -27,7 +28,36 @@ export type ClButtonProps = {
 	hoverStartTime?: number;
 	hoverStayTime?: number;
 	formType?: "submit" | "reset";
-	openType?: "agreePrivacyAuthorization" | "feedback" | "share" | "getUserInfo" | "contact" | "getPhoneNumber" | "launchApp" | "openSetting" | "chooseAvatar" | "getAuthorize" | "lifestyle" | "contactShare" | "openGroupProfile" | "openGuildProfile" | "openPublicProfile" | "shareMessageToFriend" | "addFriend" | "addColorSign" | "addGroupApp" | "addToFavorites" | "chooseAddress" | "chooseInvoiceTitle" | "login" | "subscribe" | "favorite" | "watchLater" | "openProfile" | "liveActivity" | "getRealtimePhoneNumber";
+	openType?:
+		| "agreePrivacyAuthorization"
+		| "feedback"
+		| "share"
+		| "getUserInfo"
+		| "contact"
+		| "getPhoneNumber"
+		| "launchApp"
+		| "openSetting"
+		| "chooseAvatar"
+		| "getAuthorize"
+		| "lifestyle"
+		| "contactShare"
+		| "openGroupProfile"
+		| "openGuildProfile"
+		| "openPublicProfile"
+		| "shareMessageToFriend"
+		| "addFriend"
+		| "addColorSign"
+		| "addGroupApp"
+		| "addToFavorites"
+		| "chooseAddress"
+		| "chooseInvoiceTitle"
+		| "login"
+		| "subscribe"
+		| "favorite"
+		| "watchLater"
+		| "openProfile"
+		| "liveActivity"
+		| "getRealtimePhoneNumber";
 	lang?: "en" | "zh_CN" | "zh_TW";
 	sessionFrom?: string;
 	sendMessageTitle?: string;

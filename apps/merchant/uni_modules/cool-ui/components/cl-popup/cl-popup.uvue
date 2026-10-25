@@ -123,7 +123,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, ref, watch, type PropType } from "vue";
+import { computed, reactive, ref, watch, onUnmounted, type PropType } from "vue";
 import { getSafeAreaHeight, isAppIOS, parseClass, parsePt, getUnit } from "@/.cool";
 import type { ClPopupDirection, PassThroughProps } from "../../types";
 import { isDark, router } from "@/.cool";
@@ -294,6 +294,11 @@ const isSwipeClose = computed(() => {
 
 // 动画定时器
 let timer: number = 0;
+let openingTimer: number = 0;
+onUnmounted(() => {
+	clearTimeout(timer);
+	clearTimeout(openingTimer);
+});
 
 // 打开弹出层
 function open() {
@@ -309,8 +314,10 @@ function open() {
 		emit("open");
 
 		// 等待DOM更新后开始动画
-		setTimeout(
+		openingTimer = setTimeout(
 			() => {
+				openingTimer = 0;
+				if (!visible.value) return;
 				// 设置打开状态
 				status.value = 1;
 
@@ -328,6 +335,18 @@ function open() {
 
 // 关闭弹出层
 function close() {
+	// 开场动画的首帧前也必须允许取消，不能留下模型已关闭但遮罩仍在的弹窗。
+	if (visible.value && status.value === 0) {
+		clearTimeout(openingTimer);
+		openingTimer = 0;
+		clearTimeout(timer);
+		visible.value = false;
+		isOpened.value = false;
+		emit("close");
+		emit("update:modelValue", false);
+		emit("closed");
+		return;
+	}
 	if (status.value == 1) {
 		// 重置打开状态
 		isOpened.value = false;

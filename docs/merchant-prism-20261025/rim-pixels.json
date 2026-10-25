@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "transparentCentre": true,
+  "results": [
+    {
+      "label": "h5",
+      "chromaticPixels": {
+        "top": 341,
+        "bottom": 544,
+        "left": 305,
+        "right": 278
+      }
+    },
+    {
+      "label": "fallback",
+      "chromaticPixels": {
+        "top": 261,
+        "bottom": 257,
+        "left": 159,
+        "right": 167
+      }
+    }
+  ]
+}

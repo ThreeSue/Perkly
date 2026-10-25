@@ -1,0 +1,87 @@
+{
+  "passed": true,
+  "evidence": [
+    {
+      "name": "home-pending-collapsed",
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "dark": 0,
+      "progressHeight": 219.59375
+    },
+    {
+      "name": "home-pending-expanded",
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "dark": 0,
+      "progressHeight": 458.09375
+    },
+    {
+      "name": "application-rejected",
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "dark": 0,
+      "progressHeight": null
+    },
+    {
+      "name": "rejection-notice",
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "dark": 0,
+      "progressHeight": 518.84375
+    },
+    {
+      "name": "application-resubmitted",
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "dark": 0,
+      "progressHeight": null
+    },
+    {
+      "name": "approval-notice-before-confirm",
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "dark": 0,
+      "progressHeight": 558.09375
+    },
+    {
+      "name": "approval-after-relogin",
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "dark": 0,
+      "progressHeight": 219.59375
+    },
+    {
+      "name": "home-approved-confirmed",
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "dark": 0,
+      "progressHeight": null
+    },
+    {
+      "name": "application-history-narrow",
+      "width": 320,
+      "height": 740,
+      "overflow": false,
+      "dark": 0,
+      "progressHeight": null
+    },
+    {
+      "name": "home-approved-narrow",
+      "width": 320,
+      "height": 740,
+      "overflow": false,
+      "dark": 0,
+      "progressHeight": null
+    }
+  ],
+  "pageErrors": [],
+  "writeRequests": []
+}

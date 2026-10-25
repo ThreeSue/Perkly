@@ -1,0 +1,121 @@
+TAP version 13
+# (node:2388) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: 新入驻可登录但默认待审；查询副本及伪造本地审核值不能解锁测试服务
+ok 1 - 新入驻可登录但默认待审；查询副本及伪造本地审核值不能解锁测试服务
+  ---
+  duration_ms: 7.1611
+  ...
+# Subtest: 审核通过立即开放经营；确认只收起提醒、重复确认安全且不删除历史
+ok 2 - 审核通过立即开放经营；确认只收起提醒、重复确认安全且不删除历史
+  ---
+  duration_ms: 4.139
+  ...
+# Subtest: 店长不在首页期间通过，重新登录可取得未确认结果；确认按账号隔离且员工权限不提升
+ok 3 - 店长不在首页期间通过，重新登录可取得未确认结果；确认按账号隔离且员工权限不提升
+  ---
+  duration_ms: 2.3841
+  ...
+# Subtest: 驳回需说明原因，重提保留历史并隔离旧审核/旧确认；重提不重复建账号
+ok 4 - 驳回需说明原因，重提保留历史并隔离旧审核/旧确认；重提不重复建账号
+  ---
+  duration_ms: 3.0379
+  ...
+# Subtest: 待审/未知状态不放开经营直达，基础页面可进入，已通过员工也不能访问店长页面
+ok 5 - 待审/未知状态不放开经营直达，基础页面可进入，已通过员工也不能访问店长页面
+  ---
+  duration_ms: 1.4185
+  ...
+# Subtest: 状态查询和确认在退出/换号后失效，旧查询不能覆盖已确认结果；确认失败不撤销已通过资格
+ok 6 - 状态查询和确认在退出/换号后失效，旧查询不能覆盖已确认结果；确认失败不撤销已通过资格
+  ---
+  duration_ms: 17.9382
+  ...
+# Subtest: 查询失败及跨账号响应默认拒绝经营，恢复查询后才重新开放
+ok 7 - 查询失败及跨账号响应默认拒绝经营，恢复查询后才重新开放
+  ---
+  duration_ms: 7.7556
+  ...
+# Subtest: 进入首页只自动提醒一次；确认失败可重试，Esc不确认，未点弹窗已经具备经营资格
+ok 8 - 进入首页只自动提醒一次；确认失败可重试，Esc不确认，未点弹窗已经具备经营资格
+  ---
+  duration_ms: 23.555
+  ...
+# Subtest: 首页查询未完成就离开不弹提醒；重新进入后才展示新结果
+ok 9 - 首页查询未完成就离开不弹提醒；重新进入后才展示新结果
+  ---
+  duration_ms: 19.4766
+  ...
+# (node:47628) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: 入驻校验要求名称与有效位置，账号确认规则可纠错
+ok 10 - 入驻校验要求名称与有效位置，账号确认规则可纠错
+  ---
+  duration_ms: 4.9672
+  ...
+# Subtest: 入驻建立店长与首店，重复手机号被拒，错误登录不泄漏账号状态
+ok 11 - 入驻建立店长与首店，重复手机号被拒，错误登录不泄漏账号状态
+  ---
+  duration_ms: 5.6192
+  ...
+# Subtest: 员工必须凭单次邀请加入，不能提交角色或门店来提升权限
+ok 12 - 员工必须凭单次邀请加入，不能提交角色或门店来提升权限
+  ---
+  duration_ms: 4.2002
+  ...
+# Subtest: 验证失败不消耗邀请；跨店不可读取团队或撤销；过期和撤销邀请不能注册
+ok 13 - 验证失败不消耗邀请；跨店不可读取团队或撤销；过期和撤销邀请不能注册
+  ---
+  duration_ms: 2.2154
+  ...
+# Subtest: 公开入口与员工/店长页面拦截独立于查询参数，私有页默认要求登录
+ok 14 - 公开入口与员工/店长页面拦截独立于查询参数，私有页默认要求登录
+  ---
+  duration_ms: 1.2435
+  ...
+# Subtest: 正式构建拒绝测试注册和登录，开发数据不持久化且不生成正式Token
+ok 15 - 正式构建拒绝测试注册和登录，开发数据不持久化且不生成正式Token
+  ---
+  duration_ms: 16.1601
+  ...
+# (node:52036) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: 员工始终限定本人；店长直接查看当前门店全店，不带操作员筛选
+ok 16 - 员工始终限定本人；店长直接查看当前门店全店，不带操作员筛选
+  ---
+  duration_ms: 3.6718
+  ...
+# Subtest: 未登录、跨商家、未授权门店、未知或冲突角色都不能取得记录权限
+ok 17 - 未登录、跨商家、未授权门店、未知或冲突角色都不能取得记录权限
+  ---
+  duration_ms: 0.4968
+  ...
+# Subtest: 日期遵循北京时间，近7天/30天含今天且正确跨月跨年
+ok 18 - 日期遵循北京时间，近7天/30天含今天且正确跨月跨年
+  ---
+  duration_ms: 2.7176
+  ...
+# Subtest: 会话默认拒绝，认证上下文不受调用方后续修改影响，换号/清除立即撤回权限
+ok 19 - 会话默认拒绝，认证上下文不受调用方后续修改影响，换号/清除立即撤回权限
+  ---
+  duration_ms: 4.584
+  ...
+# Subtest: 接口缺失时所有商家能力明确拒绝，不制造空结果或成功状态
+ok 20 - 接口缺失时所有商家能力明确拒绝，不制造空结果或成功状态
+  ---
+  duration_ms: 3.3851
+  ...
+# Subtest: 测试入驻与正式身份隔离，路由覆盖功能图且不混入模板功能
+ok 21 - 测试入驻与正式身份隔离，路由覆盖功能图且不混入模板功能
+  ---
+  duration_ms: 2.3436
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1139.275

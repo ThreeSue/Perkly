@@ -29,7 +29,8 @@
     "client",
     "merchant",
     "trade",
-    "glass"
+    "glass",
+    "theme"
   ],
   "commands": {
     "structure": "pnpm check",
@@ -37,6 +38,7 @@
     "client": "pnpm test:client",
     "merchant": "pnpm test:merchant",
     "trade": "pnpm test:trade",
-    "glass": "pnpm test:glass"
+    "glass": "pnpm test:glass",
+    "theme": "pnpm test:theme"
   }
 }

@@ -5,6 +5,7 @@ export type NavRefraction = {
     squash: number,
     expansion?: number,
     tilt?: number,
+    speed?: number,
   ): void;
   destroy(): void;
 };
@@ -17,4 +18,5 @@ export function supportsNavRefraction(signals?: {
 export function mountNavRefraction(
   host: HTMLElement,
   ready: (enabled: boolean) => void,
+  options?: { chromaticSpread?: number; speedResponsive?: boolean },
 ): NavRefraction | null;

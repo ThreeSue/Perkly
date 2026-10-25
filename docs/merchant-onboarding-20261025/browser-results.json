@@ -1,0 +1,179 @@
+{
+  "passed": true,
+  "evidence": [
+    {
+      "name": "welcome",
+      "width": 390,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(32, 32, 32)"
+        },
+        {
+          "height": 52,
+          "background": "rgb(255, 255, 255)"
+        }
+      ]
+    },
+    {
+      "name": "onboard-store",
+      "width": 390,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(32, 32, 32)"
+        }
+      ]
+    },
+    {
+      "name": "onboard-account",
+      "width": 390,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(32, 32, 32)"
+        }
+      ]
+    },
+    {
+      "name": "manager-profile",
+      "width": 390,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(255, 255, 255)"
+        }
+      ]
+    },
+    {
+      "name": "staff-invitations",
+      "width": 390,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(32, 32, 32)"
+        }
+      ]
+    },
+    {
+      "name": "employee-join",
+      "width": 390,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(32, 32, 32)"
+        }
+      ]
+    },
+    {
+      "name": "employee-home",
+      "width": 390,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": []
+    },
+    {
+      "name": "employee-profile",
+      "width": 390,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(255, 255, 255)"
+        }
+      ]
+    },
+    {
+      "name": "login-error",
+      "width": 390,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(32, 32, 32)"
+        }
+      ]
+    },
+    {
+      "name": "staff-members",
+      "width": 390,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(32, 32, 32)"
+        }
+      ]
+    },
+    {
+      "name": "profile-narrow",
+      "width": 320,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(255, 255, 255)"
+        }
+      ]
+    },
+    {
+      "name": "welcome-narrow",
+      "width": 320,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(32, 32, 32)"
+        },
+        {
+          "height": 52,
+          "background": "rgb(255, 255, 255)"
+        }
+      ]
+    },
+    {
+      "name": "onboard-narrow",
+      "width": 320,
+      "overflow": false,
+      "scheme": "light only",
+      "darkComponents": 0,
+      "buttons": [
+        {
+          "height": 52,
+          "background": "rgb(32, 32, 32)"
+        }
+      ]
+    }
+  ],
+  "pageErrors": [],
+  "writeRequests": []
+}

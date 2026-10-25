@@ -1,8 +1,13 @@
 import { computed, readonly, shallowRef } from "vue";
 import { resolveMerchantRecordAccess, type MerchantRecordContext } from "@/utils/merchant-records";
 
-// 正式员工身份契约尚未交付，运行时保持未认证；不读取 URL、缓存或演示角色。
+// 只接受 merchant/staff/me 验证后的门店身份；不读取URL或缓存中的角色授权。
 const verifiedContext = shallowRef<MerchantRecordContext | null>(null);
+const admissionAllowed = shallowRef(false);
+export const merchantAdmissionAllowed = readonly(admissionAllowed);
+export function setMerchantAdmissionAllowed(value: boolean) {
+	admissionAllowed.value = value;
+}
 export const merchantSession = readonly(verifiedContext);
 export const merchantRecordAccess = computed(() =>
 	resolveMerchantRecordAccess(verifiedContext.value)
@@ -23,4 +28,5 @@ export function applyVerifiedMerchantContext(context: MerchantRecordContext) {
 // 正式适配器在退出、过期或撤销授权时调用，并同时清除私有数据及使在途响应失效。
 export function clearMerchantSession() {
 	verifiedContext.value = null;
+	admissionAllowed.value = false;
 }

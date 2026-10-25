@@ -1,29 +1,29 @@
 <template>
-	<business-shell title="核销帮助" description="操作说明与常见问题">
-		<view class="merchant-card"
-			><text class="merchant-heading">核销操作说明</text
-			><text class="merchant-step">1. 员工登录，选择本人获授权的门店。</text
-			><text class="merchant-step">2. 扫描顾客二维码，或手动输入、粘贴券码。</text
-			><text class="merchant-step">3. 校验券状态、有效期、适用门店和使用门槛。</text
-			><text class="merchant-step">4. 适用时输入消费金额，核对后端返回的优惠金额。</text
-			><text class="merchant-step">5. 确认核销，以后端返回的结果为准。</text></view
-		>
-		<view class="merchant-card"
-			><text class="merchant-heading">为什么暂时不能核销？</text
-			><text class="merchant-muted"
-				>员工身份、门店授权及核销接口尚未接入。当前可浏览页面，不能提交真实核销。</text
-			><text class="merchant-label">没有看到授权门店怎么办？</text
-			><text class="merchant-muted"
-				>接口接入后，仅展示当前账号获授权的门店；授权问题需由商家管理员核对。</text
-			><text class="merchant-label">没有收到明确结果怎么办？</text
-			><text class="merchant-muted"
-				>不要把等待或超时当作成功。接口接入后，应先查询核销结果，避免重复提交。</text
-			></view
-		>
-		<merchant-pending capability="help" />
-	</business-shell>
+	<business-shell title="核销帮助" monochrome
+		><view class="mono-sheet mono-sheet--page">
+			<text class="merchant-heading">如何使用优惠券</text>
+			<text class="merchant-step">1. 在工作台点击扫码核销，或输入顾客券包里的完整券码。</text>
+			<text class="merchant-step"
+				>2.
+				满减、折扣、代金券：填写本次到店消费金额及备注，开单后核对后端计算的优惠和补款。</text
+			>
+			<text class="merchant-step"
+				>3. 补款线下收齐后，勾选收款确认并核销；无需补款时直接确认核销。</text
+			>
+			<text class="merchant-step"
+				>4. 套餐、体验、兑换券：核对内容后确认使用，系统自动开单并核销。</text
+			>
+			<text class="merchant-heading">结果不确定怎么办？</text>
+			<text class="merchant-muted"
+				>超时不代表成功或失败。先查询原账单结果，必要时重试原操作，不要重复收款。待结算账单不会自动取消，可在核销记录的消费账单中继续处理或取消。</text
+			>
+			<text class="merchant-heading">权限与账号</text>
+			<text class="merchant-muted"
+				>员工查看本人核销流水和本人开出的账单；店长查看当前绑定门店的全部记录。账号与门店授权请联系商家后台管理员。</text
+			>
+		</view></business-shell
+	>
 </template>
 <script setup lang="ts">
 import BusinessShell from "@/components/business-shell.uvue";
-import MerchantPending from "@/components/merchant-pending.uvue";
 </script>

@@ -1,0 +1,129 @@
+<template>
+	<business-shell title="入驻申请与审核历史" monochrome
+		><view class="mono-sheet mono-sheet--page">
+			<text class="redemption-heading">入驻申请与审核记录</text>
+			<template v-if="admission">
+				<text class="mono-feature-title">{{ admission.details.merchantName }}</text
+				><text class="mono-secondary">{{ admission.details.storeName }}</text
+				><text class="mono-secondary">{{ admission.details.place?.address }}</text
+				><text class="mono-secondary"
+					>{{ statusName(admission.status) }} · 第{{ admission.version }}次提交</text
+				><text class="mono-secondary">提交时间：{{ admission.submittedAt }}</text>
+				<text v-if="admission.rejectionReason" class="merchant-record-error">{{
+					admission.rejectionReason
+				}}</text>
+				<merchant-auth-button
+					v-if="admission.status === 'rejected' && !editing"
+					label="修改资料并重新提交"
+					:disabled="!available"
+					@tap="startEdit"
+				/>
+				<view v-if="editing" class="merchant-auth-card"
+					><merchant-auth-field
+						v-model="merchantName"
+						name="merchantName"
+						label="商家名称"
+						:maxlength="40" /><merchant-auth-field
+						v-model="storeName"
+						name="storeName"
+						label="首家门店名称"
+						:maxlength="40" /><merchant-place-field
+						v-model="place" /><merchant-auth-button
+						label="重新提交审核"
+						:busy="busy"
+						:disabled="!available"
+						@tap="resubmit" /><merchant-auth-button
+						label="取消修改"
+						secondary
+						:disabled="busy"
+						@tap="cancelEdit"
+				/></view>
+				<text class="redemption-heading">审核历史</text
+				><view
+					v-for="event in admission.history"
+					:key="event.version"
+					class="merchant-record-card"
+					><text class="mono-feature-title"
+						>第{{ event.version }}次 · {{ statusName(event.status) }}</text
+					><text class="mono-secondary">{{ event.submittedAt }}</text
+					><text v-if="event.reviewedAt" class="mono-secondary"
+						>审核时间：{{ event.reviewedAt }}</text
+					><text v-if="event.rejectionReason" class="merchant-record-error">{{
+						event.rejectionReason
+					}}</text></view
+				>
+			</template>
+			<text v-if="!available" class="mono-secondary">{{ contractMessage }}</text
+			><text v-if="error" class="merchant-record-error" role="alert">{{ error }}</text
+			><merchant-auth-button
+				label="刷新申请进度"
+				secondary
+				:busy="busy"
+				:disabled="!available"
+				@tap="refreshMerchantAdmission"
+			/> </view
+	></business-shell>
+</template>
+<script setup lang="ts">
+import { ref } from "vue";
+import { useUi } from "@/uni_modules/cool-ui";
+import BusinessShell from "@/components/business-shell.uvue";
+import MerchantAuthButton from "@/components/merchant-auth-button.uvue";
+import MerchantAuthField from "@/components/merchant-auth-field.uvue";
+import MerchantPlaceField from "@/components/merchant-place-field.uvue";
+import {
+	merchantOnboardingAvailable as available,
+	onboardingContractMessage as contractMessage
+} from "@/api/merchant-onboarding";
+import {
+	merchantAdmission as admission,
+	merchantAdmissionError as error,
+	merchantAdmissionBusy as busy,
+	refreshMerchantAdmission,
+	resubmitCurrentAdmission
+} from "@/stores/merchant-admission";
+import type { MerchantPlace } from "@/types/merchant-admission";
+const ui = useUi(),
+	editing = ref(false),
+	merchantName = ref(""),
+	storeName = ref(""),
+	place = ref<MerchantPlace | null>(null);
+function statusName(status: string) {
+	return status === "approved" ? "审核通过" : status === "rejected" ? "审核驳回" : "平台审核中";
+}
+function startEdit() {
+	if (!admission.value) return;
+	merchantName.value = admission.value.details.merchantName;
+	storeName.value = admission.value.details.storeName;
+	place.value = admission.value.details.place;
+	editing.value = true;
+}
+function cancelEdit() {
+	ui.showConfirm({
+		title: "放弃本次修改？",
+		message: "原申请及审核历史会保留，本次未提交的修改将丢弃。",
+		confirmText: "放弃修改",
+		cancelText: "继续修改",
+		callback(result) {
+			if (result === "confirm") editing.value = false;
+		}
+	});
+}
+async function resubmit() {
+	if (!merchantName.value.trim() || !place.value) return;
+	if (
+		await resubmitCurrentAdmission({
+			merchantName: merchantName.value.trim(),
+			storeName: storeName.value.trim(),
+			place: place.value
+		})
+	)
+		editing.value = false;
+}
+onShow(() => {
+	void refreshMerchantAdmission();
+});
+onHide(() => {
+	editing.value = false;
+});
+</script>

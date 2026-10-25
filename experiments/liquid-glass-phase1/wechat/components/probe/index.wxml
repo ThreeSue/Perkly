@@ -1,0 +1,15 @@
+<view class="page">
+  <text class="eyebrow">PERKLY / PHASE ONE</text>
+  <text class="title">微信独立玻璃探针</text>
+  <text class="description">受控 RGBA 背景 + WebGL。此处不捕获网页 DOM，也不对全页面逐帧截图。</text>
+  <canvas id="context2d" type="2d" class="tiny"></canvas>
+  <view class="scene">
+    <canvas id="probeCanvas" type="webgl" class="canvas" bindtouchstart="touchStart" catchtouchmove="touchMove" bindtouchend="touchEnd" bindtouchcancel="touchCancel" disable-scroll="true"></canvas>
+    <view class="labels"><text>首页</text><text>发现</text><text>券包</text><text>我的</text></view>
+  </view>
+  <text class="hint">当前选择：{{selected}} · 按住导航区域，横向拖动后松开</text>
+  <view class="actions"><button bindtap="toggleDynamic">{{dynamic ? '暂停动态背景' : '启用动态背景'}}</button><button bindtap="sample" disabled="{{sampling}}">{{sampling ? '采样中…' : '采样 6 秒'}}</button></view>
+  <view class="actions"><button bindtap="exportResults">复制实测报告</button><button bindtap="toggleSpecular">边缘高光：{{specular ? '开' : '关'}}</button></view>
+  <text class="description">结果仅代表当前设备。Shader 编译通过不代表任意界面捕获成功；原版 DOM 捕获在本探针中不使用。</text>
+  <text class="report" selectable="true">{{report}}</text>
+</view>

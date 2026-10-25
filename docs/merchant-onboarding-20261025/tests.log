@@ -1,0 +1,87 @@
+(node:31472) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 公开行业分类使用顾客接口，不调用管理员分类接口 (6.2145ms)
+✔ 门店分页使用正式契约，服务失败不回退样例商家 (4.85ms)
+✔ 所有业务路由和页内跳转均有文件；不注册模板功能 (25.8524ms)
+✔ 选址使用系统能力且不持久化地点，搜索保留框架组件 (2.8524ms)
+✔ 后端失败时资料保持原值；只提交文档允许的三项字段 (1.4337ms)
+✔ 资料保存成功后读取服务器确认值再更新界面 (0.723ms)
+(node:48516) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ iPhone模拟UA不会关闭真实Chromium内核的H5折射 (2.9524ms)
+✔ 真实WebKit/Firefox和缺少背板滤镜的环境继续安全回退 (0.6899ms)
+✔ 玻璃滑块按实际容器尺寸定位，三个触点中心映射到三个导航 (1.3654ms)
+✔ 拖出两端不越界，快速拖动形变受限，停止后恢复 (0.7256ms)
+✔ 容器尚未测量时计算有界且无 NaN (0.9414ms)
+✔ 果冻弹簧带惯性越过目标并回弹，有限帧内精确静止 (1.345ms)
+✔ 挂起后大时间步与快速反向切换不会造成弹簧发散 (0.9239ms)
+✔ client导航点击从原位置起弹、拖动跟手且合成tap不重复导航 (680.6155ms)
+✔ merchant导航点击从原位置起弹、拖动跟手且合成tap不重复导航 (42.549ms)
+✔ 拖动中即有可见形变，速度加快增强，反向倾斜反转 (2.0786ms)
+✔ 折射场边缘有位移，中心和外部保持中性，不制造透明缺口 (81.5904ms)
+✔ 折射区域跟随实际选中项中心及果冻缩放，不随形变偏移中心 (1.8399ms)
+✔ 按住透镜纵向超过外壳、横向收窄，松手恢复原几何 (0.8316ms)
+(node:39188) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ client/MP: dark device, legacy toggles and auto requests stay light (112.8891ms)
+✔ client/H5: dark device, legacy toggles and auto requests stay light (10.7989ms)
+✔ client/APP: dark device, legacy toggles and auto requests stay light (10.1ms)
+✔ client: platform shell and Cool pages expose no dark-mode entry (11.9329ms)
+✔ merchant/MP: dark device, legacy toggles and auto requests stay light (6.0045ms)
+✔ merchant/H5: dark device, legacy toggles and auto requests stay light (8.3764ms)
+✔ merchant/APP: dark device, legacy toggles and auto requests stay light (6.3322ms)
+✔ merchant: platform shell and Cool pages expose no dark-mode entry (2.8816ms)
+(node:47672) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 新入驻可登录但默认待审；查询副本及伪造本地审核值不能解锁测试服务 (16.217ms)
+✔ 审核通过立即开放经营；确认只收起提醒、重复确认安全且不删除历史 (5.8585ms)
+✔ 店长不在首页期间通过，重新登录可取得未确认结果；确认按账号隔离且员工权限不提升 (11.9817ms)
+✔ 驳回需说明原因，重提保留历史并隔离旧审核/旧确认；重提不重复建账号 (10.0878ms)
+✔ 待审/未知状态不放开经营直达，基础页面可进入，已通过员工也不能访问店长页面 (2.7431ms)
+✔ 状态查询和确认在退出/换号后失效，旧查询不能覆盖已确认结果；确认失败不撤销已通过资格 (7.8511ms)
+✔ 查询失败及跨账号响应默认拒绝经营，恢复查询后才重新开放 (7.2342ms)
+✔ 进入首页只自动提醒一次；确认失败可重试，Esc不确认，未点弹窗已经具备经营资格 (39.8198ms)
+✔ 首页查询未完成就离开不弹提醒；重新进入后才展示新结果 (27.2228ms)
+(node:14376) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 入驻校验要求名称与有效位置，账号确认规则可纠错 (6.1515ms)
+✔ 入驻建立店长与首店，重复手机号被拒，错误登录不泄漏账号状态 (7.5651ms)
+✔ 员工必须凭单次邀请加入，不能提交角色或门店来提升权限 (3.1784ms)
+✔ 验证失败不消耗邀请；跨店不可读取团队或撤销；过期和撤销邀请不能注册 (2.4667ms)
+✔ 公开入口与员工/店长页面拦截独立于查询参数，私有页默认要求登录 (1.231ms)
+✔ 正式构建拒绝测试注册和登录，开发数据不持久化且不生成正式Token (30.1273ms)
+(node:34376) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 员工始终限定本人；店长直接查看当前门店全店，不带操作员筛选 (5.1593ms)
+✔ 未登录、跨商家、未授权门店、未知或冲突角色都不能取得记录权限 (0.4946ms)
+✔ 日期遵循北京时间，近7天/30天含今天且正确跨月跨年 (3.6044ms)
+✔ 会话默认拒绝，认证上下文不受调用方后续修改影响，换号/清除立即撤回权限 (1.7174ms)
+✔ 接口缺失时所有商家能力明确拒绝，不制造空结果或成功状态 (2.9259ms)
+✔ 测试入驻与正式身份隔离，路由覆盖功能图且不混入模板功能 (1.9171ms)
+✔ 五端的演示身份独立，保护的操作需要登录 (419.5395ms)
+✔ 商家独立端只能查看和领取对应商家优惠券 (493.6169ms)
+✔ 核销拒绝跨商家券，重复点击不会写出两条核销记录 (622.7549ms)
+✔ 重复领券不增加示例券，券码格式处理一致 (622.1763ms)
+(node:29744) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 领购提交中拦截重复点击，断网后重试复用原操作，成功后返回只查看原订单 (3.2019ms)
+✔ 业务拒绝保留错误，离页后的未知结果不跳转，重进仍能幂等查询原操作 (1.0166ms)
+✔ 支付结果不明时阻止支付与取消，刷新后只接受服务端订单状态 (1.02ms)
+✔ 支付与取消互斥，离开订单后忽略迟到的成功响应 (1.8545ms)
+(node:30068) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 领购只提交契约字段；同一操作重试沿用requestId，不传客户端金额 (13.2031ms)
+✔ 模拟支付与取消使用订单ID；持券详情使用持券ID (2.2767ms)
+✔ 未登录不请求；切换账号后的私有响应被拒绝 (1.1703ms)
+✔ 备用二维码接口原样鉴权，校验PNG签名并正确展示JSON业务错误 (2.1313ms)
+✔ 分页切换忽略旧响应；加载更多失败保留已加载记录和页码 (1.5962ms)
+✔ 刷新失败和双Token过期都结束请求，不遗留永久等待队列 (1.5936ms)
+✔ 新增路由存在，券包及订单页面通过Vue脚本和模板编译 (212.1032ms)
+ℹ tests 63
+ℹ suites 0
+ℹ pass 63
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3106.9568

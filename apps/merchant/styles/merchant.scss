@@ -1,4 +1,11 @@
 @import "../../../packages/shared/styles/commerce-tokens.scss";
+
+// Cool Unix 对 .uni- 前缀保留原生选择器，避免将 ::after 编码成普通类名。
+// 仅重置本端明确标记的按钮；视觉边框仍由按钮自身样式绘制。
+.uni-merchant-button::after {
+	border: 0;
+}
+
 $merchant-primary: $discovery-primary;
 $merchant-ink: $discovery-ink;
 $merchant-muted: $discovery-muted;
@@ -83,7 +90,7 @@ $merchant-bg: $discovery-bg;
 	gap: 12px;
 	margin-top: 16px;
 }
-.merchant-actions > * {
+.merchant-actions .cl-button {
 	min-width: 0;
 	max-width: 100%;
 }
@@ -322,3 +329,5 @@ page,
 	}
 }
 // #endif
+
+@import "./merchant-monochrome.scss";

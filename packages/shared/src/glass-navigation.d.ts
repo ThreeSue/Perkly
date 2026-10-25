@@ -11,6 +11,20 @@ export type GlassGeometry = {
   squash: number;
   tilt: number;
 };
+export function merchantLensResponse(
+  velocity: number,
+  expansion?: number,
+): {
+  speed: number;
+  scaleX: number;
+  scaleY: number;
+  refraction: number;
+};
+export function smoothLensSpeed(
+  previous: number,
+  target: number,
+  elapsed?: number,
+): number;
 export function glassGeometry(
   x: number,
   y: number,

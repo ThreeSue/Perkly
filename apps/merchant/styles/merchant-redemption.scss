@@ -1,0 +1,118 @@
+.redemption-scroll {
+	height: 68vh;
+}
+.redemption-panel {
+	font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+	font-size: 15px;
+	line-height: 1.7;
+	padding: 16px 24px 28px;
+	color: $mono-ink;
+	background: #fff;
+}
+.redemption-panel .merchant-auth-button {
+	margin-top: 12px;
+}
+.redemption-heading {
+	display: block;
+	font-size: 19px;
+	font-weight: 650;
+	line-height: 1.6;
+	margin: 12px 0;
+}
+.redemption-note {
+	display: block;
+	color: $mono-muted;
+	font-size: 13px;
+	line-height: 1.8;
+	overflow-wrap: anywhere;
+}
+.redemption-summary {
+	padding: 12px 0;
+	border-bottom: 1px solid $mono-line;
+	margin-bottom: 14px;
+}
+.redemption-order-number {
+	display: block;
+	font-size: 15px;
+	line-height: 1.7;
+	overflow-wrap: anywhere;
+}
+.redemption-error {
+	padding: 12px;
+	margin-bottom: 12px;
+	background: #fff3f0;
+	color: $discovery-danger;
+	border-radius: 12px;
+	font-size: 14px;
+	line-height: 1.7;
+}
+.redemption-money-row {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 9px 0;
+	font-size: 15px;
+}
+.redemption-money-row--total {
+	font-size: 18px;
+	font-weight: 650;
+	padding: 16px 0;
+}
+.redemption-content-item {
+	display: flex;
+	flex-direction: column;
+	padding: 12px 0;
+	border-bottom: 1px solid $mono-line;
+	line-height: 1.7;
+	font-size: 15px;
+}
+.redemption-received {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+	min-height: 52px;
+	margin-top: 12px;
+	font-size: 14px;
+	line-height: 1.7;
+}
+.merchant-record-card {
+	padding: 20px 0;
+	border-bottom: 1px solid $mono-line;
+}
+.merchant-record-card text {
+	display: block;
+	line-height: 1.8;
+	overflow-wrap: anywhere;
+}
+.merchant-record-error {
+	margin: 14px 0;
+	color: $discovery-danger;
+	font-size: 14px;
+	line-height: 1.8;
+}
+.merchant-record-segments {
+	display: flex;
+	flex-direction: row;
+	gap: 12px;
+	margin-bottom: 20px;
+}
+.merchant-record-segments .merchant-auth-button {
+	flex: 1;
+	min-width: 0;
+}
+.merchant-captcha {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-height: 52px;
+	margin-bottom: 16px;
+}
+.merchant-captcha-image {
+	width: 150px;
+	height: 45px;
+	flex-shrink: 0;
+}

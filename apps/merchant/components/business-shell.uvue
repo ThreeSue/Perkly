@@ -1,19 +1,47 @@
 <template>
 	<cl-page :back-top="false">
-		<view class="merchant-page">
-			<view class="merchant-header">
-				<view class="merchant-header-inner">
-					<text class="merchant-eyebrow">券管家 · 商家端</text>
-					<text class="merchant-title">{{ title }}</text>
-					<text v-if="description" class="merchant-subtitle">{{ description }}</text>
-				</view>
-			</view>
-			<view class="merchant-content"><slot /></view>
+		<view v-if="merchantRestoring" class="merchant-card" role="status"
+			><text>正在验证登录与门店权限…</text></view
+		>
+		<view
+			v-else-if="merchantSignedIn"
+			class="merchant-page"
+			:class="{ 'merchant-page--monochrome': monochrome }"
+		>
+			<view v-if="!monochrome" class="merchant-header"
+				><view class="merchant-header-inner"
+					><text class="merchant-eyebrow">券管家 · 商家核销端</text
+					><text class="merchant-title">{{ title }}</text
+					><text v-if="description" class="merchant-subtitle">{{
+						description
+					}}</text></view
+				></view
+			>
+			<view class="merchant-content"
+				><slot v-if="pageAllowed" /><view v-else class="merchant-card" role="status"
+					><text class="merchant-heading">此功能暂不可用</text
+					><text class="merchant-muted">请返回工作台，或联系商家管理员核对账号权限。</text
+					><cl-button @tap="returnHome">返回首页</cl-button></view
+				></view
+			>
 			<merchant-floating-nav v-if="tab" :active="tab" />
 		</view>
 	</cl-page>
 </template>
 <script setup lang="ts">
 import MerchantFloatingNav from "@/components/merchant-floating-nav.uvue";
-defineProps<{ title: string; description?: string; tab?: string }>();
+import { computed } from "vue";
+import { merchantSignedIn, merchantRestoring, merchantCanOperate } from "@/stores/merchant-auth";
+import { merchantRouteAccess } from "@/utils/merchant-access";
+defineProps<{ title: string; description?: string; tab?: string; monochrome?: boolean }>();
+const pages = getCurrentPages(),
+	route = pages[pages.length - 1]?.route ?? "pages/business/home";
+const pageAllowed = computed(
+	() =>
+		merchantRouteAccess(route, merchantSignedIn.value, false, merchantCanOperate.value) ===
+		"allowed"
+);
+function returnHome() {
+	uni.switchTab({ url: "/pages/business/home" });
+}
 </script>

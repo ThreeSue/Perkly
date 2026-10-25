@@ -1,0 +1,379 @@
+<template>
+	<cl-popup
+		v-model="state.visible"
+		:title="title"
+		:show-close="false"
+		:mask-closable="false"
+		:swipe-close="false"
+		:pt="{ className: 'merchant-redemption-popup' }"
+	>
+		<scroll-view scroll-y class="redemption-scroll">
+			<view
+				:id="dialogId"
+				class="redemption-panel"
+				role="dialog"
+				:aria-label="title"
+				aria-modal="true"
+				tabindex="-1"
+			>
+				<text v-if="state.busy" class="redemption-note" role="status"
+					>正在处理，请稍候…</text
+				>
+				<view v-if="state.error" class="redemption-error" role="alert">{{
+					state.error
+				}}</view>
+				<text v-if="state.uncertain" class="redemption-note"
+					>结果未确认。请先查询原操作，不要重复收款或更换券码。</text
+				>
+				<template v-if="state.stage === 'code' && !state.busy">
+					<merchant-auth-field
+						v-model="state.code"
+						name="couponCode"
+						label="顾客券码"
+						:maxlength="64"
+						placeholder="输入或粘贴完整64位券码"
+						:disabled="state.busy"
+						@confirm="flow.inspect"
+					/>
+					<merchant-auth-button
+						label="识别并使用优惠券"
+						:busy="state.busy"
+						@tap="flow.inspect"
+					/>
+				</template>
+				<view v-if="state.inspection || state.order" class="redemption-summary">
+					<text class="redemption-heading">{{
+						state.inspection?.couponName || state.order?.couponName
+					}}</text>
+					<text class="redemption-note"
+						>{{ state.inspection?.typeText || couponTypeName }} ·
+						{{ state.inspection?.storeName || state.order?.storeName }}</text
+					>
+					<text v-if="state.inspection?.description" class="redemption-note">{{
+						state.inspection.description
+					}}</text>
+					<text
+						v-if="state.inspection?.validFrom || state.inspection?.validTo"
+						class="redemption-note"
+						>有效期：{{ state.inspection?.validFrom || "—" }} 至
+						{{ state.inspection?.validTo || "—" }}</text
+					>
+				</view>
+				<template v-if="state.stage === 'amount'">
+					<text v-if="state.inspection?.minSpend != null" class="redemption-note"
+						>消费门槛：¥{{ money(state.inspection.minSpend) }}</text
+					>
+					<merchant-auth-field
+						v-model="state.amount"
+						name="consumptionAmount"
+						label="本次到店消费金额（元）"
+						placeholder="如150.00"
+						:maxlength="11"
+						:disabled="state.busy || state.uncertain"
+						@confirm="flow.prepare"
+					/>
+					<merchant-auth-field
+						v-model="state.remark"
+						name="consumptionRemark"
+						label="消费备注"
+						optional
+						:maxlength="200"
+						placeholder="如桌号、消费说明"
+						:disabled="state.busy || state.uncertain"
+					/>
+					<merchant-auth-button
+						:label="
+							state.order
+								? '保存修改并重新计算'
+								: state.uncertain
+									? '重试原开单'
+									: '计算优惠并开单'
+						"
+						:busy="state.busy"
+						:disabled="state.uncertain && !!state.order"
+						@tap="flow.prepare"
+					/>
+					<merchant-auth-button
+						v-if="state.order && !state.uncertain"
+						label="返回原账单"
+						secondary
+						:disabled="state.busy"
+						@tap="flow.recover"
+					/>
+				</template>
+				<template v-if="state.stage === 'content'">
+					<view
+						v-for="(item, index) in contents"
+						:key="index"
+						class="redemption-content-item"
+						><text>{{ item.name || "项目名称待完善" }} × {{ item.quantity }}</text
+						><text v-if="item.description" class="redemption-note">{{
+							item.description
+						}}</text></view
+					>
+					<text v-if="!contents.length" class="redemption-note"
+						>请核对上方券名称及使用说明中的兑换内容。</text
+					>
+					<text class="redemption-note"
+						>本次无需补款。确认后将自动生成消费账单并核销。</text
+					>
+					<merchant-auth-field
+						v-model="state.remark"
+						name="contentRemark"
+						label="使用备注"
+						optional
+						:maxlength="200"
+						:disabled="state.busy || state.uncertain"
+					/>
+					<merchant-auth-button
+						:label="state.uncertain ? '重试原兑换' : '确认使用并核销'"
+						:busy="state.busy"
+						@tap="flow.redeem"
+					/>
+				</template>
+				<template v-if="state.order">
+					<view class="redemption-summary"
+						><text class="redemption-note">消费账单号</text
+						><text class="redemption-order-number">{{ state.order.orderNo }}</text
+						><text class="redemption-note"
+							>{{ state.order.statusText }} · {{ state.order.createdAt }}</text
+						></view
+					>
+					<view v-if="state.order.consumptionAmount != null" class="redemption-money-row"
+						><text>消费金额</text
+						><text>¥{{ money(state.order.consumptionAmount) }}</text></view
+					>
+					<view v-if="state.order.consumptionAmount != null" class="redemption-money-row"
+						><text>本次优惠</text
+						><text>¥{{ money(state.order.discountAmount) }}</text></view
+					>
+					<view class="redemption-money-row redemption-money-row--total"
+						><text>{{
+							state.order.status === "COMPLETED" ? "本次实收补款" : "本次应补款"
+						}}</text
+						><text
+							>¥{{
+								money(
+									state.order.status === "COMPLETED"
+										? state.order.receivedAmount
+										: state.order.payableAmount
+								)
+							}}</text
+						></view
+					>
+					<template v-if="state.stage === 'bill' && state.order.status === 'PENDING'">
+						<text class="redemption-note"
+							>请核实本次消费及优惠，补款由商家线下收取。此操作不发起微信扣款。</text
+						>
+						<checkbox-group
+							v-if="state.order.payableAmount > 0"
+							@change="receivedChanged"
+							><label class="redemption-received"
+								><checkbox
+									value="received"
+									:checked="state.received"
+									:disabled="state.busy || state.uncertain"
+									color="#202020"
+								/><text
+									>已线下收齐本次补款 ¥{{
+										money(state.order.payableAmount)
+									}}</text
+								></label
+							></checkbox-group
+						>
+						<merchant-auth-button
+							:label="state.order.payableAmount > 0 ? '确认已收款并核销' : '确认核销'"
+							:busy="state.busy"
+							:disabled="
+								state.uncertain ||
+								(state.order.payableAmount > 0 && !state.received)
+							"
+							@tap="flow.confirm"
+						/>
+						<merchant-auth-button
+							label="修改消费金额"
+							secondary
+							:disabled="state.busy || state.uncertain"
+							@tap="flow.edit"
+						/>
+						<merchant-auth-button
+							label="取消本笔账单"
+							secondary
+							:disabled="state.busy || state.uncertain"
+							@tap="cancelOrder"
+						/>
+					</template>
+					<template v-if="state.stage === 'result'">
+						<text class="redemption-heading">{{
+							state.order.status === "COMPLETED"
+								? "核销成功"
+								: "账单已取消，优惠券未核销"
+						}}</text>
+						<view
+							v-for="(item, index) in state.order.couponSnapshot?.contentItems || []"
+							:key="index"
+							class="redemption-content-item"
+							><text
+								>{{ item.name || "项目名称待完善" }} × {{ item.quantity }}</text
+							></view
+						>
+						<text v-if="state.order.completedAt" class="redemption-note"
+							>完成时间：{{ state.order.completedAt }}</text
+						>
+					</template>
+				</template>
+				<merchant-auth-button
+					v-if="state.uncertain || state.order?.status === 'PENDING'"
+					label="查询最新账单结果"
+					secondary
+					:disabled="state.busy"
+					@tap="flow.recover"
+				/>
+				<merchant-auth-button
+					:label="state.stage === 'result' ? '完成' : '收起'"
+					secondary
+					:disabled="state.busy"
+					@tap="close"
+				/>
+			</view>
+		</scroll-view>
+	</cl-popup>
+</template>
+<script setup lang="ts">
+import { computed, reactive, ref, watch, getCurrentInstance } from "vue";
+import { useMerchantPopupFocus } from "@/composables/use-merchant-popup-focus";
+import { useUi } from "@/uni_modules/cool-ui";
+import MerchantAuthButton from "@/components/merchant-auth-button.uvue";
+import MerchantAuthField from "@/components/merchant-auth-field.uvue";
+import * as api from "@/api/merchant-consumption";
+import { merchantSessionVersion } from "@/api/merchant-http";
+import { merchantCanOperate, merchantIdentity } from "@/stores/merchant-auth";
+import {
+	createRedemptionFlow,
+	initialRedemptionState,
+	formatMerchantMoney as money
+} from "@/utils/merchant-redemption";
+import type { MerchantId } from "@/types/merchant-api";
+const emit = defineEmits<{ changed: []; working: [value: boolean] }>();
+const ui = useUi(),
+	scanning = ref(false);
+const state = reactive(initialRedemptionState());
+const dialogId = "merchant-redemption-" + getCurrentInstance()!.uid;
+const flow = createRedemptionFlow(api, state, () =>
+	merchantCanOperate.value && merchantIdentity.value
+		? { version: merchantSessionVersion(), storeId: String(merchantIdentity.value.storeId) }
+		: null
+);
+const names: Record<string, string> = {
+	FULL_REDUCTION: "满减券",
+	DISCOUNT: "折扣券",
+	CASH: "代金券",
+	PACKAGE: "套餐券",
+	EXPERIENCE: "体验券",
+	EXCHANGE: "兑换券"
+};
+const couponTypeName = computed(() => names[state.order?.couponType || ""] || "优惠券");
+const title = computed(() =>
+	state.stage === "code"
+		? "输入券码"
+		: state.stage === "amount"
+			? "填写消费信息"
+			: state.stage === "content"
+				? "核对使用内容"
+				: state.stage === "result"
+					? "处理结果"
+					: "核对账单与补款"
+);
+const contents = computed(() =>
+	state.inspection?.contents?.length
+		? state.inspection.contents
+		: state.inspection?.rule?.contentItems || []
+);
+watch(
+	() => state.order,
+	() => {
+		emit("changed");
+	}
+);
+watch(
+	() => state.busy || scanning.value,
+	(value) => emit("working", value)
+);
+watch(merchantIdentity, (value, previous) => {
+	if (
+		!value ||
+		String(value.id) !== String(previous?.id) ||
+		value.storeId !== previous?.storeId ||
+		value.role !== previous?.role
+	)
+		flow.reset();
+});
+function receivedChanged(event: any) {
+	state.received = event.detail.value.includes("received");
+}
+function manual() {
+	if (merchantCanOperate.value && !state.busy) flow.open();
+}
+function scan() {
+	if (!merchantCanOperate.value || scanning.value || state.busy) return;
+	// #ifdef H5
+	manual();
+	state.error = "当前浏览器不支持直接扫码，请输入券码，或在微信小程序使用相机扫码。";
+	return;
+	// #endif
+	// #ifndef H5
+	scanning.value = true;
+	const version = merchantSessionVersion();
+	uni.scanCode({
+		onlyFromCamera: true,
+		scanType: ["qrCode"],
+		success(result) {
+			if (version !== merchantSessionVersion() || !merchantCanOperate.value) return;
+			flow.open();
+			state.code = result.result;
+			void flow.inspect();
+		},
+		fail(error) {
+			if (!error.errMsg?.includes("cancel"))
+				uni.showToast({ title: "扫码未完成，请重试或输入券码", icon: "none" });
+		},
+		complete() {
+			scanning.value = false;
+		}
+	});
+	// #endif
+}
+function close() {
+	if (state.busy) return;
+	if (state.order?.status === "PENDING" || state.uncertain)
+		ui.showConfirm({
+			title: "账单尚未完成",
+			message: "收起后可在核销记录中的消费账单查询和继续处理。收起不会取消账单或核销优惠券。",
+			confirmText: "暂时收起",
+			cancelText: "继续处理",
+			callback(result) {
+				if (result === "confirm") flow.reset();
+			}
+		});
+	else flow.reset();
+}
+useMerchantPopupFocus(dialogId, () => state.visible, close);
+function cancelOrder() {
+	ui.showConfirm({
+		title: "取消本笔待结算账单？",
+		message: "取消后不核销优惠券，已生成的账单记录仍会保留。",
+		confirmText: "取消账单",
+		cancelText: "保留账单",
+		callback(result) {
+			if (result === "confirm") void flow.cancel();
+		}
+	});
+}
+function hide() {
+	if (!scanning.value) flow.reset();
+}
+async function resume(id: MerchantId) {
+	if (merchantCanOperate.value) await flow.resume(id);
+}
+defineExpose({ scan, manual, hide, resume });
+</script>

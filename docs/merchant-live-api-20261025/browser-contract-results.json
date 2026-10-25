@@ -1,0 +1,78 @@
+{
+  "passed": true,
+  "mode": "offline intercepted contract fixtures; no real backend writes",
+  "screens": [
+    "login-contract",
+    "home-contract",
+    "amount-contract",
+    "bill-contract",
+    "recovered-result-contract",
+    "content-contract",
+    "records-contract",
+    "orders-contract",
+    "profile-narrow-contract"
+  ],
+  "errors": [],
+  "requests": [
+    {
+      "endpoint": "/merchant/auth/captcha",
+      "method": "GET",
+      "authorization": "NONE"
+    },
+    {
+      "endpoint": "/merchant/auth/login",
+      "method": "POST",
+      "authorization": "NONE"
+    },
+    {
+      "endpoint": "/merchant/staff/me",
+      "method": "GET",
+      "authorization": "MERCHANT"
+    },
+    {
+      "endpoint": "/merchant/redemption/inspect",
+      "method": "POST",
+      "authorization": "MERCHANT"
+    },
+    {
+      "endpoint": "/merchant/consumption/prepare",
+      "method": "POST",
+      "authorization": "MERCHANT"
+    },
+    {
+      "endpoint": "/merchant/consumption/confirm",
+      "method": "POST",
+      "authorization": "MERCHANT"
+    },
+    {
+      "endpoint": "/merchant/consumption/info",
+      "method": "GET",
+      "authorization": "MERCHANT"
+    },
+    {
+      "endpoint": "/merchant/redemption/inspect",
+      "method": "POST",
+      "authorization": "MERCHANT"
+    },
+    {
+      "endpoint": "/merchant/consumption/redeemContent",
+      "method": "POST",
+      "authorization": "MERCHANT"
+    },
+    {
+      "endpoint": "/merchant/redemption/page",
+      "method": "POST",
+      "authorization": "MERCHANT"
+    },
+    {
+      "endpoint": "/merchant/consumption/page",
+      "method": "POST",
+      "authorization": "MERCHANT"
+    },
+    {
+      "endpoint": "/merchant/staff/me",
+      "method": "GET",
+      "authorization": "MERCHANT"
+    }
+  ]
+}

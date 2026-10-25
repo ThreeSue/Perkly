@@ -1,0 +1,56 @@
+<template>
+	<view class="merchant-auth-field"
+		><text class="merchant-auth-label">门店位置</text
+		><button
+			class="uni-merchant-button merchant-place"
+			:disabled="disabled || selecting"
+			@tap="choose"
+		>
+			<text>{{ modelValue?.name || "在地图中选择门店位置" }}</text
+			><text v-if="modelValue" class="merchant-auth-caption">{{
+				modelValue.address
+			}}</text></button
+		><text
+			class="merchant-auth-field-note"
+			:class="{ 'merchant-auth-error-text': !!error || !!message }"
+			role="status"
+			>{{ error || message || "选址仅用于本次申请，不保存为本地草稿。" }}</text
+		></view
+	>
+</template>
+<script setup lang="ts">
+import { ref } from "vue";
+import type { MerchantPlace } from "@/types/merchant-admission";
+defineProps<{ modelValue: MerchantPlace | null; disabled?: boolean; error?: string }>();
+const emit = defineEmits<{ "update:modelValue": [value: MerchantPlace] }>();
+const selecting = ref(false),
+	message = ref("");
+function choose() {
+	message.value = "";
+	// #ifdef H5
+	message.value = "当前H5未配置地图服务，请在已配置位置权限的微信小程序中选址。";
+	return;
+	// #endif
+	// #ifndef H5
+	if (selecting.value) return;
+	selecting.value = true;
+	uni.chooseLocation({
+		success(location) {
+			emit("update:modelValue", {
+				name: location.name,
+				address: location.address,
+				latitude: location.latitude,
+				longitude: location.longitude
+			});
+		},
+		fail(error) {
+			if (!error.errMsg?.includes("cancel"))
+				message.value = "选址未完成，请核对位置权限后重试";
+		},
+		complete() {
+			selecting.value = false;
+		}
+	});
+	// #endif
+}
+</script>

@@ -1,0 +1,34 @@
+(node:22916) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ iPhone模拟UA不会关闭真实Chromium内核的H5折射 (3.9967ms)
+✔ 真实WebKit/Firefox和缺少背板滤镜的环境继续安全回退 (0.5429ms)
+✔ 玻璃滑块按实际容器尺寸定位，三个触点中心映射到三个导航 (1.1118ms)
+✔ 拖出两端不越界，快速拖动形变受限，停止后恢复 (0.7523ms)
+✔ 容器尚未测量时计算有界且无 NaN (0.5434ms)
+✔ 果冻弹簧带惯性越过目标并回弹，有限帧内精确静止 (1.1745ms)
+✔ 挂起后大时间步与快速反向切换不会造成弹簧发散 (0.8496ms)
+✔ client导航点击从原位置起弹、拖动跟手且合成tap不重复导航 (508.2587ms)
+✔ merchant导航点击从原位置起弹、拖动跟手且合成tap不重复导航 (52.9783ms)
+✔ 拖动中即有可见形变，速度加快增强，反向倾斜反转 (0.8783ms)
+✔ 折射场边缘有位移，中心和外部保持中性，不制造透明缺口 (39.761ms)
+✔ 折射区域跟随实际选中项中心及果冻缩放，不随形变偏移中心 (3.8672ms)
+✔ 按住透镜纵向超过外壳、横向收窄，松手恢复原几何 (0.6021ms)
+(node:50808) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 微信位置和按压共用一条16ms帧循环，交互结束彻底停算 (323.2281ms)
+✔ 微信隐藏tab冻结绘制值，重新显示续接共享运动而不瞬移 (20.6195ms)
+✔ H5位置和按压共用一条16ms帧循环，交互结束彻底停算 (12.5834ms)
+✔ H5隐藏tab冻结绘制值，重新显示续接共享运动而不瞬移 (8.8193ms)
+✔ 减少动态效果时直接归位，不创建动画帧 (7.2874ms)
+✔ 小程序弹簧一次提交关键帧，不再逐16ms更新逻辑层 (9.4882ms)
+✔ 原生动画跨Tab和快速打断续接当前位置，隐藏页不保留帧任务 (12.3594ms)
+✔ 手指停住后速度平滑衰减，大小和折射恢复基础值 (8.7256ms)
+✔ 原生元素不可用时仍可从当前位置回退到响应式动画 (8.7476ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 951.6409

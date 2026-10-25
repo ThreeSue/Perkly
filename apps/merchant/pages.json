@@ -1,6 +1,13 @@
 {
 	"pages": [
 		{
+			"path": "pages/business/welcome",
+			"style": {
+				"navigationBarTitleText": "欢迎使用券管家",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/business/home",
 			"style": {
 				"navigationBarTitleText": "工作台"
@@ -21,31 +28,8 @@
 		{
 			"path": "pages/business/login",
 			"style": {
-				"navigationBarTitleText": "员工登录"
-			}
-		},
-		{
-			"path": "pages/business/verify",
-			"style": {
-				"navigationBarTitleText": "优惠券核销"
-			}
-		},
-		{
-			"path": "pages/business/coupons",
-			"style": {
-				"navigationBarTitleText": "券信息查询"
-			}
-		},
-		{
-			"path": "pages/business/create",
-			"style": {
-				"navigationBarTitleText": "快速建券"
-			}
-		},
-		{
-			"path": "pages/business/audits",
-			"style": {
-				"navigationBarTitleText": "审核进度"
+				"navigationBarTitleText": "商家登录",
+				"navigationStyle": "custom"
 			}
 		},
 		{
@@ -55,18 +39,25 @@
 			}
 		},
 		{
-			"path": "pages/business/feedback",
+			"path": "pages/business/onboard",
 			"style": {
-				"navigationBarTitleText": "问题反馈"
+				"navigationBarTitleText": "申请商家入驻",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/business/application",
+			"style": {
+				"navigationBarTitleText": "入驻申请与审核历史"
 			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTitleText": "券管家 · 商家端",
 		"navigationBarTextStyle": "black",
-		"navigationBarBackgroundColor": "#eef2f6",
-		"backgroundColor": "#eef2f6",
-		"backgroundColorContent": "#eef2f6"
+		"navigationBarBackgroundColor": "#eeeeee",
+		"backgroundColor": "#eeeeee",
+		"backgroundColorContent": "#eeeeee"
 	},
 	"tabBar": {
 		"custom": false,

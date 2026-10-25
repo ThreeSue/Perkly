@@ -1,36 +1,258 @@
 <template>
-	<business-shell tab="my" title="个人中心" description="账号与权限、操作帮助、问题反馈">
-		<view class="merchant-card"
-			><text class="merchant-heading">尚未登录</text
-			><text class="merchant-muted">所属商家：待验证</text
-			><text class="merchant-muted">当前角色：待验证</text
-			><view class="merchant-actions"
-				><cl-button type="primary" @tap="openLogin">员工登录</cl-button></view
+	<business-shell tab="my" title="我的" monochrome>
+		<view class="mono-identity"
+			><view class="mono-person"
+				><view class="mono-avatar"
+					><cl-icon name="user-line" :size="34" color="#606060" /></view
+				><view class="mono-person-copy"
+					><text class="mono-person-title">{{
+						identity?.merchantName || "商家账号"
+					}}</text
+					><text class="mono-secondary"
+						>{{ identity?.name || identity?.username }} ·
+						{{ isManager ? "店长" : "员工" }}</text
+					></view
+				></view
+			><view class="merchant-account-detail"
+				><text>{{ identity?.storeName }}</text
+				><text class="mono-secondary">账号：{{ identity?.username }}</text></view
 			></view
 		>
-		<view class="merchant-card"
-			><text class="merchant-heading">账号与权限</text
-			><text class="merchant-muted">个人资料和授权门店在员工登录并取得后端资料后展示。</text
-			><text class="merchant-field-note"
-				>当前无已验证的门店授权，不展示演示商家或员工身份。</text
-			></view
-		>
-		<view class="merchant-card"
-			><text class="merchant-heading">帮助与反馈</text
-			><navigator class="merchant-link" url="/pages/business/help"
-				>核销说明与常见问题 ›</navigator
-			><navigator class="merchant-link" url="/pages/business/feedback"
-				>提交问题反馈 ›</navigator
-			></view
-		>
-		<merchant-pending capability="logout" />
-		<cl-button disabled fluid>退出登录 · 当前未登录</cl-button>
+		<view class="mono-sheet mono-profile-sheet">
+			<view class="mono-feature-pair">
+				<button
+					class="uni-merchant-button mono-feature"
+					role="button"
+					@tap="permissions"
+					@keydown.enter.prevent="permissions"
+					@keydown.space.prevent="permissions"
+				>
+					<cl-icon name="shield-check-line" :size="32" color="#202020" /><text
+						class="mono-feature-title"
+						>账号与权限</text
+					><text class="mono-secondary">{{
+						isManager ? "查看当前门店权限" : "仅查看本人记录"
+					}}</text>
+				</button>
+				<button
+					class="uni-merchant-button mono-feature"
+					role="button"
+					@tap="help"
+					@keydown.enter.prevent="help"
+					@keydown.space.prevent="help"
+				>
+					<cl-icon name="question-line" :size="32" color="#202020" /><text
+						class="mono-feature-title"
+						>核销帮助</text
+					><text class="mono-secondary">使用指南与常见问题</text>
+				</button>
+			</view>
+			<button
+				class="uni-merchant-button mono-menu-row"
+				role="button"
+				:disabled="busy"
+				@tap="passwordVisible = true"
+				@keydown.enter.prevent="passwordVisible = true"
+				@keydown.space.prevent="passwordVisible = true"
+			>
+				<cl-icon name="lock-line" :size="28" color="#202020" /><view class="mono-menu-copy"
+					><text class="mono-feature-title">修改密码</text
+					><text class="mono-secondary">修改后需重新登录</text></view
+				><cl-icon name="arrow-right-s-line" :size="22" color="#606060" />
+			</button>
+			<button
+				class="uni-merchant-button mono-menu-row"
+				role="button"
+				@tap="application"
+				@keydown.enter.prevent="application"
+				@keydown.space.prevent="application"
+			>
+				<cl-icon name="file-list-line" :size="28" color="#202020" /><view
+					class="mono-menu-copy"
+					><text class="mono-feature-title">入驻申请与审核记录</text
+					><text class="mono-secondary">查看申请资料、进度及历次审核结果</text></view
+				><cl-icon name="arrow-right-s-line" :size="22" color="#606060" />
+			</button>
+			<view class="mono-profile-bottom"
+				><text class="mono-footnote">员工账号与门店授权由商家后台维护。</text
+				><merchant-auth-button label="退出登录" secondary :busy="busy" @tap="logout"
+			/></view>
+		</view>
 	</business-shell>
+	<cl-popup
+		v-model="passwordVisible"
+		title="修改账号密码"
+		:show-close="false"
+		:mask-closable="false"
+		:swipe-close="false"
+		><scroll-view scroll-y class="redemption-scroll"
+			><view
+				id="merchant-password-dialog"
+				class="redemption-panel"
+				role="dialog"
+				aria-label="修改账号密码"
+				aria-modal="true"
+				tabindex="-1"
+			>
+				<merchant-auth-field
+					v-model="oldPassword"
+					name="oldPassword"
+					label="原密码"
+					secret
+					:maxlength="64"
+					:disabled="busy"
+				/>
+				<merchant-auth-field
+					v-model="newPassword"
+					name="newPassword"
+					label="新密码"
+					secret
+					:maxlength="64"
+					hint="6—64位，最多72个UTF-8字节"
+					:disabled="busy"
+				/>
+				<merchant-auth-field
+					v-model="confirmation"
+					name="confirmation"
+					label="确认新密码"
+					secret
+					:maxlength="64"
+					:disabled="busy"
+				/>
+				<view v-if="passwordError" class="redemption-error" role="alert">{{
+					passwordError
+				}}</view>
+				<merchant-auth-button
+					label="保存密码并重新登录"
+					:busy="busy"
+					@tap="savePassword"
+				/><merchant-auth-button
+					label="取消"
+					secondary
+					:disabled="busy"
+					@tap="clearPasswords"
+				/> </view></scroll-view
+	></cl-popup>
 </template>
 <script setup lang="ts">
+import { ref } from "vue";
 import BusinessShell from "@/components/business-shell.uvue";
-import MerchantPending from "@/components/merchant-pending.uvue";
-function openLogin() {
-	uni.navigateTo({ url: "/pages/business/login" });
+import MerchantAuthButton from "@/components/merchant-auth-button.uvue";
+import MerchantAuthField from "@/components/merchant-auth-field.uvue";
+import { useUi } from "@/uni_modules/cool-ui";
+import {
+	merchantIdentity as identity,
+	merchantIsManager as isManager,
+	logoutMerchant,
+	clearMerchantAuthentication
+} from "@/stores/merchant-auth";
+import { changeMerchantPassword } from "@/api/merchant-auth";
+import { merchantSessionVersion } from "@/api/merchant-http";
+import { useMerchantPopupFocus } from "@/composables/use-merchant-popup-focus";
+const ui = useUi();
+const busy = ref(false),
+	passwordVisible = ref(false),
+	oldPassword = ref(""),
+	newPassword = ref(""),
+	confirmation = ref(""),
+	passwordError = ref("");
+function help() {
+	uni.navigateTo({ url: "/pages/business/help" });
 }
+function application() {
+	uni.navigateTo({ url: "/pages/business/application" });
+}
+function permissions() {
+	ui.showConfirm({
+		title: "账号与权限",
+		showCancel: false,
+		confirmText: "知道了",
+		message: isManager.value
+			? "可核销当前绑定门店的优惠券、查看本店全店核销流水，并处理本店待结算账单。账号与门店授权由商家后台维护。"
+			: "可核销当前绑定门店的优惠券，查看本人完成的核销流水，以及本人开出的消费账单。账号与门店授权由商家后台维护。"
+	});
+}
+function clearPasswords() {
+	passwordVisible.value = false;
+	oldPassword.value = "";
+	newPassword.value = "";
+	confirmation.value = "";
+	passwordError.value = "";
+}
+async function savePassword() {
+	if (busy.value) return;
+	passwordError.value = "";
+	if (!oldPassword.value) {
+		passwordError.value = "请输入原密码";
+		return;
+	}
+	let bytes = Infinity;
+	try {
+		bytes = encodeURIComponent(newPassword.value).replace(/%[0-9A-F]{2}/gi, "x").length;
+	} catch {}
+	if (newPassword.value.length < 6 || newPassword.value.length > 64 || bytes > 72) {
+		passwordError.value = "新密码须为6—64位，且UTF-8编码不超过72字节";
+		return;
+	}
+	if (newPassword.value !== confirmation.value) {
+		passwordError.value = "两次输入的新密码不一致";
+		return;
+	}
+	if (oldPassword.value === newPassword.value) {
+		passwordError.value = "新密码不能与原密码相同";
+		return;
+	}
+	const version = merchantSessionVersion();
+	busy.value = true;
+	try {
+		await changeMerchantPassword(oldPassword.value, newPassword.value);
+		if (version !== merchantSessionVersion()) return;
+		clearPasswords();
+		clearMerchantAuthentication();
+		uni.reLaunch({ url: "/pages/business/login" });
+	} catch (cause) {
+		if (version === merchantSessionVersion())
+			passwordError.value =
+				cause instanceof Error ? cause.message : "密码修改未确认，请尝试重新登录";
+	} finally {
+		busy.value = false;
+	}
+}
+function logout() {
+	ui.showConfirm({
+		title: "退出当前账号？",
+		message: "退出后需要重新登录，未完成账单保留在后台。",
+		confirmText: "退出登录",
+		cancelText: "继续使用",
+		callback(result) {
+			if (result === "confirm") void doLogout();
+		}
+	});
+}
+async function doLogout() {
+	if (busy.value) return;
+	busy.value = true;
+	let message = "";
+	try {
+		await logoutMerchant();
+	} catch {
+		message = "已清理本机登录，服务端退出结果未确认";
+	} finally {
+		busy.value = false;
+		uni.reLaunch({
+			url: "/pages/business/welcome",
+			complete() {
+				if (message) uni.showToast({ title: message, icon: "none" });
+			}
+		});
+	}
+}
+onHide(clearPasswords);
+useMerchantPopupFocus(
+	"merchant-password-dialog",
+	() => passwordVisible.value,
+	() => {
+		if (!busy.value) clearPasswords();
+	}
+);
 </script>

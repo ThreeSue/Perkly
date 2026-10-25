@@ -1,0 +1,95 @@
+<template>
+	<view class="merchant-auth-field" :id="'field-' + name">
+		<!-- #ifdef H5 -->
+		<view class="merchant-auth-label" v-html="labelHtml" />
+		<!-- #endif -->
+		<!-- #ifndef H5 -->
+		<label class="merchant-auth-label" :for="inputId"
+			>{{ label }}<text v-if="optional" class="merchant-auth-optional">选填</text></label
+		>
+		<!-- #endif -->
+		<cl-input
+			ref="inputRef"
+			:model-value="modelValue"
+			:input-id="inputId"
+			:input-label="label"
+			:input-description="inputId + '-hint'"
+			:input-invalid="!!error"
+			:autocomplete="autocomplete"
+			:type="type"
+			:password="secret"
+			:placeholder="placeholder"
+			:maxlength="maxlength"
+			:disabled="disabled"
+			:clearable="!secret"
+			border
+			:pt="{
+				inner: { className: '!text-[16px]' },
+				className: error
+					? 'merchant-auth-input merchant-auth-input--error'
+					: 'merchant-auth-input'
+			}"
+			confirm-type="done"
+			@update:model-value="emit('update:modelValue', $event)"
+			@confirm="emit('confirm')"
+		/>
+		<text
+			:id="inputId + '-hint'"
+			class="merchant-auth-field-note"
+			:class="{ 'merchant-auth-error-text': !!error }"
+			:role="error ? 'alert' : undefined"
+			>{{ error || hint || " " }}</text
+		>
+	</view>
+</template>
+<script setup lang="ts">
+import { ref, getCurrentInstance, computed } from "vue";
+const props = withDefaults(
+	defineProps<{
+		name: string;
+		label: string;
+		modelValue: string;
+		placeholder?: string;
+		hint?: string;
+		error?: string;
+		secret?: boolean;
+		disabled?: boolean;
+		optional?: boolean;
+		maxlength?: number;
+		type?: "text" | "number";
+		autocomplete?: string;
+	}>(),
+	{
+		placeholder: "",
+		hint: "",
+		error: "",
+		secret: false,
+		disabled: false,
+		optional: false,
+		maxlength: 40,
+		type: "text",
+		autocomplete: "off"
+	}
+);
+const emit = defineEmits<{ "update:modelValue": [value: string]; confirm: [] }>();
+const inputRef = ref<ClInputComponentPublicInstance | null>(null);
+const inputId = "auth-" + props.name + "-" + getCurrentInstance()!.uid;
+// #ifdef H5
+const escapeLabel = (value: string) =>
+	value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
+const labelHtml = computed(
+	() =>
+		'<label for="' +
+		inputId +
+		'">' +
+		escapeLabel(props.label) +
+		"</label>" +
+		(props.optional ? '<span class="merchant-auth-optional">选填</span>' : "")
+);
+// #endif
+defineExpose({ focus: () => inputRef.value?.focus() });
+</script>

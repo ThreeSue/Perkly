@@ -23,7 +23,13 @@
 		@tap.stop="onTap"
 	>
 		<button
-			class="cl-button__clicker"
+			role="button"
+			:tabindex="isDisabled ? -1 : 0"
+			:aria-disabled="isDisabled"
+			@keydown.enter.prevent="onTap"
+			@keydown.space.prevent="onTap"
+			:aria-label="ariaLabel"
+			class="uni-merchant-button cl-button__clicker"
 			:disabled="isDisabled"
 			:hover-class="hoverClass"
 			:hover-stop-propagation="hoverStopPropagation"
@@ -116,6 +122,7 @@ defineOptions({
 
 // 组件属性定义
 const props = defineProps({
+	ariaLabel: { type: String, default: "" },
 	// 样式穿透
 	pt: {
 		type: Object,

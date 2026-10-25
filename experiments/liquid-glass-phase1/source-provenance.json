@@ -1,0 +1,14 @@
+{
+  "repository":"https://github.com/lucaperullo/simple-liquid-glass",
+  "commit":"53e1e98ec18a42d01971bd08fc05175772a91852",
+  "tree":"7e7b95b05bd1d0e24b22711bca819642e014e3e9",
+  "commitDate":"2026-10-22T16:23:30Z",
+  "npmVersion":"5.4.0",
+  "npmIntegrity":"sha512-WSkyOI8RTQvUAZGjWeyNmDA+Mf3RSC9HbgfBmNe99K1PWVz86aN3GVCQQiIg0h94guWVlxjRReJNNNxO3ghAzA==",
+  "archive":"https://codeload.github.com/lucaperullo/simple-liquid-glass/zip/53e1e98ec18a42d01971bd08fc05175772a91852",
+  "referenceSite":"https://glass.lucaperullo.it/#listen",
+  "license":"upstream/LICENSE",
+  "thirdPartyNotices":"upstream/THIRD_PARTY_NOTICES.md",
+  "originalExample":"upstream/examples/src/App.tsx (unmodified)",
+  "portableCore":"shared/motion.js and shared/renderer.js are local rewrites, not pixel-identical upstream optics"
+}

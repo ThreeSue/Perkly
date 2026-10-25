@@ -1,0 +1,304 @@
+// 商家三主页面使用黑白灰；底部玻璃导航在 merchant-floating-nav.uvue 单独定义。
+$mono-ink: #202020;
+$mono-muted: #666666;
+$mono-bg: #eeeeee;
+$mono-line: #e1e1e1;
+.merchant-page--monochrome {
+	background: $mono-bg;
+	color: $mono-ink;
+	padding-bottom: 0;
+	.merchant-content {
+		padding: 0;
+	}
+	.mono-secondary,
+	.mono-footnote {
+		display: block;
+		color: $mono-muted;
+		font-size: 12px;
+		line-height: 1.7;
+		overflow-wrap: anywhere;
+	}
+	.mono-identity {
+		padding: 30px 24px 42px;
+		background: $mono-bg;
+	}
+	.mono-person {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 18px;
+		margin-bottom: 24px;
+	}
+	.mono-avatar {
+		width: 70px;
+		height: 70px;
+		flex-shrink: 0;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: white;
+	}
+	.mono-person-copy {
+		min-width: 0;
+		flex: 1;
+	}
+	.mono-person-title {
+		display: block;
+		font-size: 21px;
+		font-weight: 700;
+		margin-bottom: 6px;
+	}
+	.mono-sheet {
+		background: white;
+		border-radius: 24px 24px 0 0;
+		padding: 24px;
+		position: relative;
+	}
+	// 入驻申请、帮助是独立内容页，不与底部导航相连：四角圆角并在四周留出灰色间距，
+	// 避免白色卡片紧贴原生导航栏或屏幕边缘时圆角被裁切。
+	.mono-sheet--page {
+		margin: 16px;
+		border-radius: 24px;
+	}
+	.mono-profile-sheet {
+		min-height: 408px;
+		display: flex;
+		flex-direction: column;
+	}
+	.mono-feature-pair {
+		display: flex;
+		flex-direction: row;
+		padding: 8px 0 24px;
+		border-bottom: 1px solid $mono-line;
+	}
+	.mono-feature {
+		flex: 1;
+		width: 50%;
+		min-width: 0;
+		padding: 8px 6px;
+		margin: 0;
+		background: transparent;
+		border: 0;
+		border-radius: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		line-height: 1.5;
+		text-align: center;
+		gap: 6px;
+		color: $mono-ink;
+	}
+	.mono-feature + .mono-feature {
+		border-left: 1px solid $mono-line;
+	}
+	.mono-feature::after,
+	.mono-menu-row::after,
+	.mono-scan::after,
+	.mono-inline-link::after {
+		border: 0;
+	}
+	.mono-feature-title {
+		display: block;
+		font-size: 16px;
+		font-weight: 600;
+		color: $mono-ink;
+		line-height: 1.6;
+	}
+	.mono-feature .mono-feature-title {
+		margin-top: 8px;
+	}
+	.mono-menu-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 16px;
+		width: 100%;
+		margin: 0;
+		padding: 22px 0;
+		text-align: left;
+		border: 0;
+		border-radius: 0;
+		background: white;
+		line-height: 1.6;
+		color: $mono-ink;
+	}
+	.mono-menu-copy {
+		min-width: 0;
+		flex: 1;
+	}
+	.mono-menu-copy .mono-secondary {
+		margin-top: 4px;
+	}
+	.mono-profile-bottom {
+		margin-top: auto;
+		padding-top: 44px;
+	}
+	.mono-profile-bottom .mono-footnote {
+		margin-bottom: 12px;
+		text-align: center;
+	}
+	.mono-work-hero {
+		padding: 24px 24px 42px;
+		background: $mono-bg;
+	}
+	.mono-store-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 10px;
+	}
+	.mono-store-title {
+		flex: 1;
+		min-width: 0;
+		font-size: 14px;
+		font-weight: 500;
+		overflow-wrap: anywhere;
+	}
+	.mono-scan {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		width: 100%;
+		margin: 18px 0 20px;
+		padding: 12px 0;
+		background: transparent;
+		border: 0;
+		color: $mono-ink;
+		font-size: 21px;
+		font-weight: 650;
+		line-height: 1.6;
+	}
+	.mono-home-sheet {
+		padding-top: 24px;
+	}
+	.mono-section-title {
+		display: block;
+		font-size: 17px;
+		font-weight: 650;
+		color: $mono-ink;
+	}
+	.mono-menu-icon {
+		width: 44px;
+		height: 44px;
+		border-radius: 12px;
+		background: #f1f1f1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+	.mono-stat-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding-top: 18px;
+		border-top: 1px solid $mono-line;
+	}
+	.mono-inline-link {
+		margin: 0;
+		padding: 10px 0 10px 10px;
+		min-height: 44px;
+		background: transparent;
+		border: 0;
+		color: $mono-muted;
+		font-size: 12px;
+		line-height: 24px;
+	}
+	.mono-stat-number {
+		display: block;
+		font-size: 30px;
+		font-weight: 650;
+		line-height: 1.8;
+	}
+	.mono-store-note {
+		margin-top: 20px;
+	}
+	.mono-record-hero {
+		padding: 26px 24px 38px;
+	}
+	.mono-record-hero .mono-secondary {
+		margin-top: 12px;
+	}
+	.mono-record-sheet {
+		padding-top: 26px;
+	}
+	.merchant-record-filters {
+		margin-top: 0;
+	}
+	.merchant-label {
+		color: $mono-ink;
+		font-size: 13px;
+		font-weight: 500;
+	}
+	.merchant-date-trigger {
+		color: $mono-ink;
+		background: white;
+		border-color: $mono-line;
+	}
+	.merchant-type-placeholder {
+		background: #f1f1f1;
+		border-color: $mono-line;
+	}
+	.merchant-field-note,
+	.merchant-muted {
+		color: $mono-muted;
+		font-size: 12px;
+	}
+	.merchant-actions {
+		margin: 24px 0 0;
+		display: flex;
+		flex-direction: row;
+		gap: 12px;
+	}
+	.merchant-actions .cl-button {
+		flex: 1;
+	}
+	.merchant-empty {
+		border-top: 1px solid $mono-line;
+		margin-top: 28px;
+		padding: 36px 4px 20px;
+	}
+	.mono-empty-title {
+		display: block;
+		margin: 14px 0 8px;
+		font-size: 17px;
+		font-weight: 600;
+	}
+	.cl-input {
+		border-color: $mono-line !important;
+		background: #f7f7f7 !important;
+	}
+	.mono-sheet .cl-input__inner {
+		color: $mono-ink;
+	}
+	.mono-primary-button {
+		background: $mono-ink !important;
+	}
+	.merchant-content .cl-button--border {
+		background: transparent !important;
+		border-color: #bdbdbd !important;
+	}
+	.cl-button--disabled {
+		opacity: 0.55;
+	}
+	button:focus-visible,
+	navigator:focus-visible,
+	input:focus-visible {
+		outline-color: $mono-ink;
+	}
+}
+.merchant-date-popup .cl-button--primary {
+	background: #202020 !important;
+}
+// #ifdef H5
+.merchant-page--monochrome .mono-feature:hover,
+.merchant-page--monochrome .mono-menu-row:hover {
+	background: #f7f7f7;
+}
+// #endif

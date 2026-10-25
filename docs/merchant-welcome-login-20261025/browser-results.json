@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "evidence": [
+    {
+      "name": "welcome",
+      "width": 390,
+      "horizontalOverflow": false,
+      "primaryButtons": 1,
+      "secondaryButtons": 0,
+      "loginText": "我已有账号，去登录",
+      "loginTargetHeight": 44,
+      "background": "rgb(32, 32, 32)"
+    },
+    {
+      "name": "welcome-narrow",
+      "width": 320,
+      "horizontalOverflow": false,
+      "primaryButtons": 1,
+      "secondaryButtons": 0,
+      "loginText": "我已有账号，去登录",
+      "loginTargetHeight": 44,
+      "background": "rgb(32, 32, 32)"
+    }
+  ],
+  "pageErrors": [],
+  "writeRequests": []
+}

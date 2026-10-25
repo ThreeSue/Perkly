@@ -1,0 +1,117 @@
+(node:28100) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 公开行业分类使用顾客接口，不调用管理员分类接口 (4.9517ms)
+✔ 门店分页使用正式契约，服务失败不回退样例商家 (4.5416ms)
+✔ 所有业务路由和页内跳转均有文件；不注册模板功能 (64.7927ms)
+✔ 选址使用系统能力且不持久化地点，搜索保留框架组件 (3.5512ms)
+✔ 后端失败时资料保持原值；只提交文档允许的三项字段 (1.7456ms)
+✔ 资料保存成功后读取服务器确认值再更新界面 (0.9519ms)
+(node:57848) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ iPhone模拟UA不会关闭真实Chromium内核的H5折射 (4.2745ms)
+✔ 真实WebKit/Firefox和缺少背板滤镜的环境继续安全回退 (0.5658ms)
+✔ 玻璃滑块按实际容器尺寸定位，三个触点中心映射到三个导航 (1.4221ms)
+✔ 拖出两端不越界，快速拖动形变受限，停止后恢复 (0.8631ms)
+✔ 容器尚未测量时计算有界且无 NaN (0.7557ms)
+✔ 果冻弹簧带惯性越过目标并回弹，有限帧内精确静止 (5.5303ms)
+✔ 挂起后大时间步与快速反向切换不会造成弹簧发散 (0.9795ms)
+✔ client导航点击从原位置起弹、拖动跟手且合成tap不重复导航 (1131.0027ms)
+✔ merchant导航点击从原位置起弹、拖动跟手且合成tap不重复导航 (95.1356ms)
+✔ 拖动中即有可见形变，速度加快增强，反向倾斜反转 (4.234ms)
+✔ 折射场边缘有位移，中心和外部保持中性，不制造透明缺口 (87.7102ms)
+✔ 折射区域跟随实际选中项中心及果冻缩放，不随形变偏移中心 (10.8905ms)
+✔ 按住透镜纵向超过外壳、横向收窄，松手恢复原几何 (1.7948ms)
+(node:5196) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ client/MP: dark device, legacy toggles and auto requests stay light (360.7299ms)
+✔ client/H5: dark device, legacy toggles and auto requests stay light (22.5815ms)
+✔ client/APP: dark device, legacy toggles and auto requests stay light (33.8537ms)
+✔ client: platform shell and Cool pages expose no dark-mode entry (8.703ms)
+✔ merchant/MP: dark device, legacy toggles and auto requests stay light (5.734ms)
+✔ merchant/H5: dark device, legacy toggles and auto requests stay light (9.0789ms)
+✔ merchant/APP: dark device, legacy toggles and auto requests stay light (6.724ms)
+✔ merchant: platform shell and Cool pages expose no dark-mode entry (18.5876ms)
+(node:8348) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 真实商家认证与消费API按契约发送；公共认证不带旧令牌，账单不注入范围或客户端优惠 (444.3402ms)
+✔ 并发401共用一次刷新，迟到的旧Token401不会重复轮换 (9.9949ms)
+✔ 403不刷新；刷新失败结束等待并清除凭证，不出现无限队列 (36.7861ms)
+✔ 退出或换号后旧响应不能继续消费，新账号不会被旧401清除 (13.4111ms)
+✔ 传输失败和写请求500标记结果未知，业务拒绝保留后端错误，不伪造成功 (14.525ms)
+✖ 拒绝OWNER、未知角色和门店授权异常，入驻/核销中转旧路径不再可达 (28.787ms)
+(node:15728) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 微信位置和按压共用一条16ms帧循环，交互结束彻底停算 (700.2058ms)
+✔ 微信隐藏tab冻结绘制值，重新显示续接共享运动而不瞬移 (19.6439ms)
+✔ H5位置和按压共用一条16ms帧循环，交互结束彻底停算 (16.7915ms)
+✔ H5隐藏tab冻结绘制值，重新显示续接共享运动而不瞬移 (15.5923ms)
+✔ 减少动态效果时直接归位，不创建动画帧 (10.5394ms)
+✔ 小程序弹簧一次提交关键帧，不再逐16ms更新逻辑层 (10.1016ms)
+✔ 原生动画跨Tab和快速打断续接当前位置，隐藏页不保留帧任务 (22.2722ms)
+✔ 手指停住后速度平滑衰减，大小和折射恢复基础值 (12.1545ms)
+✔ 原生元素不可用时仍可从当前位置回退到响应式动画 (14.4687ms)
+(node:41736) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 金额按十进制转整数分，拒绝多余小数、浮点格式、0与超限 (14.1347ms)
+✔ 六类券按服务端类型和动作分流，拒绝未知类型或归属不符 (5.1603ms)
+✔ 金额开单使用整数分，优惠取服务端；修改使用最新版本并重置收款确认 (6.5931ms)
+✔ 重复点击开单只发送一次；结果未知重试保留requestId，不能改金额复用 (1.9497ms)
+✔ 开单超时可反查原账单，确认超时先查结果，不重复确认或收款 (2.5913ms)
+✔ 内容券不传消费金额；未知结果重试同一兑换，完成以服务端状态和核销ID为准 (1.9255ms)
+✔ 业务拒绝保留输入，取消不冒充核销；新一笔使用新requestId (2.2637ms)
+✔ 退出、换号、收起页面后旧响应不展示；其他门店账单不能进入收款确认 (2.4221ms)
+(node:7428) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 员工始终限定本人；店长直接查看当前门店全店，不带操作员筛选 (6.4504ms)
+✔ 未登录、跨商家、未授权门店、未知或冲突角色都不能取得记录权限 (0.7904ms)
+✔ 日期遵循北京时间，近7天/30天含今天且正确跨月跨年 (6.356ms)
+✔ 会话默认拒绝，认证上下文不受调用方后续修改影响，换号/清除立即撤回权限 (5.9651ms)
+✔ 当前手机端只注册登录核销相关页面，保留三个Tab (1.4711ms)
+✔ 五端的演示身份独立，保护的操作需要登录 (411.9643ms)
+✔ 商家独立端只能查看和领取对应商家优惠券 (521.6922ms)
+✔ 核销拒绝跨商家券，重复点击不会写出两条核销记录 (619.2567ms)
+✔ 重复领券不增加示例券，券码格式处理一致 (635.5889ms)
+(node:45628) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 领购提交中拦截重复点击，断网后重试复用原操作，成功后返回只查看原订单 (4.8264ms)
+✔ 业务拒绝保留错误，离页后的未知结果不跳转，重进仍能幂等查询原操作 (1.4ms)
+✔ 支付结果不明时阻止支付与取消，刷新后只接受服务端订单状态 (1.1736ms)
+✔ 支付与取消互斥，离开订单后忽略迟到的成功响应 (3.6961ms)
+(node:49396) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 领购只提交契约字段；同一操作重试沿用requestId，不传客户端金额 (10.8943ms)
+✔ 模拟支付与取消使用订单ID；持券详情使用持券ID (3.0098ms)
+✔ 未登录不请求；切换账号后的私有响应被拒绝 (0.978ms)
+✔ 备用二维码接口原样鉴权，校验PNG签名并正确展示JSON业务错误 (1.5565ms)
+✔ 分页切换忽略旧响应；加载更多失败保留已加载记录和页码 (1.505ms)
+✔ 刷新失败和双Token过期都结束请求，不遗留永久等待队列 (1.5222ms)
+✔ 新增路由存在，券包及订单页面通过Vue脚本和模板编译 (178.1545ms)
+ℹ tests 70
+ℹ suites 0
+ℹ pass 69
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4141.3499
+
+✖ failing tests:
+
+test at tests\merchant-auth.test.mjs:212:1
+✖ 拒绝OWNER、未知角色和门店授权异常，入驻/核销中转旧路径不再可达 (28.787ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'public'
+  - 'unavailable'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Eric/Documents/HBuilderProjects/%E5%88%B8%E7%AE%A1%E5%AE%B6/tests/merchant-auth.test.mjs:241:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'public',
+    expected: 'unavailable',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

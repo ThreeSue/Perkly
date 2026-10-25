@@ -2,7 +2,7 @@
 	<view class="floating-nav-space" aria-hidden="true" />
 	<view class="floating-nav-wrap">
 		<view
-			class="floating-nav"
+			class="floating-nav is-merchant-glass"
 			:id="navId"
 			:class="{ 'is-dark': isDark, 'is-dragging': pressing, 'has-refraction': opticalReady }"
 			role="navigation"
@@ -17,12 +17,12 @@
 			<view class="floating-nav-refraction" aria-hidden="true" />
 			<!-- #endif -->
 			<view class="floating-nav-track" aria-hidden="true">
-				<view class="floating-nav-lens" :style="lensStyle" />
+				<view :id="navId + '-lens'" class="floating-nav-lens" :style="lensStyle" />
 			</view>
 			<button
 				v-for="(item, index) in items"
 				:key="item.path"
-				class="floating-nav-item"
+				class="floating-nav-item uni-merchant-button"
 				:class="{ 'is-active': litIndex === index }"
 				:aria-current="active === item.id ? 'page' : undefined"
 				:aria-label="item.label"
@@ -42,8 +42,13 @@
 <script setup lang="ts">
 import { computed, getCurrentInstance, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { isDark } from "@/.cool";
-import { useNavGlass } from "@/composables/use-nav-glass";
-import { glassGeometry, type GlassBounds } from "../../../packages/shared/src/glass-navigation.js";
+import { useNavGlass, type NavPose } from "@/composables/use-nav-glass";
+import {
+	glassGeometry,
+	merchantLensResponse,
+	smoothLensSpeed,
+	type GlassBounds
+} from "../../../packages/shared/src/glass-navigation.js";
 // #ifdef H5
 import {
 	mountNavRefraction,
@@ -63,25 +68,33 @@ const activeIndex = () =>
 		0,
 		items.findIndex((item) => item.id === props.active)
 	);
+const visible = ref(false);
 const {
 	progress,
 	stretch,
 	squash,
 	tilt,
+	speed,
 	expansion,
 	expandTo,
 	align,
 	springTo,
 	stopSpring,
-	shapeReset
-} = useNavGlass(activeIndex());
+	shapeReset,
+	decaySpeed,
+	attachNative,
+	useReactive,
+	detachNative
+} = useNavGlass(activeIndex(), visible);
 const navId = "merchant-nav-" + props.active;
 const opticalReady = ref(false);
+const nativeReady = ref(false);
 function itemColor(index: number) {
+	const active = litIndex.value === index;
 	// #ifdef H5
-	if (opticalReady.value) return isDark.value ? "#f1f5f9" : "#263746";
+	if (opticalReady.value) return isDark.value ? "#f1f5f9" : active ? "#171717" : "#686868";
 	// #endif
-	return litIndex.value === index ? "#304b65" : "#f1f5f9";
+	return isDark.value ? (active ? "#f5f5f5" : "#b8b8b8") : active ? "#202020" : "#707070";
 }
 // #ifdef H5
 let refraction: NavRefraction | null = null;
@@ -92,10 +105,21 @@ function startRefraction() {
 	const host = document.getElementById(navId);
 	if (host === null) return;
 	const revision = ++refractionRevision;
-	refraction = mountNavRefraction(host, (enabled: boolean) => {
-		if (revision === refractionRevision) opticalReady.value = enabled;
-	});
-	refraction?.update(progress.value, stretch.value, squash.value, expansion.value, tilt.value);
+	refraction = mountNavRefraction(
+		host,
+		(enabled: boolean) => {
+			if (revision === refractionRevision) opticalReady.value = enabled;
+		},
+		{ speedResponsive: true }
+	);
+	refraction?.update(
+		progress.value,
+		stretch.value,
+		squash.value,
+		expansion.value,
+		tilt.value,
+		pixelSpeed()
+	);
 }
 function stopRefraction() {
 	refractionRevision++;
@@ -104,14 +128,15 @@ function stopRefraction() {
 	refraction = null;
 }
 watch(
-	[progress, stretch, squash, expansion, tilt],
+	[progress, stretch, squash, expansion, tilt, speed],
 	() => {
 		refraction?.update(
 			progress.value,
 			stretch.value,
 			squash.value,
 			expansion.value,
-			tilt.value
+			tilt.value,
+			pixelSpeed()
 		);
 	},
 	{ flush: "post" }
@@ -119,27 +144,88 @@ watch(
 // #endif
 const pressing = ref(false);
 let reduceMotion = false;
-const litIndex = computed(() =>
-	Math.max(0, Math.min(items.length - 1, Math.round(progress.value)))
-);
-const lensStyle = computed(() => {
-	let sx = stretch.value;
-	let sy = squash.value;
-	// #ifdef H5
-	if (opticalReady.value) {
-		const amount = Math.max(0, Math.min(1.08, expansion.value));
-		sx *= 1 - 0.12 * amount;
-		sy += 0.58 * amount;
-	}
+const litIndex = computed(() => {
+	// #ifndef H5
+	if (!pressing.value) return activeIndex();
 	// #endif
+	return Math.max(0, Math.min(items.length - 1, Math.round(progress.value)));
+});
+function pixelSpeed() {
+	return (speed.value * Math.max(1, (bounds.width - 14) / 3)) / 1000;
+}
+const lensStyle = computed(() => {
+	// #ifndef H5
+	if (nativeReady.value) return { transform: "translateX(" + activeIndex() * 100 + "%)" };
+	// #endif
+	const response = merchantLensResponse(pixelSpeed(), expansion.value);
 	return {
-		left: (progress.value * 100) / items.length + "%",
-		transform: "scale(" + sx + "," + sy + ") rotate(" + tilt.value + "deg)"
+		transform:
+			"translateX(" +
+			progress.value * 100 +
+			"%) scale(" +
+			response.scaleX +
+			"," +
+			response.scaleY +
+			") rotate(" +
+			tilt.value +
+			"deg)"
 	};
 });
 let bounds: GlassBounds = { left: 0, top: 0, width: 0, height: 64 };
+// #ifndef H5
+let nativeAnimation: UniAnimation | null = null;
+function renderNative(poses: NavPose[], duration: number) {
+	if (!showing || bounds.width <= 0) return;
+	const element = uni.getElementById(navId + "-lens");
+	if (element === null) return;
+	const slot = (bounds.width - 14) / 3;
+	const keyframes = poses.map((pose) => {
+		const response = merchantLensResponse((pose.speed * slot) / 1000, pose.expansion);
+		return {
+			transform:
+				"translateX(" +
+				pose.progress * slot +
+				"px) scale(" +
+				response.scaleX +
+				"," +
+				response.scaleY +
+				") rotate(" +
+				pose.tilt +
+				"deg)"
+		};
+	});
+	nativeAnimation?.cancel();
+	nativeAnimation = null;
+	element.style.setProperty("transform", keyframes[0].transform);
+	if (duration > 0) {
+		nativeAnimation = element.animate(keyframes, {
+			duration,
+			easing: "linear",
+			fill: "forwards"
+		});
+		if (!nativeAnimation)
+			element.style.setProperty("transform", keyframes[keyframes.length - 1].transform);
+	}
+}
+function bindNative() {
+	if (!showing || bounds.width <= 0) return;
+	if (uni.getElementById(navId + "-lens") === null) {
+		nativeReady.value = false;
+		useReactive();
+		return;
+	}
+	nativeReady.value = true;
+	attachNative(renderNative);
+}
+function unbindNative() {
+	detachNative(renderNative);
+	nativeAnimation?.cancel();
+	nativeAnimation = null;
+}
+// #endif
 let previousX = 0;
 let previousAt = 0;
+let visualSpeed = 0;
 let suppressTapUntil = 0;
 let touchAt = 0;
 let slotVelocity = 0;
@@ -148,6 +234,11 @@ let pressIndex = 0;
 let dragged = false;
 let dragIndex = 0;
 let navigationTimer: ReturnType<typeof setTimeout> | null = null;
+let speedTimer: ReturnType<typeof setTimeout> | null = null;
+function clearSpeedTimer() {
+	if (speedTimer !== null) clearTimeout(speedTimer);
+	speedTimer = null;
+}
 function clearNavigation() {
 	if (navigationTimer !== null) {
 		clearTimeout(navigationTimer);
@@ -167,6 +258,9 @@ function measure() {
 					width: rect.width ?? 0,
 					height: rect.height ?? 64
 				};
+				// #ifndef H5
+				bindNative();
+				// #endif
 			}
 		})
 		.exec();
@@ -182,9 +276,21 @@ function update(x: number, y: number, moving: boolean) {
 		dragIndex = geometry.index;
 		const lag = reduceMotion ? 0 : Math.max(-0.1, Math.min(0.1, velocity * 0.055));
 		progress.value = Math.max(0, Math.min(items.length - 1, geometry.progress - lag));
+		const targetSpeed = reduceMotion ? 0 : slotVelocity;
+		visualSpeed = smoothLensSpeed(
+			visualSpeed,
+			targetSpeed,
+			Math.max(16, now - previousAt) / 1000
+		);
+		speed.value = visualSpeed;
 		stretch.value = reduceMotion ? 1 : geometry.stretch;
 		squash.value = reduceMotion ? 1 : geometry.squash;
 		tilt.value = reduceMotion ? 0 : geometry.tilt;
+		clearSpeedTimer();
+		speedTimer = setTimeout(() => {
+			speedTimer = null;
+			if (pressing.value) decaySpeed();
+		}, 100);
 	}
 	previousX = x;
 	previousAt = now;
@@ -195,10 +301,12 @@ function begin(x: number, y: number) {
 		return;
 	}
 	pressX = x;
+	clearSpeedTimer();
 	pressIndex = glassGeometry(x, y, bounds, items.length).index;
 	dragged = false;
 	stopSpring();
 	slotVelocity = 0;
+	visualSpeed = 0;
 	clearNavigation();
 	pressing.value = true;
 	expandTo(1);
@@ -211,9 +319,25 @@ function touchStart(event: TouchEvent) {
 	const point = event.touches[0];
 	if (point != null) begin(point.clientX, point.clientY);
 }
+let touchFrame: ReturnType<typeof setTimeout> | null = null;
+let latestTouchX = 0,
+	latestTouchY = 0;
+function clearTouchFrame(flush = false) {
+	if (touchFrame === null) return;
+	clearTimeout(touchFrame);
+	touchFrame = null;
+	if (flush && pressing.value) update(latestTouchX, latestTouchY, true);
+}
 function touchMove(event: TouchEvent) {
 	const point = event.touches[0];
-	if (pressing.value && point != null) update(point.clientX, point.clientY, true);
+	if (!pressing.value || point == null) return;
+	latestTouchX = point.clientX;
+	latestTouchY = point.clientY;
+	if (touchFrame === null)
+		touchFrame = setTimeout(() => {
+			touchFrame = null;
+			if (pressing.value) update(latestTouchX, latestTouchY, true);
+		}, 16);
 }
 function mouseStart(event: MouseEvent) {
 	if (Date.now() - touchAt < 700) return;
@@ -269,8 +393,11 @@ function stopTracking() {
 // #endif
 function release() {
 	if (!pressing.value) return;
+	clearTouchFrame(true);
+	clearSpeedTimer();
 	expandTo(0);
 	pressing.value = false;
+	visualSpeed = 0;
 	suppressTapUntil = Date.now() + 450;
 	shapeReset();
 	select(dragged ? dragIndex : pressIndex, dragged ? slotVelocity : 0);
@@ -298,23 +425,37 @@ function select(index: number, inertia = 0) {
 				springTo(activeIndex());
 			}
 		});
-	}, 16);
+	}, 0);
 }
 function cancel() {
+	clearSpeedTimer();
+	clearTouchFrame();
 	expandTo(0);
 	clearNavigation();
 	pressing.value = false;
+	visualSpeed = 0;
 	springTo(activeIndex());
 }
 let visibilityRevision = 0;
+let showing = false;
 function show() {
+	if (showing) return;
+	showing = true;
+	visible.value = true;
 	const revision = ++visibilityRevision;
 	pressing.value = false;
 	align(activeIndex());
-	uni.hideTabBar({ animation: false });
+	const pages = getCurrentPages();
+	const route = pages[pages.length - 1]?.route;
+	// 缓存页切换时旧组件可能晚收到显示回调；仅在当前 tab 隐藏原生底栏。
+	if (route && items.some((item) => item.path === "/" + route))
+		uni.hideTabBar({ animation: false, fail() {} });
 	nextTick(() => {
 		if (revision !== visibilityRevision) return;
-		measure();
+		if (bounds.width <= 0) measure();
+		// #ifndef H5
+		else bindNative();
+		// #endif
 		// #ifdef H5
 		startRefraction();
 		// #endif
@@ -327,6 +468,13 @@ onMounted(show);
 onShow(show);
 onResize(measure);
 onHide(() => {
+	clearSpeedTimer();
+	showing = false;
+	visible.value = false;
+	// #ifndef H5
+	unbindNative();
+	// #endif
+	clearTouchFrame();
 	visibilityRevision++;
 	if (pressing.value) expandTo(0);
 	// #ifdef H5
@@ -337,6 +485,13 @@ onHide(() => {
 	clearNavigation();
 });
 onUnmounted(() => {
+	clearSpeedTimer();
+	showing = false;
+	visible.value = false;
+	// #ifndef H5
+	unbindNative();
+	// #endif
+	clearTouchFrame();
 	visibilityRevision++;
 	if (pressing.value) expandTo(0);
 	clearNavigation();
@@ -349,4 +504,66 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 @import "../../../packages/shared/styles/commerce-tokens.scss";
 @import "../../../packages/shared/styles/floating-nav.scss";
+
+.floating-nav-wrap,
+.floating-nav-track {
+	overflow: visible;
+}
+.floating-nav.is-merchant-glass {
+	overflow: visible;
+	background: rgba(245, 245, 245, 0.76);
+	border-color: rgba(24, 24, 24, 0.18);
+	box-shadow:
+		0 10px 26px rgba(0, 0, 0, 0.12),
+		0 2px 5px rgba(0, 0, 0, 0.08),
+		inset 0 1px 0 rgba(255, 255, 255, 0.36);
+}
+.floating-nav.is-merchant-glass .floating-nav-lens {
+	left: 0;
+	background: rgba(255, 255, 255, 0.5);
+	border-color: rgba(30, 30, 30, 0.18);
+	box-shadow:
+		0 2px 8px rgba(0, 0, 0, 0.12),
+		inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+}
+.floating-nav.is-merchant-glass .floating-nav-item,
+.floating-nav.is-merchant-glass .floating-nav-item.is-active {
+	color: #242424;
+}
+.floating-nav.is-merchant-glass.is-dark {
+	background: rgba(35, 35, 35, 0.84);
+	border-color: rgba(255, 255, 255, 0.18);
+	box-shadow:
+		0 10px 26px rgba(0, 0, 0, 0.28),
+		inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.floating-nav.is-merchant-glass.is-dark .floating-nav-lens {
+	background: rgba(235, 235, 235, 0.18);
+	border-color: rgba(255, 255, 255, 0.22);
+	box-shadow:
+		0 2px 8px rgba(0, 0, 0, 0.24),
+		inset 0 -1px 1px rgba(255, 255, 255, 0.08);
+}
+.floating-nav.is-merchant-glass.is-dark .floating-nav-item,
+.floating-nav.is-merchant-glass.is-dark .floating-nav-item.is-active {
+	color: #eeeeee;
+}
+// #ifdef H5
+.floating-nav.is-merchant-glass.has-refraction {
+	background: transparent;
+	border-color: rgba(30, 30, 30, 0.16);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.floating-nav.is-merchant-glass.has-refraction .floating-nav-refraction {
+	background: rgba(232, 232, 232, 0.58);
+}
+.floating-nav.is-merchant-glass.has-refraction .floating-nav-lens {
+	background: rgba(235, 235, 235, 0.3);
+	border-color: rgba(40, 40, 40, 0.18);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.floating-nav.is-merchant-glass.has-refraction .floating-nav-lens::before {
+	content: none;
+}
+// #endif
 </style>

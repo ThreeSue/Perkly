@@ -1,0 +1,110 @@
+{
+  "passed": true,
+  "evidence": [
+    {
+      "label": "h5",
+      "state": "idle",
+      "optical": true,
+      "rimOpacity": "0.76",
+      "rimWidth": 103.328125,
+      "clipping": [],
+      "lens": {
+        "x": 32,
+        "y": 772,
+        "width": 105.328125,
+        "height": 48
+      },
+      "channelScales": [
+        31.2,
+        24,
+        16.8
+      ]
+    },
+    {
+      "label": "h5",
+      "state": "pressed",
+      "optical": true,
+      "rimOpacity": "1",
+      "rimWidth": 90.92874145507812,
+      "clipping": [],
+      "lens": {
+        "x": 38.31968688964844,
+        "y": 758.0800170898438,
+        "width": 92.68875122070312,
+        "height": 75.8399658203125
+      },
+      "channelScales": [
+        34.08,
+        26.88,
+        19.68
+      ]
+    },
+    {
+      "label": "h5",
+      "state": "drag",
+      "optical": true,
+      "rimOpacity": "1",
+      "rimWidth": 105.22749328613281,
+      "clipping": [],
+      "lens": {
+        "x": 132.00718688964844,
+        "y": 759.1138916015625,
+        "width": 107.28042602539062,
+        "height": 73.772216796875
+      },
+      "channelScales": [
+        31.488,
+        24.288,
+        17.088
+      ]
+    },
+    {
+      "label": "fallback",
+      "state": "idle",
+      "optical": false,
+      "rimOpacity": "0.76",
+      "rimWidth": 80,
+      "clipping": [],
+      "lens": {
+        "x": 32,
+        "y": 772,
+        "width": 82,
+        "height": 48
+      },
+      "channelScales": []
+    },
+    {
+      "label": "fallback",
+      "state": "pressed",
+      "optical": false,
+      "rimOpacity": "1",
+      "rimWidth": 70.39999389648438,
+      "clipping": [],
+      "lens": {
+        "x": 36.92000198364258,
+        "y": 758.0800170898438,
+        "width": 72.16000366210938,
+        "height": 75.8399658203125
+      },
+      "channelScales": []
+    },
+    {
+      "label": "fallback",
+      "state": "drag",
+      "optical": false,
+      "rimOpacity": "1",
+      "rimWidth": 79.94578552246094,
+      "clipping": [],
+      "lens": {
+        "x": 111.76873016357422,
+        "y": 759.3539428710938,
+        "width": 81.9525375366211,
+        "height": 73.2921142578125
+      },
+      "channelScales": []
+    }
+  ],
+  "pageErrors": [],
+  "writeRequests": [],
+  "note": "fallback is an H5 material preview with optical support disabled; it is not a WeChat runtime measurement."
+}

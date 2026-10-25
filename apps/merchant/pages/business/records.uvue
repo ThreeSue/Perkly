@@ -1,120 +1,237 @@
 <template>
-	<business-shell
-		tab="records"
-		title="核销记录与数据"
-		description="核对每一笔核销，按登录权限查看记录"
-	>
-		<merchant-pending capability="records" />
-		<view class="merchant-card">
-			<text class="merchant-heading">{{ recordTitle }}</text>
-			<text class="merchant-muted">{{ scopeDescription }}</text>
-			<view class="merchant-record-filters">
-				<cl-form label-position="top">
-					<cl-form-item label="搜索记录">
-						<cl-input v-model="keyword" placeholder="搜索接口待接入" :maxlength="100" />
-					</cl-form-item>
-				</cl-form>
-				<view class="merchant-actions">
-					<cl-button disabled>搜索 · 待接入</cl-button>
-					<cl-button v-if="keyword" border @tap="keyword = ''">清空搜索</cl-button>
+	<business-shell tab="records" title="核销记录" monochrome>
+		<view class="mono-record-hero"
+			><view class="mono-store-row"
+				><cl-icon name="store-2-line" :size="23" color="#202020" /><text
+					class="mono-store-title"
+					>{{ identity?.storeName || "正在验证门店" }}</text
+				></view
+			><text class="mono-secondary">{{
+				isManager
+					? "当前门店全部核销流水和消费账单"
+					: "本人完成的核销流水及本人开出的消费账单"
+			}}</text></view
+		>
+		<view class="mono-sheet mono-record-sheet">
+			<view class="merchant-record-segments"
+				><merchant-auth-button
+					label="核销流水"
+					:secondary="mode !== 'records'"
+					@tap="selectMode('records')" /><merchant-auth-button
+					label="消费账单"
+					:secondary="mode !== 'orders'"
+					@tap="selectMode('orders')"
+			/></view>
+			<template v-if="mode === 'orders'">
+				<merchant-auth-field
+					v-model="orderNo"
+					name="orderNo"
+					label="消费账单号"
+					:maxlength="64"
+					placeholder="输入完整消费账单号"
+					@confirm="search"
+				/>
+				<view class="merchant-record-segments"
+					><merchant-auth-button
+						label="查询账单"
+						:busy="busy"
+						@tap="search" /><merchant-auth-button
+						label="清空"
+						secondary
+						:disabled="busy"
+						@tap="clearSearch"
+				/></view>
+				<view class="merchant-record-segments"
+					><merchant-auth-button
+						label="全部账单"
+						:secondary="pendingOnly"
+						@tap="setPending(false)" /><merchant-auth-button
+						label="待结算"
+						:secondary="!pendingOnly"
+						@tap="setPending(true)"
+				/></view>
+			</template>
+			<view v-if="error" class="merchant-record-error" role="alert">{{ error }}</view>
+			<text v-if="busy" class="mono-secondary" role="status">正在加载…</text>
+			<template v-if="mode === 'records'">
+				<view v-for="row in records" :key="row.id" class="merchant-record-card">
+					<text class="mono-feature-title">{{ row.couponName }}</text
+					><text class="mono-secondary"
+						>{{ row.redeemedAt }} · {{ row.operatorName }}</text
+					>
+					<text
+						>消费金额 ¥{{ money(row.consumptionAmount) }} · 本次优惠 ¥{{
+							money(row.discountAmount)
+						}}</text
+					>
+					<text v-if="row.orderNo" class="mono-secondary"
+						>消费账单号：{{ row.orderNo }}</text
+					><text v-else class="mono-secondary">历史核销未关联消费账单</text>
+					<merchant-auth-button
+						v-if="row.consumptionOrderId"
+						label="查看关联账单"
+						secondary
+						@tap="redemption?.resume(row.consumptionOrderId)"
+					/>
 				</view>
-				<text class="merchant-label" id="record-date-label">时间范围</text>
-				<button
-					class="merchant-date-trigger"
-					role="button"
-					tabindex="0"
-					aria-labelledby="record-date-label record-date-value"
-					aria-haspopup="dialog"
-					@tap="openDatePicker"
-					@keydown="onDateKey"
-				>
-					<text id="record-date-value">{{ rangeLabel }}</text>
-					<cl-icon name="calendar-line" :size="20" color="#526d88" />
-				</button>
-				<cl-select-date
-					ref="datePickerRef"
-					:values="[...dateRange]"
-					type="date"
-					rangeable
-					:show-trigger="false"
-					:pt="{ popup: { className: 'merchant-date-popup' } }"
-					title="选择时间范围"
-					:headers="['年', '月', '日']"
-					:shortcuts="dateShortcuts"
-					:end="today"
-					range-separator="至"
-					confirm-text="确定"
-					cancel-text="取消"
-					@update:values="setDateRange"
-				/>
-				<text class="merchant-field-note"
-					>点击后上下滑动选择起止日期，按北京时间筛选。</text
-				>
-				<text class="merchant-label" id="record-coupon-type-label">券类型</text>
-				<view
-					class="merchant-type-placeholder"
-					role="textbox"
-					aria-labelledby="record-coupon-type-label"
-					aria-disabled="true"
-				/>
-			</view>
-			<view class="merchant-empty" role="status" aria-live="polite">
-				<text class="merchant-muted">{{
-					recordScope ? "核销记录待接入" : "登录并验证门店权限后查看核销记录"
-				}}</text>
-				<text class="merchant-field-note">{{
-					recordScope
-						? "记录与时间筛选接口接入后，将展示所选日期的核销明细。"
-						: "员工仅查看本人记录，店长直接查看当前门店全店记录。"
-				}}</text>
-			</view>
+			</template>
+			<template v-else>
+				<view v-for="order in orders" :key="order.id" class="merchant-record-card">
+					<text class="mono-feature-title"
+						>{{ order.couponName }} · {{ order.statusText }}</text
+					><text class="mono-secondary">{{ order.orderNo }}</text
+					><text class="mono-secondary"
+						>{{ order.createdAt }} · {{ order.operatorName }}</text
+					>
+					<text>本次应补款 ¥{{ money(order.payableAmount) }}</text>
+					<merchant-auth-button
+						:label="order.status === 'PENDING' ? '继续处理账单' : '查看账单'"
+						secondary
+						@tap="redemption?.resume(order.id)"
+					/>
+				</view>
+			</template>
+			<view
+				v-if="loaded && !rowsCount && !busy && !error"
+				class="merchant-empty"
+				role="status"
+				><text class="mono-empty-title">{{
+					mode === "records" ? "暂无核销流水" : "暂无符合条件的消费账单"
+				}}</text></view
+			>
+			<view class="merchant-actions"
+				><merchant-auth-button
+					v-if="more && loaded"
+					label="加载更多"
+					secondary
+					:busy="busy"
+					@tap="load(false)" /><merchant-auth-button
+					label="刷新"
+					secondary
+					:disabled="busy"
+					@tap="load(true)"
+			/></view>
 		</view>
 	</business-shell>
+	<merchant-redemption ref="redemption" @changed="load(true)" />
 </template>
 <script setup lang="ts">
+import { computed, ref, watch } from "vue";
 import BusinessShell from "@/components/business-shell.uvue";
-import MerchantPending from "@/components/merchant-pending.uvue";
-import { computed, ref } from "vue";
-import { merchantRecordAccess } from "@/stores/session";
-import { createRecordDateShortcuts, shanghaiDate } from "@/utils/merchant-records";
-
-const recordScope = computed(() => merchantRecordAccess.value?.scope ?? null);
-const keyword = ref("");
-const recordTitle = computed(() =>
-	recordScope.value === "store"
-		? "全店核销记录"
-		: recordScope.value === "self"
-			? "我的核销记录"
-			: "核销记录"
+import MerchantAuthButton from "@/components/merchant-auth-button.uvue";
+import MerchantAuthField from "@/components/merchant-auth-field.uvue";
+import MerchantRedemption from "@/components/merchant-redemption.uvue";
+import {
+	merchantIdentity as identity,
+	merchantIsManager as isManager,
+	merchantCanOperate,
+	restoreMerchantAuthentication
+} from "@/stores/merchant-auth";
+import { merchantSessionVersion } from "@/api/merchant-http";
+import { listConsumptions, listRedemptions } from "@/api/merchant-consumption";
+import { formatMerchantMoney as money } from "@/utils/merchant-redemption";
+import type { ConsumptionOrder, RedemptionRecord } from "@/types/merchant-api";
+const mode = ref("records"),
+	orderNo = ref(""),
+	pendingOnly = ref(false);
+const records = ref<RedemptionRecord[]>([]),
+	orders = ref<ConsumptionOrder[]>([]);
+const busy = ref(false),
+	error = ref(""),
+	loaded = ref(false),
+	more = ref(false);
+const redemption = ref<InstanceType<typeof MerchantRedemption> | null>(null);
+const rowsCount = computed(() =>
+	mode.value === "records" ? records.value.length : orders.value.length
 );
-const scopeDescription = computed(() =>
-	recordScope.value === "store"
-		? "当前授权门店的全部员工核销记录"
-		: recordScope.value === "self"
-			? "仅展示当前门店中由本人完成的核销记录"
-			: "记录范围由登录身份和当前门店授权决定"
-);
-const today = shanghaiDate();
-const dateRange = ref<string[]>([today, today]);
-const dateShortcuts = createRecordDateShortcuts(today);
-const rangeLabel = computed(() =>
-	dateRange.value[0] === today && dateRange.value[1] === today
-		? "今天"
-		: dateRange.value[0] + " 至 " + dateRange.value[1]
-);
-const datePickerRef = ref<ClSelectDateComponentPublicInstance | null>(null);
-function openDatePicker() {
-	datePickerRef.value?.open();
+let page = 0,
+	round = 0,
+	visible = false,
+	appliedOrderNo = "";
+function reset() {
+	round++;
+	page = 0;
+	busy.value = false;
+	loaded.value = false;
+	more.value = false;
+	error.value = "";
+	records.value = [];
+	orders.value = [];
 }
-function onDateKey(event: any) {
-	// #ifdef H5
-	if (event.key === "Enter" || event.key === " ") {
-		event.preventDefault();
-		openDatePicker();
+async function load(first = true) {
+	if (busy.value || !visible || !merchantCanOperate.value) return;
+	const version = merchantSessionVersion(),
+		request = ++round,
+		currentMode = mode.value,
+		nextPage = first ? 1 : page + 1;
+	busy.value = true;
+	error.value = "";
+	try {
+		if (currentMode === "records") {
+			const result = await listRedemptions(nextPage, isManager.value ? "store" : "self");
+			if (request !== round || version !== merchantSessionVersion() || !visible) return;
+			if (!Array.isArray(result?.list) || !result.pagination)
+				throw new Error("流水响应异常，请重试");
+			records.value = first ? result.list : [...records.value, ...result.list];
+			more.value = records.value.length < result.pagination.total;
+		} else {
+			const result = await listConsumptions({
+				page: nextPage,
+				...(appliedOrderNo ? { orderNo: appliedOrderNo } : {}),
+				...(pendingOnly.value ? { status: "PENDING" } : {})
+			});
+			if (request !== round || version !== merchantSessionVersion() || !visible) return;
+			if (!Array.isArray(result?.list) || !result.pagination)
+				throw new Error("账单响应异常，请重试");
+			orders.value = first ? result.list : [...orders.value, ...result.list];
+			more.value = orders.value.length < result.pagination.total;
+		}
+		page = nextPage;
+		loaded.value = true;
+	} catch (cause) {
+		if (request === round && version === merchantSessionVersion() && visible)
+			error.value = cause instanceof Error ? cause.message : "加载失败，请重试";
+	} finally {
+		if (request === round) busy.value = false;
 	}
-	// #endif
 }
-function setDateRange(values: string[]) {
-	if (values.length === 2) dateRange.value = [...values];
+function selectMode(value: string) {
+	if (value === mode.value) return;
+	mode.value = value;
+	reset();
+	void load();
 }
+function search() {
+	appliedOrderNo = orderNo.value.trim();
+	reset();
+	void load();
+}
+function clearSearch() {
+	orderNo.value = "";
+	search();
+}
+function setPending(value: boolean) {
+	if (value === pendingOnly.value) return;
+	pendingOnly.value = value;
+	reset();
+	void load();
+}
+watch(
+	() => identity.value?.id + ":" + identity.value?.storeId + ":" + identity.value?.role,
+	() => {
+		reset();
+		if (visible) void load();
+	}
+);
+onShow(() => {
+	visible = true;
+	void restoreMerchantAuthentication().then(() => load());
+});
+onHide(() => {
+	visible = false;
+	reset();
+	orderNo.value = "";
+	appliedOrderNo = "";
+	redemption.value?.hide();
+});
 </script>

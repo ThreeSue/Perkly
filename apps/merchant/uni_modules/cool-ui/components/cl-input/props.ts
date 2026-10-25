@@ -9,6 +9,11 @@ export type ClInputPassThrough = {
 };
 
 export type ClInputProps = {
+	inputId?: string;
+	inputLabel?: string;
+	inputDescription?: string;
+	inputInvalid?: boolean;
+	autocomplete?: string;
 	className?: string;
 	pt?: ClInputPassThrough;
 	modelValue?: string;

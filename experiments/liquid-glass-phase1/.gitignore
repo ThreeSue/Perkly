@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.npm-cache/
+wechat/project.private.config.json
+wechat/results/*.json
+*.log
+uni-app-x/unpackage/
+uni-app-x/.hbuilderx/

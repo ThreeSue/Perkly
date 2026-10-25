@@ -2,9 +2,6 @@
 	<cl-page>
 		<view class="p-3">
 			<cl-list>
-				<cl-list-item label="深色模式" icon="moon-line">
-					<cl-switch :model-value="isDark" aria-label="深色模式" @change="changeDarkMode" />
-				</cl-list-item>
 				<cl-list-item hoverable justify="center" @tap="toLogout">
 					<cl-text color="error">退出登录</cl-text>
 				</cl-list-item>
@@ -14,15 +11,11 @@
 </template>
 
 <script setup lang="ts">
-import { isDark, setTheme, useStore } from "@/.cool";
+import { useStore } from "@/.cool";
 import { useUi } from "@/uni_modules/cool-ui";
 
 const ui = useUi();
 const { user } = useStore();
-
-function changeDarkMode(value: boolean) {
-	setTheme(value ? "dark" : "light");
-}
 
 function toLogout() {
 	ui.showConfirm({

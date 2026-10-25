@@ -4,4 +4,7 @@ export default { onLaunch() {} };
 <style lang="scss">
 @import "@/styles/business.scss";
 @import "@/styles/merchant.scss";
+@import "@/styles/merchant-auth.scss";
+@import "@/styles/merchant-redemption.scss";
+@import "@/styles/merchant-admission.scss";
 </style>

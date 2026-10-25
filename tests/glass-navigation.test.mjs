@@ -154,7 +154,7 @@ for (const app of ["client", "merchant"]) {
       import.meta.url,
     ).href;
     const fixture = `
-   import { glassGeometry } from ${JSON.stringify(mathUrl)};
+   import { glassGeometry, merchantLensResponse, smoothLensSpeed } from ${JSON.stringify(mathUrl)};
    const ref = value => ({ value });
    export const watchers = [];
    const watch = (sources, callback) => watchers.push({ sources, callback });
@@ -168,16 +168,17 @@ for (const app of ["client", "merchant"]) {
    const mountNavRefraction = (host, ready) => { const renderer = { ready, updates: [], update(...values) { this.updates.push(values); }, destroy() { ready(false); } }; mounts.push(renderer); return renderer; };
    export const springCalls = [], navigation = [], timers = [];
    const setTimeout = fn => { timers.push(fn); return timers.length; }, clearTimeout = () => {};
-   const useNavGlass = () => ({ progress: ref(0), stretch: ref(1), squash: ref(1), tilt: ref(0), expansion: ref(0), expandTo() {}, align() {}, stopSpring() {}, shapeReset() {}, springTo(index, velocity) { springCalls.push({ index, velocity }); } });
+   const useNavGlass = () => ({ progress: ref(0), stretch: ref(1), squash: ref(1), tilt: ref(0), speed: ref(0), expansion: ref(0), expandTo() {}, align() {}, stopSpring() {}, shapeReset() {}, decaySpeed() {}, attachNative() {}, detachNative() {}, useReactive() {}, springTo(index, velocity) { springCalls.push({ index, velocity }); } });
    const selector = { in() { return this; }, select() { return this; }, boundingClientRect(fn) { this.callback = fn; return this; }, exec() { this.callback({ left: 24, top: 700, width: 342, height: 64 }); } };
-   const uni = { createSelectorQuery: () => selector, hideTabBar() {}, switchTab: options => navigation.push(options.url) };
+   const getCurrentPages = () => [{route: 'pages/business/home'}];
+   const uni = { createSelectorQuery: () => selector, getElementById: () => null, hideTabBar() {}, switchTab: options => navigation.push(options.url) };
   `;
     const url =
       "data:text/javascript;base64," +
       Buffer.from(
         fixture +
           script +
-          "\nexport { measure, begin, update, release, tap, progress, opticalReady, expansion, tilt };\n",
+          "\nexport { measure, begin, update, release, tap, touchMove, progress, opticalReady, expansion, tilt };\n",
       ).toString("base64");
     const controller = await import(url);
     controller.measure();
@@ -199,6 +200,32 @@ for (const app of ["client", "merchant"]) {
     controller.release();
     assert.equal(controller.springCalls.at(-1).index, 2);
     assert.ok(controller.springCalls.at(-1).velocity > 0);
+
+    if (app === "merchant") {
+      const touch = await import(url + "#coalesced-touch");
+      touch.measure();
+      touch.begin(86, 732);
+      for (const x of [130, 190, 240, 300])
+        touch.touchMove({ touches: [{ clientX: x, clientY: 732 }] });
+      assert.equal(touch.timers.length, 1, "同帧多个触摸移动只安排一次更新");
+      assert.equal(touch.progress.value, 0, "待绘制触摸不立即触发布局");
+      const pendingTouch = touch.timers[0];
+      touch.release();
+      assert.equal(
+        touch.springCalls.at(-1).index,
+        2,
+        "松手前必须消费最后一个触点",
+      );
+      touch.timers.pop()();
+      assert.match(touch.navigation[0], /business\/profile$/);
+      const settledProgress = touch.progress.value;
+      pendingTouch();
+      assert.equal(
+        touch.progress.value,
+        settledProgress,
+        "松手后过期触摸帧不能继续移动",
+      );
+    }
 
     // A page hidden before Vue's next tick must not install an invisible renderer.
     controller.hooks.show();
@@ -226,7 +253,12 @@ for (const app of ["client", "merchant"]) {
     assert.ok(watcher.sources.includes(controller.expansion));
     assert.ok(watcher.sources.includes(controller.tilt));
     watcher.callback();
-    assert.deepEqual(controller.mounts[1].updates.at(-1).slice(3), [0.8, 1.2]);
+    assert.deepEqual(
+      controller.mounts[1].updates.at(-1).slice(3, 5),
+      [0.8, 1.2],
+    );
+    if (app === "merchant")
+      assert.ok(Number.isFinite(controller.mounts[1].updates.at(-1)[5]));
     controller.hooks.unmounted();
     assert.equal(controller.opticalReady.value, false);
   });

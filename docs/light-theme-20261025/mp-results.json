@@ -1,0 +1,20 @@
+[
+  {
+    "app": "client",
+    "darkmode": false,
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#ffffff",
+    "hasNativeThemeAliases": false,
+    "hasDarkPalette": false,
+    "hasThemeComponent": false
+  },
+  {
+    "app": "merchant",
+    "darkmode": false,
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#eeeeee",
+    "hasNativeThemeAliases": false,
+    "hasDarkPalette": false,
+    "hasThemeComponent": false
+  }
+]

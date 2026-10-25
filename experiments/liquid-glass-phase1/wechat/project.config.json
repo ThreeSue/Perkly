@@ -1,0 +1,9 @@
+{
+  "description":"Perkly Liquid Glass isolated phase-one probe",
+  "projectname":"perkly-liquid-glass-phase1",
+  "appid":"",
+  "compileType":"miniprogram",
+  "miniprogramRoot":"./",
+  "setting":{"es6":true,"enhance":true,"minified":false},
+  "libVersion":"3.7.1"
+}

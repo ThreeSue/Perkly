@@ -12,8 +12,16 @@
 		@mask-close="onAction('close')"
 		@closed="onClosed"
 	>
-		<view class="cl-confirm">
+		<view
+			class="cl-confirm"
+			:id="dialogId"
+			role="dialog"
+			aria-modal="true"
+			:aria-labelledby="dialogId + '-title'"
+			:aria-describedby="dialogId + '-message'"
+		>
 			<cl-text
+				:id="dialogId + '-title'"
 				:size="17"
 				:pt="{
 					className: parseClass(['cl-confirm__title font-bold p-1'])
@@ -22,6 +30,7 @@
 			>
 
 			<cl-text
+				:id="dialogId + '-message'"
 				:size="15"
 				color="info"
 				:pt="{
@@ -33,6 +42,7 @@
 			<view class="cl-confirm__actions">
 				<cl-button
 					v-if="config.showCancel"
+					:aria-label="config.cancelText"
 					size="large"
 					text
 					rounded
@@ -44,6 +54,7 @@
 				>
 				<cl-button
 					v-if="config.showConfirm"
+					:aria-label="config.confirmText"
 					size="large"
 					rounded
 					:loading="loading"
@@ -57,12 +68,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { ref, reactive, getCurrentInstance, nextTick, onUnmounted, watch } from "vue";
+// #ifdef H5
+import { activateAuthDialog } from "@/h5/auth-controls.js";
+// #endif
 import type { ClConfirmAction, ClConfirmOptions } from "../../types";
 import { parseClass, t } from "@/.cool";
 
 // 控制弹窗显示/隐藏
 const visible = ref(false);
+const dialogId = "merchant-confirm-" + getCurrentInstance()!.uid;
+// #ifdef H5
+let releaseDialog: (() => void) | null = null;
+watch(visible, (value) => {
+	releaseDialog?.();
+	releaseDialog = null;
+	if (value)
+		nextTick(() => {
+			if (visible.value)
+				releaseDialog = activateAuthDialog(dialogId, () =>
+					onAction(config.showCancel ? "cancel" : "close")
+				);
+		});
+});
+onUnmounted(() => {
+	releaseDialog?.();
+	clearTimeout(timer);
+});
+// #endif
 
 // 控制弹窗是否关闭
 const closed = ref(true);

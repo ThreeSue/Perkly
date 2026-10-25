@@ -1,0 +1,19 @@
+{
+  "name": "perkly-liquid-glass-phase1",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 9910 --strictPort",
+    "build": "node scripts/build-wx.mjs && vite build",
+    "test": "node --test tests/*.test.mjs",
+    "build:wx": "node scripts/build-wx.mjs"
+  },
+  "dependencies": {
+    "simple-liquid-glass": "5.4.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "lucide-react": "0.541.0"
+  },
+  "devDependencies": { "vite": "6.3.5", "typescript": "5.8.3" }
+}

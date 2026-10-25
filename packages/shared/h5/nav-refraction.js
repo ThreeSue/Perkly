@@ -3,6 +3,7 @@ import {
   capsuleRefractionMap,
   refractionLensBounds,
 } from "../src/glass-refraction.js";
+import { merchantLensResponse } from "../src/glass-navigation.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const OWNER = "data-nav-refraction-owner";
@@ -33,7 +34,14 @@ export function supportsNavRefraction({
       !/CriOS|EdgiOS/.test(userAgent));
   return chromium && backdropFilter;
 }
-export function mountNavRefraction(host, ready) {
+export function mountNavRefraction(
+  host,
+  ready,
+  { chromaticSpread = 2.4, speedResponsive = false } = {},
+) {
+  const dispersion = Number.isFinite(chromaticSpread)
+    ? Math.max(0, Math.min(12, chromaticSpread))
+    : 2.4;
   if (
     !supportsNavRefraction({
       userAgent: navigator.userAgent,
@@ -110,8 +118,8 @@ export function mountNavRefraction(host, ready) {
     mode: "normal",
     result: "selection-map",
   });
-  // Split the real background channels by less than one pixel at the curved rim.
-  // The neutral centre has no spectral split; no rainbow paint or white highlight.
+  // Split real background channels at the curved rim. The caller chooses the
+  // optical dispersion; the neutral centre retains zero spectral displacement.
   const innerWarps = [];
   for (let channel = 0; channel < 3; channel++) {
     innerWarps.push(
@@ -149,7 +157,14 @@ export function mountNavRefraction(host, ready) {
     disposed = false,
     loaded = false,
     generation = 0;
-  let current = { progress: 0, stretch: 1, squash: 1, expansion: 0, tilt: 0 };
+  let current = {
+    progress: 0,
+    stretch: 1,
+    squash: 1,
+    expansion: 0,
+    tilt: 0,
+    speed: 0,
+  };
   const preference = window.matchMedia(
     "(prefers-reduced-transparency: reduce), (forced-colors: active)",
   );
@@ -183,6 +198,17 @@ export function mountNavRefraction(host, ready) {
       current.squash,
       current.expansion,
     );
+    const response = merchantLensResponse(current.speed, current.expansion);
+    if (speedResponsive) {
+      const slot = (width - 14) / 3;
+      const h = height - 14;
+      rect.scaleX = response.scaleX;
+      rect.scaleY = response.scaleY;
+      rect.width = slot * rect.scaleX;
+      rect.height = h * rect.scaleY;
+      rect.x = 7 + slot * current.progress + (slot - rect.width) / 2;
+      rect.y = 7 + (h - rect.height) / 2;
+    }
     innerImage.setAttribute("x", String(24 + rect.x - 24 * rect.scaleX));
     innerImage.setAttribute("y", String(24 + rect.y - 24 * rect.scaleY));
     innerImage.setAttribute("width", String(rect.width + 48 * rect.scaleX));
@@ -197,9 +223,11 @@ export function mountNavRefraction(host, ready) {
       "transform",
       `rotate(${current.tilt},${24 + rect.x + rect.width / 2},${24 + rect.y + rect.height / 2})`,
     );
-    const strength = 24 + Math.abs(rect.scaleX - 1) * 24;
+    const strength = speedResponsive
+      ? response.refraction
+      : 24 + Math.abs(rect.scaleX - 1) * 24;
     innerWarps.forEach((warp, channel) =>
-      warp.setAttribute("scale", String(strength + (1 - channel) * 2.4)),
+      warp.setAttribute("scale", String(strength + (1 - channel) * dispersion)),
     );
   }
   function resize() {
@@ -261,8 +289,8 @@ export function mountNavRefraction(host, ready) {
   preference.addEventListener("change", applyPreference);
   resize();
   const renderer = {
-    update(progress, stretch, squash, expansion = 0, tilt = 0) {
-      current = { progress, stretch, squash, expansion, tilt };
+    update(progress, stretch, squash, expansion = 0, tilt = 0, speed = 0) {
+      current = { progress, stretch, squash, expansion, tilt, speed };
       position();
     },
     destroy() {

@@ -1,0 +1,28 @@
+<template>
+	<cl-button
+		fluid
+		:border="secondary"
+		:loading="busy"
+		:disabled="disabled"
+		:aria-label="label"
+		:pt="{
+			className: secondary
+				? 'merchant-auth-button merchant-auth-button--secondary'
+				: 'merchant-auth-button merchant-auth-button--primary',
+			label: { color: secondary ? '#202020' : '#ffffff', size: 16 },
+			loading: { color: secondary ? '#202020' : '#ffffff' }
+		}"
+		@tap="press"
+		>{{ label }}</cl-button
+	>
+</template>
+<script setup lang="ts">
+const props = withDefaults(
+	defineProps<{ label: string; secondary?: boolean; busy?: boolean; disabled?: boolean }>(),
+	{ secondary: false, busy: false, disabled: false }
+);
+const emit = defineEmits<{ tap: [] }>();
+function press() {
+	if (!props.busy && !props.disabled) emit("tap");
+}
+</script>

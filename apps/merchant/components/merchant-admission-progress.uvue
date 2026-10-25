@@ -1,0 +1,75 @@
+<template>
+	<view v-if="visible && admission" class="merchant-admission-progress">
+		<button
+			class="uni-merchant-button admission-trigger"
+			:aria-expanded="expanded"
+			@tap="expanded = !expanded"
+			@keydown.enter.prevent="expanded = !expanded"
+			@keydown.space.prevent="expanded = !expanded"
+		>
+			<view
+				><text class="mono-feature-title">{{ title }}</text
+				><text class="mono-secondary"
+					>点击{{ expanded ? "收起" : "展开" }}入驻审核进度</text
+				></view
+			><cl-icon
+				:name="expanded ? 'arrow-up-s-line' : 'arrow-down-s-line'"
+				:size="22"
+				color="#202020"
+			/>
+		</button>
+		<view v-if="expanded" class="admission-expanded"
+			><view class="admission-stages"
+				><text>资料已提交</text><text>平台审核</text><text>审核结果</text></view
+			><text class="mono-secondary">提交时间：{{ admission.submittedAt }}</text
+			><text v-if="admission.rejectionReason" class="merchant-record-error">{{
+				admission.rejectionReason
+			}}</text
+			><text class="mono-secondary">{{
+				admission.status === "approved"
+					? "审核通过即按账号权限开放经营，提醒确认不影响权限。"
+					: admission.status === "rejected"
+						? "可查看驳回原因，修改资料后重新提交。"
+						: "平台审核中，审核通过前经营功能暂不可用。"
+			}}</text
+			><text v-if="error" class="merchant-record-error" role="alert">{{ error }}</text
+			><view class="admission-actions"
+				><merchant-auth-button
+					label="查看申请与审核历史"
+					secondary
+					@tap="details" /><merchant-auth-button
+					v-if="needsNotice"
+					label="查看审核结果"
+					:disabled="busy"
+					@tap="emit('notice')" /><merchant-auth-button
+					label="刷新进度"
+					secondary
+					:disabled="busy"
+					@tap="refreshMerchantAdmission" /></view
+		></view>
+	</view>
+</template>
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import MerchantAuthButton from "@/components/merchant-auth-button.uvue";
+import {
+	merchantAdmission as admission,
+	merchantAdmissionVisible as visible,
+	merchantAdmissionNeedsNotice as needsNotice,
+	merchantAdmissionError as error,
+	merchantAdmissionBusy as busy,
+	refreshMerchantAdmission
+} from "@/stores/merchant-admission";
+const emit = defineEmits<{ notice: [] }>();
+const expanded = ref(false);
+const title = computed(() =>
+	admission.value?.status === "approved"
+		? "入驻审核已通过"
+		: admission.value?.status === "rejected"
+			? "入驻申请需修改"
+			: "入驻申请审核中"
+);
+function details() {
+	uni.navigateTo({ url: "/pages/business/application" });
+}
+</script>

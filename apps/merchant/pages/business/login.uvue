@@ -1,25 +1,168 @@
 <template>
-	<business-shell title="员工登录" description="验证员工身份后，进入本人获授权的门店">
-		<merchant-pending
-			capability="identity"
-			hint="已有顾客和平台管理员账号接口不能直接作为商家员工登录。"
-		/>
-		<view class="merchant-card">
-			<text class="merchant-heading">商家员工账号</text>
-			<cl-form label-position="top">
-				<cl-form-item label="员工账号"
-					><cl-input disabled placeholder="登录方式待后端确认"
-				/></cl-form-item>
-				<cl-form-item label="密码"
-					><cl-input disabled password placeholder="接口接入后开放输入"
-				/></cl-form-item>
-			</cl-form>
-			<text class="merchant-muted">登录后显示所属商家、当前角色和授权门店。</text>
-			<view class="merchant-actions"><cl-button disabled>登录 · 待接入</cl-button></view>
-		</view>
-	</business-shell>
+	<merchant-auth-shell
+		title="欢迎回来"
+		description="使用商家后台开通的店长或员工账号登录，进入当前绑定门店。"
+		:busy="busy"
+		@back="merchantAuthBack"
+	>
+		<view class="merchant-auth-card"
+			><cl-form label-position="top" :show-asterisk="false">
+				<merchant-auth-field
+					:ref="refs.set('username')"
+					v-model="username"
+					name="username"
+					label="商家账号"
+					:maxlength="64"
+					autocomplete="username"
+					placeholder="输入后台开通的账号"
+					:error="errors.username"
+					:disabled="busy"
+				/>
+				<merchant-auth-field
+					:ref="refs.set('password')"
+					v-model="password"
+					name="password"
+					label="密码"
+					secret
+					:maxlength="64"
+					autocomplete="current-password"
+					placeholder="输入账号密码"
+					:error="errors.password"
+					:disabled="busy"
+				/>
+				<view class="merchant-captcha"
+					><image
+						v-if="captchaImage"
+						:src="captchaImage"
+						class="merchant-captcha-image"
+						mode="aspectFit"
+						aria-label="图形验证码"
+					/><text v-else class="merchant-auth-caption">{{
+						captchaLoading ? "正在获取验证码…" : "验证码未加载"
+					}}</text
+					><button
+						class="uni-merchant-button merchant-text-action"
+						:disabled="busy || captchaLoading"
+						@tap="loadCaptcha"
+					>
+						换一张
+					</button></view
+				>
+				<text v-if="captchaError" class="merchant-auth-error-text" role="alert">{{
+					captchaError
+				}}</text>
+				<merchant-auth-field
+					:ref="refs.set('verifyCode')"
+					v-model="verifyCode"
+					name="verifyCode"
+					label="图形验证码"
+					:maxlength="12"
+					placeholder="输入图片中的字符"
+					:error="errors.verifyCode"
+					:disabled="busy || captchaLoading"
+					@confirm="submit"
+				/> </cl-form
+			><view v-if="message" class="merchant-auth-message" role="alert">{{ message }}</view>
+			<merchant-auth-button
+				label="登录，进入工作台"
+				:busy="busy"
+				:disabled="captchaLoading || !captchaId"
+				@tap="submit"
+		/></view>
+	</merchant-auth-shell>
 </template>
 <script setup lang="ts">
-import BusinessShell from "@/components/business-shell.uvue";
-import MerchantPending from "@/components/merchant-pending.uvue";
+// 登录失败后重新获取图形验证码，离开页面取消在途登录。
+import { ref, onMounted, onUnmounted } from "vue";
+import MerchantAuthShell from "@/components/merchant-auth-shell.uvue";
+import MerchantAuthField from "@/components/merchant-auth-field.uvue";
+import MerchantAuthButton from "@/components/merchant-auth-button.uvue";
+import { getMerchantCaptcha } from "@/api/merchant-auth";
+import {
+	authenticateMerchant,
+	clearMerchantAuthentication,
+	merchantSignedIn,
+	restoreMerchantAuthentication
+} from "@/stores/merchant-auth";
+import { enterMerchantWorkspace } from "@/composables/merchant-auth-guard";
+import { useMerchantAuthForm } from "@/composables/use-merchant-auth-form";
+import { merchantAuthBack } from "@/utils/merchant-auth-navigation";
+const username = ref(""),
+	password = ref(""),
+	verifyCode = ref(""),
+	captchaId = ref(""),
+	captchaImage = ref(""),
+	captchaError = ref(""),
+	captchaLoading = ref(false);
+const { busy, errors, message, refs, validate, run } = useMerchantAuthForm();
+let alive = true,
+	captchaRound = 0;
+async function loadCaptcha() {
+	const round = ++captchaRound;
+	captchaLoading.value = true;
+	captchaId.value = "";
+	captchaImage.value = "";
+	verifyCode.value = "";
+	captchaError.value = "";
+	try {
+		const result = await getMerchantCaptcha();
+		if (!alive || round !== captchaRound) return;
+		if (!result?.captchaId || !result.data) throw new Error("验证码响应无效，请重新获取");
+		captchaId.value = result.captchaId;
+		captchaImage.value = result.data;
+	} catch (error) {
+		if (alive && round === captchaRound)
+			captchaError.value = error instanceof Error ? error.message : "验证码获取失败，请重试";
+	} finally {
+		if (alive && round === captchaRound) captchaLoading.value = false;
+	}
+}
+async function submit() {
+	if (
+		busy.value ||
+		!validate({
+			...(!username.value.trim() ? { username: "请输入商家账号" } : {}),
+			...(!password.value ? { password: "请输入密码" } : {}),
+			...(!captchaId.value || !verifyCode.value.trim()
+				? { verifyCode: "请获取并填写图形验证码" }
+				: {})
+		})
+	)
+		return;
+	await run(
+		() =>
+			authenticateMerchant({
+				username: username.value.trim(),
+				password: password.value,
+				captchaId: captchaId.value,
+				verifyCode: verifyCode.value.trim()
+			}),
+		() => {
+			password.value = "";
+			verifyCode.value = "";
+			enterMerchantWorkspace();
+		}
+	);
+	if (message.value && alive) {
+		password.value = "";
+		await loadCaptcha();
+	}
+}
+onMounted(() => {
+	void loadCaptcha();
+});
+onShow(() => {
+	void restoreMerchantAuthentication().then(() => {
+		if (merchantSignedIn.value) enterMerchantWorkspace();
+	});
+});
+onHide(() => {
+	if (busy.value && !merchantSignedIn.value) clearMerchantAuthentication();
+	password.value = "";
+	verifyCode.value = "";
+});
+onUnmounted(() => {
+	alive = false;
+	captchaRound++;
+});
 </script>
