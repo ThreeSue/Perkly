@@ -35,6 +35,7 @@ public class MerchantRegistrationServiceImpl implements MerchantRegistrationServ
     private final BaseSysUserMapper accounts;
     private final MerchantCategoryMapper categories;
     private final ApprovalHistoryService history;
+    private final com.cool.modules.approval.mapper.MerchantActivationMapper activations;
     private final jakarta.validation.Validator validator;
     private final BCryptPasswordEncoder passwords=new BCryptPasswordEncoder();
 
@@ -52,6 +53,9 @@ public class MerchantRegistrationServiceImpl implements MerchantRegistrationServ
                 .eq(MerchantApplicationEntity::getUsername,input.getUsername()).eq(MerchantApplicationEntity::getCurrentFlag,1).forUpdate());
         if (resubmit) {
             if (old==null || !passwords.matches(input.getPassword(),old.getPasswordHash())) throw new CoolException("申请账号或密码不正确");
+            if (activations.selectCountByQuery(QueryWrapper.create()
+                    .eq(com.cool.modules.approval.entity.MerchantActivationEntity::getApplicationNo,old.getApplicationNo())) > 0)
+                throw new CoolException("此申请请验证联系人手机号后通过小程序修改重提");
             if (!Integer.valueOf(3).equals(old.getStatus())) throw new CoolException("只有已驳回的申请可以重提");
         } else if (old!=null) throw new CoolException("该账号已有入驻申请；驳回后请使用重提接口");
         Map<String,Object> snapshot=new LinkedHashMap<>();

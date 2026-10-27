@@ -75,6 +75,7 @@ class MerchantOnboardingIntegrationTest {
     @Autowired CouponTradeService trade;
     @Autowired UserInfoService customers;
     @Autowired com.cool.modules.approval.service.GuestMerchantOnboardingService onboarding;
+    @Autowired com.cool.modules.approval.service.MerchantRegistrationService legacyRegistration;
     @org.springframework.boot.test.mock.mockito.MockBean com.cool.modules.user.util.UserSmsUtil sms;
     MockMvc mvc;
     String adminToken;
@@ -111,8 +112,8 @@ class MerchantOnboardingIntegrationTest {
         SecurityContextHolder.clearContext();
     }
 
-    @Test void realRegistrationApprovalStoreCouponPurchaseAndRedemptionFlow() throws Exception {
-        ok(post("/merchant/auth/register"), request, null);
+    @Test void historicalApplicationRetainsLoginReviewResubmissionAndActivationFlow() throws Exception {
+        seedLegacyApplication();
         MerchantApplicationEntity first = current();
         assertEquals(1, first.getStatus());
         assertEquals(0, users.selectCountByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getUsername, request.getUsername())));
@@ -198,7 +199,7 @@ class MerchantOnboardingIntegrationTest {
     }
 
     @Test void duplicateSubmissionAndReReviewCannotDuplicateMerchantAccounts() throws Exception {
-        ok(post("/merchant/auth/register"), request, null);
+        seedLegacyApplication();
         var application = current(); captcha(request);
         assertNotEquals(1000, json(post("/merchant/auth/register"), request, null).getInt("code"));
         review(application, true, "联调审核通过");
@@ -208,12 +209,15 @@ class MerchantOnboardingIntegrationTest {
     }
 
     @Test void wrongPasswordCannotResubmitRejectedApplication() throws Exception {
-        ok(post("/merchant/auth/register"), request, null); var application = current();
+        seedLegacyApplication(); var application = current();
         review(application, false, "联调退回完善");
         request.setPassword("WrongPassword123!"); captcha(request);
         assertNotEquals(1000, json(post("/merchant/auth/resubmit"), request, null).getInt("code"));
         assertEquals(application.getId(), current().getId()); assertEquals(3, current().getStatus());
     }
+
+    // 模拟入口关闭前已经存在的历史申请，不通过已停用的公开注册接口创建。
+    private void seedLegacyApplication() { legacyRegistration.submit(request,false); }
 
     private void captcha(MerchantRegistrationReq input) {
         String id = UUID.randomUUID().toString(); putCache("verify:img:" + id, "1234");

@@ -74,7 +74,7 @@ class GuestMerchantOnboardingIntegrationTest {
     }
     @AfterEach void cleanup() {grants.forEach(t->cache.del("onboarding:"+cn.hutool.crypto.SecureUtil.sha256(t)));org.springframework.security.core.context.SecurityContextHolder.clearContext();}
     String grant(String number) {String t=onboarding.verify(number,"123456");grants.add(t);return t;}
-    Submit input(String no,String requestId) {return new Submit(token,requestId,no,"游客测试商家",categoryId,"测试联系人","测试地址","测试说明");}
+    Submit input(String no,String requestId) {return new Submit(token,requestId,no,"游客测试商家",categoryId,"测试联系人","测试说明");}
     MerchantApplicationEntity application(String no) {return applications.selectOneByQuery(QueryWrapper.create().eq(MerchantApplicationEntity::getApplicationNo,no).eq(MerchantApplicationEntity::getCurrentFlag,1));}
     MerchantActivationEntity credential(String no) {return credentials.selectOneByQuery(QueryWrapper.create().eq(MerchantActivationEntity::getApplicationNo,no));}
     String approved() {String no=onboarding.submit(input(null,key),false).getApplicationNo();var a=application(no);review.review("MERCHANT",a.getId(),a.getSubmissionNo(),true,"资料完整");return no;}
@@ -90,6 +90,7 @@ class GuestMerchantOnboardingIntegrationTest {
         assertNull(application(no).getMerchantId());assertEquals("PENDING_ACTIVATION",review.info("MERCHANT",a.getId()).getItem().getActivationState());
         var info=onboarding.info(token,no);assertEquals("APPROVED",info.getState());assertTrue(info.getActivationCode().matches("MK-[A-F0-9]{32}"));
         assertFalse(info.getSnapshot().containsKey("licenseUrl"),"当前申请无需营业执照资料");
+        assertFalse(info.getSnapshot().containsKey("address"),"申请商家不收集门店地址");
         assertFalse(credential(no).getCodeCipher().contains(info.getActivationCode()));
         String username=username();
         mvc.perform(post("/merchant/auth/activate").contentType("application/json").content(json.writeValueAsString(activate(info.getActivationCode(),username))))
@@ -100,9 +101,37 @@ class GuestMerchantOnboardingIntegrationTest {
         assertTrue(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().matches("MerchantTest123!",account.getPassword()));
         assertNull(credential(no).getCodeCipher());assertNull(onboarding.info(token,no).getActivationCode());
     }
+    @Test void legacyAddressIsIgnoredOnSubmitAndResubmit() throws Exception {
+        var payload=json.valueToTree(input(null,key));
+        ((com.fasterxml.jackson.databind.node.ObjectNode)payload).put("address","旧页面仍传的地址");
+        var response=mvc.perform(post("/app/merchant/onboarding/submit").contentType("application/json").content(json.writeValueAsString(payload)))
+            .andExpect(jsonPath("$.code").value(1000)).andExpect(jsonPath("$.data.snapshot.address").doesNotExist()).andReturn();
+        String no=JSONUtil.parseObj(response.getResponse().getContentAsString()).getJSONObject("data").getStr("applicationNo");
+        var first=application(no);
+        var legacy=JSONUtil.parseObj(first.getSnapshot());legacy.set("address","历史申请地址");
+        first.setSnapshot(legacy.toString());applications.update(first);
+        // 改版后仍可用同一requestId找回历史申请，不因废弃地址字段而失去幂等性。
+        assertEquals(no,onboarding.submit(input(null,key),false).getApplicationNo());
+        review.review("MERCHANT",first.getId(),1,false,"修改资料");
+        mvc.perform(post("/app/merchant/onboarding/resubmit").contentType("application/json")
+            .content(json.writeValueAsString(input(no,UUID.randomUUID().toString()))))
+            .andExpect(jsonPath("$.code").value(1000)).andExpect(jsonPath("$.data.submissionNo").value(2))
+            .andExpect(jsonPath("$.data.snapshot.address").doesNotExist());
+        assertEquals("历史申请地址",JSONUtil.parseObj(applications.selectOneById(first.getId()).getSnapshot()).getStr("address"),"历史审核资料应原样保留");
+    }
+    @Test void activatingHistoricalAddressDoesNotCopyItOrCreateStore() {
+        String no=approved();var a=application(no);
+        var legacy=JSONUtil.parseObj(a.getSnapshot());legacy.set("address","历史地址不是新门店地址");
+        a.setSnapshot(legacy.toString());applications.update(a);
+        var result=onboarding.activate(activate(onboarding.info(token,no).getActivationCode(),username()));
+        assertNull(merchants.selectOneById(result.getMerchantId()).getAddress());
+        assertEquals(0,web.getBean(MerchantStoreMapper.class).selectCountByQuery(QueryWrapper.create()
+            .eq(com.cool.modules.merchant.entity.MerchantStoreEntity::getMerchantId,result.getMerchantId())));
+        assertEquals("历史地址不是新门店地址",onboarding.info(token,no).getSnapshot().get("address"));
+    }
     @Test void sameRequestIsIdempotentAndCannotChangePayload() {
         String no=onboarding.submit(input(null,key),false).getApplicationNo();assertEquals(no,onboarding.submit(input(null,key),false).getApplicationNo());
-        Submit changed=new Submit(token,key,null,"不同商家",categoryId,"联系人","地址",null);
+        Submit changed=new Submit(token,key,null,"不同商家",categoryId,"联系人",null);
         assertThrows(CoolException.class,()->onboarding.submit(changed,false));
         assertEquals(1,applications.selectCountByQuery(QueryWrapper.create().eq(MerchantApplicationEntity::getApplicationNo,no)));
     }
@@ -191,4 +220,58 @@ class GuestMerchantOnboardingIntegrationTest {
             });
         }
     }
+    @Test void retiredWebRegistrationAlwaysReturnsMigrationNoticeAndNeverWritesApplication() throws Exception {
+        long before=applications.selectCountByQuery(QueryWrapper.create());
+        mvc.perform(post("/merchant/auth/register").contentType("application/json").content("{}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(410))
+            .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("小程序")));
+        mvc.perform(post("/merchant/auth/register"))
+            .andExpect(jsonPath("$.code").value(410));
+        assertEquals(before,applications.selectCountByQuery(QueryWrapper.create()));
+    }
+    @Test void separateMobileVisitsWithSamePhoneSeeSameApplicationWithoutSharingLoginToken() throws Exception {
+        String no=onboarding.submit(input(null,key),false).getApplicationNo();
+        String secondTicket=grant(phone);
+        assertNotEquals(token,secondTicket);
+        mvc.perform(post("/app/merchant/onboarding/list").header("Authorization","expired-token-from-another-app")
+            .contentType("application/json").content(json.writeValueAsString(new Session(secondTicket))))
+            .andExpect(jsonPath("$.code").value(1000)).andExpect(jsonPath("$.data[0].applicationNo").value(no))
+            .andExpect(jsonPath("$.data[0].activationCode").isEmpty());
+        var a=application(no);review.review("MERCHANT",a.getId(),1,true,"同意");
+        mvc.perform(post("/app/merchant/onboarding/info").contentType("application/json")
+            .content(json.writeValueAsString(new Detail(secondTicket,no))))
+            .andExpect(jsonPath("$.code").value(1000)).andExpect(jsonPath("$.data.state").value("APPROVED"))
+            .andExpect(jsonPath("$.data.activationCode").isString());
+        assertEquals(no,onboarding.submit(new Submit(secondTicket,key,null,"游客测试商家",categoryId,"测试联系人","测试说明"),false).getApplicationNo());
+    }
+    @Test void onceActivatedOwnerLogsInWithPasswordWithoutAnyFurtherActivationCode() throws Exception {
+        String no=approved(),code=onboarding.info(token,no).getActivationCode(),name=username();
+        var activated=onboarding.activate(activate(code,name));
+        var storeMapper=web.getBean(com.cool.modules.merchant.mapper.MerchantStoreMapper.class);
+        assertEquals(0,storeMapper.selectCountByQuery(QueryWrapper.create()
+            .eq(com.cool.modules.merchant.entity.MerchantStoreEntity::getMerchantId,activated.getMerchantId())));
+        String captchaId=UUID.randomUUID().toString();cache.set("verify:img:"+captchaId,"1234",60);
+        var login=new com.cool.modules.base.dto.sys.BaseSysLoginDto();login.setUsername(name);login.setPassword("MerchantTest123!");
+        login.setCaptchaId(captchaId);login.setVerifyCode("1234");
+        var loggedIn=(cn.hutool.core.lang.Dict)merchantLogin.login(login);
+        try {
+            var owner=merchantLogin.validate(loggedIn.getStr("token"),false);
+            assertEquals("OWNER",owner.getMerchantRole());assertEquals(activated.getMerchantId(),owner.getMerchantId());
+            assertNull(onboarding.info(token,no).getActivationCode());
+            assertThrows(CoolException.class,()->onboarding.renew(token,no));
+            assertThrows(CoolException.class,()->onboarding.activate(activate(code,name)));
+        } finally {merchantLogin.logout(loggedIn.getStr("token"));cache.del("verify:img:"+captchaId);}
+    }
+    @Test void mobileApplicationCannotUseLegacyPasswordResubmissionRoute() {
+        String no=onboarding.submit(input(null,key),false).getApplicationNo();var a=application(no);
+        review.review("MERCHANT",a.getId(),1,false,"修改资料");
+        // 即使测试主动设置了已知密码，带手机号凭证的新申请也不能走旧身份流程。
+        a=application(no);a.setPasswordHash(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("LegacyTest123!"));applications.update(a);
+        var p=new com.cool.modules.approval.entity.req.MerchantRegistrationReq();p.setUsername(a.getUsername());p.setPassword("LegacyTest123!");
+        p.setMerchantName(a.getMerchantName());p.setCategoryId(categoryId);p.setContactName("测试联系人");p.setContactPhone(phone);p.setAddress("测试地址");
+        p.setCaptchaId("test-unused");p.setVerifyCode("1234");
+        var error=assertThrows(CoolException.class,()->web.getBean(MerchantRegistrationService.class).submit(p,true));
+        assertTrue(error.getMessage().contains("小程序"));assertEquals(1,application(no).getSubmissionNo());
+    }
+
 }

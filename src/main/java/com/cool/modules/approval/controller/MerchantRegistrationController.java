@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
  * @Author: 蘇世睿
  * @Class: 移動互聯2412
  * @SeatNo: 21
- * @Description: 通过图片验证码接收商家注册入驻及重提申请
+ * @Description: 提示旧注册入口停用并兼容历史账号密码入驻申请重提
  * @Version: v1.1
  * @Date: 2026-10-21
  * @Time: 11:12:00
@@ -29,9 +29,9 @@ public class MerchantRegistrationController {
 
     @TokenIgnore
     @PostMapping("/register")
-    public R<?> register(@Valid @RequestBody MerchantRegistrationReq input) {
-        check(input);
-        return R.ok(registration.submit(input, false));
+    public R<?> register() {
+        // 保留路由并明确告知调用方迁移，不再接受新的网页账号密码申请。
+        throw new com.cool.core.exception.CoolException("网页直接申请入口已停用，请前往客户端或核销端小程序申请入驻；已有营业码请在商家管理端开通账号", 410);
     }
 
     @TokenIgnore

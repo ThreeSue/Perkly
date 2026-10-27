@@ -54,6 +54,7 @@ class MerchantWorkspaceIsolationTest {
     @Autowired JwtUserDetailsServiceImpl platformUsers;
     @Autowired @Qualifier("springSecurityFilterChain") Filter security;
     @org.springframework.boot.test.mock.mockito.MockBean com.cool.modules.user.util.UserSmsUtil sms;
+    @org.springframework.boot.test.mock.mockito.MockBean com.cool.core.file.strategy.LocalFileUploadStrategy imageStorage;
     Long merchantA, merchantB, userA, storeA, storeB, categoryA, categoryB;
     String username, access, refresh;
     MockMvc mvc;
@@ -97,6 +98,52 @@ class MerchantWorkspaceIsolationTest {
         c.setStatus(0); c.setMerchantId(merchantB); return c;
     }
 
+    org.springframework.mock.web.MockMultipartFile image(String name) throws Exception {
+        var output = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(2,2,java.awt.image.BufferedImage.TYPE_INT_RGB),"png",output);
+        return new org.springframework.mock.web.MockMultipartFile("file",name,"image/png",output.toByteArray());
+    }
+    @Test void ownerUploadsValidatedImageWithoutChangingBusinessCover() throws Exception {
+        org.mockito.Mockito.when(imageStorage.upload(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.isNull()))
+            .thenReturn("http://localhost:8001/uploads/test-cover.png");
+        mvc.perform(multipart("/merchant/workspace/image/upload").file(image("cover.png")).header("Authorization",access))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(1000))
+            .andExpect(jsonPath("$.data").value("http://localhost:8001/uploads/test-cover.png"));
+        assertNull(web.getBean(com.cool.modules.merchant.mapper.MerchantStoreMapper.class).selectOneById(storeA).getCover());
+        org.mockito.Mockito.verify(imageStorage).upload(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.isNull());
+    }
+    @Test void rejectsFakeOversizedAndMismatchedImagesBeforeStorage() throws Exception {
+        var invalid = List.of(
+            new org.springframework.mock.web.MockMultipartFile("file","bad.png","image/png","not an image".getBytes()),
+            new org.springframework.mock.web.MockMultipartFile("file","empty.png","image/png",new byte[0]),
+            new org.springframework.mock.web.MockMultipartFile("file","big.jpg","image/jpeg",new byte[5*1024*1024+1]),
+            image("wrong.jpg"), image("script.svg")
+        );
+        for (var file : invalid) {
+            mvc.perform(multipart("/merchant/workspace/image/upload").file(file).header("Authorization",access))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.not(1000)));
+        }
+        org.mockito.Mockito.verifyNoInteractions(imageStorage);
+    }
+    @Test void imageUploadRejectsAnonymousAndOtherClientIdentities() throws Exception {
+        mvc.perform(multipart("/merchant/workspace/image/upload").file(image("cover.png"))).andExpect(status().isUnauthorized());
+        for (String type : List.of("APP","ADMIN")) {
+            String other=tokens.generateToken(Dict.create().set("userType",type).set("userId",userA).set("username",username));
+            mvc.perform(multipart("/merchant/workspace/image/upload").file(image("cover.png")).header("Authorization",other))
+                .andExpect(status().isUnauthorized());
+        }
+        org.mockito.Mockito.verifyNoInteractions(imageStorage);
+    }
+    @Test void storeStaffCannotUseOwnerImageUpload() throws Exception {
+        var mapper=web.getBean(com.cool.modules.base.mapper.sys.BaseSysUserMapper.class);
+        var user=mapper.selectOneById(userA); user.setMerchantRole("MANAGER"); mapper.update(user);
+        Dict session=(Dict)accounts.login(loginInput());
+        try {
+            mvc.perform(multipart("/merchant/workspace/image/upload").file(image("cover.png")).header("Authorization",session.getStr("token")))
+                .andExpect(status().isForbidden());
+            org.mockito.Mockito.verifyNoInteractions(imageStorage);
+        } finally { accounts.logout(session.getStr("token")); }
+    }
     @Test void loginUsesBcryptAndOperatorLoginRejectsMerchantAccount() throws Exception {
         assertTrue(jdbc.queryForObject("SELECT password FROM base_sys_user WHERE id=?",String.class,userA).startsWith("$2"));
         assertThrows(org.springframework.security.core.userdetails.UsernameNotFoundException.class, () -> platformUsers.loadUserByUsername(username));
@@ -264,13 +311,15 @@ class MerchantWorkspaceIsolationTest {
         cache.set("verify:img:"+input.getCaptchaId(),"1234",60);return input;
     }
 
-    @Test void publicRegistrationReusesApprovalAndCreatesAccountOnlyAfterApproval() throws Exception {
+    @Test void closedRegistrationPreservesExistingHistoricalApplicationLoginAndReview() throws Exception {
         mvc.perform(get("/merchant/auth/registrationCategories")).andExpect(status().isOk()).andExpect(jsonPath("$.code").value(1000));
         var input = registrationInput();
         var json = cn.hutool.json.JSONUtil.parseObj(cn.hutool.json.JSONUtil.toJsonStr(input));
         json.set("status",2);json.set("merchantId",merchantA);json.set("merchantRole","ADMIN");
         mvc.perform(post("/merchant/auth/register").contentType("application/json").content(json.toString()))
-                .andExpect(jsonPath("$.code").value(1000));
+                .andExpect(jsonPath("$.code").value(410));
+        // 旧申请由测试夹具模拟，公开入口不能再创建它。
+        web.getBean(com.cool.modules.approval.service.MerchantRegistrationService.class).submit(input,false);
         var applicationMapper=web.getBean(com.cool.modules.approval.mapper.MerchantApplicationMapper.class);
         var application=applicationMapper.selectOneByQuery(com.mybatisflex.core.query.QueryWrapper.create()
                 .eq(com.cool.modules.approval.entity.MerchantApplicationEntity::getUsername,input.getUsername())

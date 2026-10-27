@@ -79,7 +79,7 @@ public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardi
         Map<String,Object> data=new LinkedHashMap<>();
         data.put("name",input.merchantName().trim()); data.put("categoryId",input.categoryId());
         data.put("categoryName",category.getName()); data.put("contactName",input.contactName().trim());
-        data.put("contactPhone",phone); data.put("address",input.address().trim());
+        data.put("contactPhone",phone);
         data.put("introduction",input.introduction());
         if (!resubmit) {
             var existing=activations.selectOneByQuery(QueryWrapper.create().eq(MerchantActivationEntity::getPhone,phone)
@@ -87,7 +87,7 @@ public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardi
             if (existing != null) {
                 var current=current(existing.getApplicationNo(),false);
                 var snapshot=JSONUtil.parseObj(current.getSnapshot());
-                for (String key:List.of("name","categoryId","contactName","address","introduction"))
+                for (String key:List.of("name","categoryId","contactName","introduction"))
                     require(Objects.equals(String.valueOf(data.get(key)),String.valueOf(snapshot.get(key))),"同一requestId不能用于不同申请资料");
                 return response(current,existing,true);
             }
@@ -168,7 +168,8 @@ public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardi
                 .ne(MerchantApplicationEntity::getApplicationNo,a.getApplicationNo()).eq(MerchantApplicationEntity::getCurrentFlag,1))==0,"该账号已有其他入驻申请");
         var snapshot=JSONUtil.parseObj(a.getSnapshot());
         var merchant=new MerchantInfoEntity();merchant.setName(a.getMerchantName());merchant.setCategoryId(snapshot.getLong("categoryId"));
-        merchant.setContactName(snapshot.getStr("contactName"));merchant.setContactPhone(phone);merchant.setAddress(snapshot.getStr("address"));
+        // 地址与坐标由OWNER后续创建门店时填写，不从旧申请快照迁入商家资料。
+        merchant.setContactName(snapshot.getStr("contactName"));merchant.setContactPhone(phone);
         merchant.setIntroduction(snapshot.getStr("introduction"));merchant.setStatus(1);Long merchantId=merchants.add(merchant);
         var account=new BaseSysUserEntity();account.setUsername(input.username());account.setName(merchant.getContactName());
         account.setNickName(merchant.getContactName());account.setPassword(passwords.encode(input.password()));account.setPasswordV(1);
