@@ -1,0 +1,53 @@
+async (page) => {
+ const check=(v,m)=>{if(!v)throw new Error(m)};const requests=[];let failSave=true;
+ const stores=Array.from({length:121},(_,i)=>({id:i+1,name:'地图测试店'+(i+1),storeTypeId:1,storeTypeName:'餐饮门店',address:'福州市鼓楼区测试地址',longitude:119.29+(i%10)*.0001,latitude:26.07+(i%10)*.0001,status:i%2,located:true}));
+ stores.push({id:122,name:'零坐标门店',storeTypeId:1,storeTypeName:'餐饮门店',address:'零坐标测试',longitude:0,latitude:0,status:1,located:true},{id:123,name:'待补录门店',storeTypeId:1,storeTypeName:'餐饮门店',address:'待补录地址',longitude:null,latitude:null,status:1,located:false});
+ await page.route('**/merchant/workspace/**',async route=>{const req=route.request(),url=new URL(req.url()),path=url.pathname;const body=req.postDataJSON();requests.push({path,body,query:Object.fromEntries(url.searchParams)});let data={};let code=1000,message='';
+ if(path.endsWith('/me'))data={id:1,name:'地图测试商家',role:'OWNER',merchantId:1,onboardingLocked:false};
+ if(path.endsWith('/category/options'))data=[{id:1,name:'餐饮门店'}];
+ if(path.endsWith('/store/map')){if(body.keyword==='旧结果')await new Promise(r=>setTimeout(r,1000));let list=stores.filter(s=>(!body.keyword||s.name.includes(body.keyword))&&(body.status==null||s.status===body.status)&&(!body.storeTypeId||s.storeTypeId===body.storeTypeId));data={coordinateSystem:'GCJ-02',total:list.length,locatedCount:list.filter(s=>s.located).length,unlocatedCount:list.filter(s=>!s.located).length,list};}
+ if(path.endsWith('/suggest'))data={list:[{id:'poi',title:url.searchParams.get('keyword')+'地点',address:'福州市鼓楼区预览地址',longitude:119.3,latitude:26.08}]};
+ if(path.endsWith('/geocode'))data={address:'解析后的地址',longitude:119.31,latitude:26.09};
+ if(path.endsWith('/reverseGeocode'))data={address:'点击或拖动后的地址',longitude:Number(url.searchParams.get('longitude')),latitude:Number(url.searchParams.get('latitude'))};
+ if(path.endsWith('/location/update')){if(failSave){failSave=false;code=1001;message='模拟保存失败，预览应保留';}else{Object.assign(stores.find(s=>s.id===body.id),body,{located:true});data=true;}}
+ if(path.endsWith('/store/page'))data={records:[stores[0]],totalRow:1};
+ if(path.endsWith('/store/info'))data={...stores[0],categoryId:1,phone:'13800000000'};
+ if(path.endsWith('/store/save'))data=true;
+ await route.fulfill({json:{code,message,data}});
+ });
+ if(await page.getByRole('button',{name:'取消',exact:true}).count()) await page.getByRole('button',{name:'取消',exact:true}).click();
+ await page.getByRole('button',{name:'刷新',exact:true}).click();
+ await page.waitForTimeout(700);
+ await page.getByRole('tab',{name:'已定位（122）',exact:true}).click();
+ check(await page.locator('.store-card').count()===122,'all 122 located stores required');
+ check((await page.locator('.map-summary').innerText()).includes('123'),'total count');
+ await page.locator('[data-store-id="122"]').click();
+ check((await page.locator('.selected-store').innerText()).includes('零坐标门店'),'zero coordinate rendered');
+ await page.getByRole('textbox',{name:'关键词',exact:true}).fill('旧结果');await page.waitForTimeout(500);
+ await page.getByRole('textbox',{name:'关键词',exact:true}).fill('零坐标');await page.waitForTimeout(1400);
+ check(await page.locator('.store-card').count()===1,'stale response ignored');
+ await page.getByRole('button',{name:'重置',exact:true}).click();await page.waitForTimeout(600);
+ await page.getByRole('combobox',{name:'营业状态',exact:true}).locator('xpath=ancestor::div[contains(@class,"el-select__wrapper")]').click();await page.getByRole('option',{name:'停用',exact:true}).click();await page.waitForTimeout(650);
+ check(requests.filter(r=>r.path.endsWith('/store/map')).at(-1).body.status===0,'status zero preserved');
+ await page.getByRole('button',{name:'重置',exact:true}).click();await page.waitForTimeout(600);
+ await page.getByRole('tab',{name:'待补充位置（1）',exact:true}).click();await page.locator('[data-store-id="123"]').click();await page.getByRole('button',{name:'补录位置',exact:true}).click();
+ check((await page.locator('.coordinates').innerText()).includes('尚未选择'),'no fabricated coordinates');
+ const keyword=page.getByRole('textbox',{name:'搜索地点',exact:true});await keyword.fill('咖');await keyword.fill('咖啡');await keyword.fill('咖啡馆');await page.waitForTimeout(800);
+ check(requests.filter(r=>r.path.endsWith('/suggest')).length===1,'search debounce');
+ await page.locator('.place-item').first().click();
+ check(requests.filter(r=>r.path.endsWith('/location/update')).length===0,'preview must not write');
+ check(await page.getByRole('button',{name:'确认保存位置',exact:true}).isDisabled(),'confirmation required');
+ await page.getByRole('button',{name:'解析地址并预览',exact:true}).click();await page.waitForTimeout(500);
+ check((await page.locator('.coordinates').innerText()).includes('119.31'),'geocode preview');
+ await page.getByText('我已核对地图位置和详细地址',{exact:true}).click();await page.getByRole('button',{name:'确认保存位置',exact:true}).click();await page.waitForTimeout(500);
+ check(await page.getByText('模拟保存失败，预览应保留',{exact:true}).count()===1,'failed save stays open');
+ check((await page.locator('.coordinates').innerText()).includes('119.31'),'failed save retains coordinates');
+ await page.getByRole('button',{name:'确认保存位置',exact:true}).click();await page.waitForTimeout(700);
+ check(await page.getByRole('tab',{name:'已定位（123）',exact:true}).getAttribute('aria-selected')==='true','saved unlocated selection follows located tab');
+ const saved=requests.filter(r=>r.path.endsWith('/location/update')).at(-1).body;
+ check(JSON.stringify(Object.keys(saved).sort())===JSON.stringify(['address','id','latitude','longitude']),'minimal location payload');
+ check(saved.id===123&&saved.longitude===119.31&&saved.latitude===26.09,'saved coordinate order');
+ check(requests.filter(r=>r.path.endsWith('/store/map')).every(r=>!('page'in r.body)&&!('size'in r.body)&&!('merchantId'in r.body)),'full merchant scope endpoint');
+ await page.getByRole('menuitem',{name:'门店管理',exact:true}).click();await page.waitForTimeout(700);
+ return {passed:['123 stores, 122 located including 0/0','stale responses','status=0','unlocated no fake position','search debounce','preview no write','confirmation gate','geocode','save failure retains preview and retry','minimal payload and full scoped map'],requestCount:requests.length};
+}

@@ -1,0 +1,37 @@
+.DS_Store
+.env.local
+node_modules/
+/dist/
+dist-ssr/
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.project
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw*
+
+vite.config.ts.timestamp*
+
+# Local credentials and generated artifacts
+.env.*.local
+*.log
+/build/
+/output/
+/testing/output/
+.playwright-cli/
+.cursor/
+.vscode/
+coverage/
+*.tsbuildinfo
+
+# Framework source directories must override backend ignore rules
+!**/plugin/
+!**/plugin/**
