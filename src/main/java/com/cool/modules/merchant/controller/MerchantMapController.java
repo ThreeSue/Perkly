@@ -36,4 +36,9 @@ public class MerchantMapController {
     public R<AddressResult> reverse(@RequestParam BigDecimal longitude, @RequestParam BigDecimal latitude) {
         return R.ok(maps.reverse(longitude, latitude));
     }
+
+    @GetMapping("/translateGps")
+    public R<AddressResult> translateGps(@RequestParam BigDecimal longitude, @RequestParam BigDecimal latitude) {
+        return R.ok(maps.translateGps(longitude, latitude));
+    }
 }

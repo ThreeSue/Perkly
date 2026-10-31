@@ -1,0 +1,42 @@
+{
+  "marker": "workspace.navigation.teacher.v1",
+  "groups": [
+    {"router":"/navigation/business","legacyName":"优惠券管理","name":"券管家业务","icon":"icon-app","orderNum":10},
+    {"router":"/sys","legacyName":"系统管理","name":"系统管理","icon":"icon-set","orderNum":20},
+    {"router":"/navigation/data","legacyName":"数据管理","name":"数据管理","icon":"icon-data","orderNum":30},
+    {"router":"/navigation/extensions","legacyName":"扩展管理","name":"扩展管理","icon":"icon-favor","orderNum":40},
+    {"router":"/navigation/merchants","legacyName":"商家管理","name":"商家管理","icon":"icon-reward","orderNum":50},
+    {"router":"/navigation/users","legacyName":"用户管理","name":"用户管理","icon":"icon-user","orderNum":60},
+    {"router":"/approval/center","legacyName":"审批中心","name":"审核管理","icon":"icon-task","orderNum":70}
+  ],
+  "pages": [
+    {"router":"/","name":"工作台","orderNum":0,"icon":"icon-home"},
+    {"router":"/home/banner","parent":"/navigation/business","name":"首页广告","orderNum":10},
+    {"router":"/coupon/template","parent":"/navigation/business","name":"优惠券管理","orderNum":20},
+    {"router":"/trade/purchases","parent":"/navigation/business","name":"购券订单","orderNum":30},
+    {"router":"/trade/consumption","parent":"/navigation/business","name":"消费与核销账单","orderNum":40},
+    {"router":"/sys/user","name":"运营账号","viewPath":"modules/base/views/user/platform-users.vue","orderNum":0},
+    {"router":"/sys/menu","name":"运营菜单","orderNum":10},
+    {"router":"/sys/role","name":"运营角色","viewPath":"modules/base/views/role.vue","orderNum":20},
+    {"router":"/sys/param","name":"参数列表","viewPath":"modules/base/views/param.vue","orderNum":0},
+    {"router":"/sys/log","viewPath":"modules/base/views/log.vue","orderNum":0},
+    {"router":"/dict/list","parent":"/navigation/data","name":"字典管理","orderNum":10},
+    {"router":"/upload/list","parent":"/navigation/data","name":"文件管理","orderNum":20},
+    {"router":"/recycle/data","parent":"/navigation/data","name":"数据回收站","orderNum":30},
+    {"router":"/helper/plugins","parent":"/navigation/extensions","name":"插件列表","orderNum":10},
+    {"router":"/merchant/category","parent":"/navigation/merchants","name":"商家分类","orderNum":10},
+    {"router":"/merchant/info","parent":"/navigation/merchants","name":"商家信息","orderNum":20},
+    {"router":"/workspace-admin/menus","parent":"/navigation/merchants","name":"商家与门店菜单","viewPath":"modules/workspace/views/menus.vue","perms":"base:sys:menu:list","create":true,"orderNum":30,"icon":"icon-menu"},
+    {"router":"/workspace-admin/authorization","parent":"/navigation/merchants","name":"商家功能授权","orderNum":40},
+    {"router":"/workspace-admin/roles","parent":"/navigation/merchants","name":"岗位权限","orderNum":50},
+    {"router":"/workspace-admin/accounts","parent":"/navigation/merchants","name":"账号管理","orderNum":60},
+    {"router":"/merchant/storeCategory","parent":"/navigation/merchants","name":"门店类型","orderNum":70},
+    {"router":"/merchant/store","parent":"/navigation/merchants","name":"门店信息","orderNum":80},
+    {"router":"/merchant/storeMap","parent":"/navigation/merchants","name":"门店分布地图","orderNum":90,"icon":"icon-news"},
+    {"router":"/user/list","parent":"/navigation/users","name":"用户列表","orderNum":10},
+    {"router":"/approval/merchant","parent":"/approval/center","name":"商家入驻审核","orderNum":10},
+    {"router":"/approval/coupon","parent":"/approval/center","name":"优惠券发布审核","orderNum":20}
+  ],
+  "hiddenRouters": ["/home","/trade","/tutorial","/test/aa"],
+  "visibleDirectories": ["权限管理","参数配置"]
+}

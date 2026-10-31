@@ -11,6 +11,8 @@ import jakarta.validation.constraints.NotBlank;
 @Data
 @Schema(description = "登录参数")
 public class BaseSysLoginDto {
+    @Schema(description = "网页登录空间MERCHANT或STORE；旧移动端可省略")
+    private String accountType;
 
     @Schema(description = "用户名")
     @NotBlank

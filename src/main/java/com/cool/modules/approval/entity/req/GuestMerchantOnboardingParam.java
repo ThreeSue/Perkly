@@ -25,7 +25,10 @@ public final class GuestMerchantOnboardingParam {
                          @NotBlank @Size(max=100) String merchantName,
                          @NotNull @Positive Long categoryId,
                          @NotBlank @Size(max=50) String contactName,
-                         @Size(max=2000) String introduction) {}
+                         @Size(max=2000) String introduction,
+                         @Pattern(regexp="[A-Za-z0-9]{15}|[A-Za-z0-9]{18}") String licenseNumber) {
+        public Submit(String onboardingToken,String requestId,String applicationNo,String merchantName,Long categoryId,String contactName,String introduction){this(onboardingToken,requestId,applicationNo,merchantName,categoryId,contactName,introduction,null);}
+    }
     public record Activate(@NotBlank String onboardingToken, @NotBlank String code,
                            @NotBlank @Pattern(regexp="[A-Za-z0-9_]{4,40}") String username,
                            @NotBlank @Size(min=8,max=64) String password) {}

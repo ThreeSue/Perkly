@@ -42,8 +42,9 @@ public class MerchantStoreEntity extends BaseEntity<MerchantStoreEntity> {
     private String businessHours;
 
     @Index
-    @ColumnDefine(comment = "门店状态：0停用，1营业", notNull = true, defaultValue = "1")
+    @ColumnDefine(comment = "门店状态：0禁用，1营业，2停业，3关闭", notNull = true, defaultValue = "1")
     private Integer status;
+    public String getStatusText(){return com.cool.modules.merchant.service.StoreStatus.text(status);}
 
     @org.dromara.autotable.annotation.Ignore
     @com.mybatisflex.annotation.Column(ignore = true)

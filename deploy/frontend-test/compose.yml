@@ -1,0 +1,42 @@
+name: perkly-frontend-test
+services:
+  mysql:
+    image: mysql:8.0.45
+    environment:
+      MYSQL_ROOT_PASSWORD: local-root-only
+      MYSQL_DATABASE: cool_test
+      MYSQL_USER: perkly
+      MYSQL_PASSWORD: local-test-only
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: [CMD-SHELL, 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent']
+      interval: 5s
+      timeout: 5s
+      retries: 40
+  backend:
+    image: perkly-backend:frontend-test
+    build:
+      context: ../..
+      dockerfile: deploy/frontend-test/Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-18001}:8001"
+    environment:
+      TZ: Asia/Shanghai
+      ALIBABA_CLOUD_ACCESS_KEY_ID: docker-test-placeholder
+      ALIBABA_CLOUD_ACCESS_KEY_SECRET: docker-test-placeholder
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cool_test?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: perkly
+      SPRING_DATASOURCE_PASSWORD: local-test-only
+      SPRING_QUARTZ_AUTO_STARTUP: "false"
+      COOL_FILE_LOCAL_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:18001}/upload
+    volumes:
+      - backend-assets:/app/assets
+volumes:
+  mysql-data:
+  backend-assets:
+

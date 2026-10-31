@@ -21,6 +21,8 @@ public class MerchantInfoServiceImpl
 
     @org.springframework.beans.factory.annotation.Autowired
     private MerchantSummaryService summaries;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.merchant.mapper.MerchantStoreMapper defaultStores;
 
     @Override
     public Object page(cn.hutool.json.JSONObject params, com.mybatisflex.core.paginate.Page<MerchantInfoEntity> page, QueryWrapper query) {
@@ -46,14 +48,16 @@ public class MerchantInfoServiceImpl
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor=Exception.class)
     public boolean update(MerchantInfoEntity entity) {
         if (entity.getId() == null) {
             throw new CoolException("商家ID不能为空");
         }
-        MerchantInfoEntity existing = getById(entity.getId());
+        MerchantInfoEntity existing = mapper.selectOneByQuery(QueryWrapper.create().eq(MerchantInfoEntity::getId,entity.getId()).forUpdate());
         if (existing == null) {
             throw new CoolException("商家不存在");
         }
+        if(StrUtil.isNotBlank(existing.getLicenseNumber()) && !java.util.Objects.equals(existing.getLicenseNumber(),entity.getLicenseNumber())) throw new CoolException("营业执照号已锁定，不能修改");
         // 管理接口由框架合并原记录和提交字段后调用此方法。
         validate(entity, !java.util.Objects.equals(existing.getCategoryId(), entity.getCategoryId()));
         return super.update(entity);
@@ -77,6 +81,8 @@ public class MerchantInfoServiceImpl
         if (!Integer.valueOf(0).equals(entity.getStatus()) && !Integer.valueOf(1).equals(entity.getStatus())) {
             throw new CoolException("商家状态只能为0或1");
         }
+        if(StrUtil.isNotBlank(entity.getLicenseNumber())) {entity.setLicenseNumber(entity.getLicenseNumber().trim().toUpperCase(java.util.Locale.ROOT)); if(!entity.getLicenseNumber().matches("[A-Z0-9]{15}|[A-Z0-9]{18}"))throw new CoolException("营业执照号需15或18位字母数字");}
+        if(entity.getDefaultStoreId()!=null){var store=defaultStores.selectOneById(entity.getDefaultStoreId());if(store==null||!java.util.Objects.equals(entity.getId(),store.getMerchantId())||!Integer.valueOf(1).equals(store.getStatus()))throw new CoolException("默认门店必须属于本商家且正在营业");}
         checkLength(entity.getLogo(), "Logo地址", 500);
         checkLength(entity.getProvince(), "省", 50);
         checkLength(entity.getCity(), "市", 50);

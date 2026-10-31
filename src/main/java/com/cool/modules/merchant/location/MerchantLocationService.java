@@ -34,19 +34,20 @@ public class MerchantLocationService {
     private final MerchantWorkspaceService workspace;
 
     @Transactional(readOnly = true)
-    public MapResult adminMap(MapQuery input) { return map(input, null); }
+    public MapResult adminMap(MapQuery input) { return map(input, null,null); }
 
     @Transactional(readOnly = true)
     public MapResult merchantMap(Long userId, MapQuery input) {
         // 以服务端身份为准，客户端merchantId不能改变可见范围。
-        return map(input, workspace.merchant(userId));
+        return map(input, workspace.merchant(userId),workspace.allowedStoreIds(userId));
     }
 
-    private MapResult map(MapQuery input, Long scope) {
+    private MapResult map(MapQuery input, Long scope,List<Long> allowed) {
         input.validate();
         QueryWrapper query = projection();
         Long merchantId = scope == null ? input.getMerchantId() : scope;
         if (merchantId != null) query.eq(MerchantStoreEntity::getMerchantId, merchantId);
+        if(allowed!=null){if(allowed.isEmpty())query.eq(MerchantStoreEntity::getId,-1L);else query.in(MerchantStoreEntity::getId,allowed);}
         if (input.getStoreTypeId() != null) query.eq(MerchantStoreEntity::getCategoryId, input.getStoreTypeId());
         if (input.getStatus() != null) query.eq(MerchantStoreEntity::getStatus, input.getStatus());
         keyword(query, input.getKeyword());
@@ -62,6 +63,7 @@ public class MerchantLocationService {
 
     @Transactional(rollbackFor = Exception.class)
     public boolean updateMerchant(Long userId, LocationUpdate input) {
+        workspace.storeInfo(userId,input.getId());
         return update(input, workspace.merchant(userId));
     }
 
@@ -152,6 +154,6 @@ public class MerchantLocationService {
                 && point.getLongitude().abs().doubleValue() <= 180 && point.getLatitude().abs().doubleValue() <= 90;
         point.setLocated(located);
         point.setLocationStateText(located ? "已设置位置" : "待补充位置");
-        point.setStatusText(Integer.valueOf(1).equals(point.getStatus()) ? "营业中" : "已停用");
+        point.setStatusText(com.cool.modules.merchant.service.StoreStatus.text(point.getStatus()));
     }
 }

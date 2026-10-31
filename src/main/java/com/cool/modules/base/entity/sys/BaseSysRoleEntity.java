@@ -15,6 +15,20 @@ import org.dromara.autotable.annotation.enums.IndexTypeEnum;
 @Setter
 @Table(value = "base_sys_role", comment = "系统角色表")
 public class BaseSysRoleEntity extends BaseEntity<BaseSysRoleEntity> {
+    @ColumnDefine(comment = "角色适用管理空间，空值为原平台角色", length = 20)
+    private String accountType;
+    @ColumnDefine(comment = "自定义角色所属商家")
+    private Long merchantId;
+    @ColumnDefine(comment = "本店自定义角色归属门店")
+    private Long storeId;
+    @ColumnDefine(comment = "内置共享角色", defaultValue = "0")
+    private Boolean builtin;
+    @ColumnDefine(comment = "角色状态：1启用0停用", defaultValue = "1")
+    private Integer status;
+    @ColumnDefine(comment = "可向下分配的菜单操作", type = "json")
+    @Column(typeHandler = Fastjson2TypeHandler.class)
+    private List<Long> grantMenuIdList;
+
 
     @Index
     @ColumnDefine(comment = "用户ID", notNull = true, type = "bigint")

@@ -10,10 +10,13 @@ import com.cool.modules.merchant.service.MerchantStoreCategoryService;
 import com.mybatisflex.core.query.QueryWrapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.Arrays;
 import java.util.Objects;
 
-/** 由运营人员统一维护公共门店类型，商家共用，关联门店后禁止删除。 */
+/**
+ * 由运营人员统一维护公共门店类型，商家共用，关联门店后禁止删除。
+ */
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class MerchantStoreCategoryServiceImpl
@@ -48,8 +51,9 @@ public class MerchantStoreCategoryServiceImpl
         if (entity.getSort() == null) entity.setSort(0);
         if (entity.getStatus() == null) entity.setStatus(1);
         validate(entity);
-        try { return super.add(entity); }
-        catch (org.springframework.dao.DuplicateKeyException duplicate) {
+        try {
+            return super.add(entity);
+        } catch (org.springframework.dao.DuplicateKeyException duplicate) {
             throw new CoolException("门店类型名称不能重复");
         }
     }
@@ -61,8 +65,9 @@ public class MerchantStoreCategoryServiceImpl
         if (entity.getSort() == null) entity.setSort(existing.getSort());
         if (entity.getStatus() == null) entity.setStatus(existing.getStatus());
         validate(entity);
-        try { return super.update(entity); }
-        catch (org.springframework.dao.DuplicateKeyException duplicate) {
+        try {
+            return super.update(entity);
+        } catch (org.springframework.dao.DuplicateKeyException duplicate) {
             throw new CoolException("门店类型名称不能重复");
         }
     }

@@ -31,6 +31,7 @@ public class BaseSysPermsServiceImpl implements BaseSysPermsService {
     final private CoolCache coolCache;
 
     final private BaseSysUserMapper baseSysUserMapper;
+    final private BaseSysRoleMapper baseSysRoleMapper;
 
     final private BaseSysUserRoleMapper baseSysUserRoleMapper;
 
@@ -174,7 +175,7 @@ public class BaseSysPermsServiceImpl implements BaseSysPermsService {
 
     @Override
     public Dict permmenu(Long adminUserId) {
-        return Dict.create().set("menus", getMenus(adminUserId)).set("perms", getPerms(adminUserId));
+        return Dict.create().set("menus", getMenus(adminUserId).stream().filter(m->m.getAccountType()==null).toList()).set("perms", getPerms(adminUserId));
     }
 
     @Override
@@ -215,7 +216,13 @@ public class BaseSysPermsServiceImpl implements BaseSysPermsService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor=Exception.class)
     public void updateUserRole(Long userId, Long[] roleIdList) {
+        if(roleIdList!=null && roleIdList.length>1)throw new com.cool.core.exception.CoolException("一个账号只能设置一个角色");
+        if(roleIdList!=null)for(Long id:roleIdList){
+            var role=baseSysRoleMapper.selectOneByQuery(QueryWrapper.create().eq(BaseSysRoleEntity::getId,id).forUpdate());
+            if(role==null||role.getAccountType()!=null)throw new com.cool.core.exception.CoolException("请选择有效的平台角色");
+        }
         baseSysUserRoleMapper.deleteByQuery(QueryWrapper.create().eq(BaseSysUserRoleEntity::getUserId, userId));
         if (roleIdList == null) {
             roleIdList = new Long[0];

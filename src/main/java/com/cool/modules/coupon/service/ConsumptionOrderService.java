@@ -33,10 +33,14 @@ public class ConsumptionOrderService {
     private final MerchantAccountService accounts;
     private final MerchantStaffService staff;
     private final BaseSysUserMapper users;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.workspace.service.WorkspaceAuthorization workspaceAuthorization;
     public record PrepareInput(Long storeId, String code, Long consumptionAmount, String remark, String requestId) {}
     public record ConfirmInput(Long orderId, Integer version, Long receivedAmount) {}
     public record ReviseInput(Long orderId, Integer version, Long consumptionAmount, String remark) {}
-    public record PageInput(Integer page, Integer size, Long merchantId, Long storeId, String status, String orderNo, Long customerCouponId) {}
+    public record PageInput(Integer page, Integer size, Long merchantId, Long storeId, String status, String orderNo, Long customerCouponId, @com.fasterxml.jackson.annotation.JsonFormat(pattern="yyyy-MM-dd HH:mm:ss",timezone="GMT+8") Date startTime, @com.fasterxml.jackson.annotation.JsonFormat(pattern="yyyy-MM-dd HH:mm:ss",timezone="GMT+8") Date endTime) {
+        public PageInput(Integer page,Integer size,Long merchantId,Long storeId,String status,String orderNo,Long customerCouponId){this(page,size,merchantId,storeId,status,orderNo,customerCouponId,null,null);}
+    }
     public record OrderView(Long id, String orderNo, Long merchantId, String merchantName, Long storeId, String storeName,
         Long operatorId, String operatorName, Long customerCouponId, String couponName, String couponType, JSONObject couponSnapshot,
         String status, String statusText, Long consumptionAmount, Long discountAmount, Long payableAmount, Long receivedAmount,
@@ -56,7 +60,11 @@ public class ConsumptionOrderService {
         var q=QueryWrapper.create().eq(ConsumptionOrderEntity::getMerchantId,user.getMerchantId());
         Long store=staff.requireStore(user,null);
         if(store!=null) q.eq(ConsumptionOrderEntity::getStoreId,store);
-        if("STAFF".equals(user.getMerchantRole())) q.eq(ConsumptionOrderEntity::getOperatorId,userId);
+        if("SELF".equals(user.getStoreScope()) || (user.getStoreScope()==null && "STAFF".equals(user.getMerchantRole()))) q.eq(ConsumptionOrderEntity::getOperatorId,userId);
+        if("MEMBER".equals(user.getMerchantRole())) {
+            var ids=workspaceAuthorization.storeIds(user);
+            if(ids.isEmpty())q.eq(ConsumptionOrderEntity::getId,-1L);else q.in(ConsumptionOrderEntity::getStoreId,ids);
+        }
         return q;
     }
     private ConsumptionOrderEntity own(Long userId, Long id, boolean lock) {
@@ -161,13 +169,16 @@ public class ConsumptionOrderService {
     }
     @Transactional(readOnly=true) public PageResult<OrderView> adminPage(PageInput p) {
         var q=QueryWrapper.create();
-        if(p.merchantId()!=null) q.eq(ConsumptionOrderEntity::getMerchantId,p.merchantId());
+        if(p.merchantId()!=null) {require(p.merchantId()>0,"商家筛选无效");q.eq(ConsumptionOrderEntity::getMerchantId,p.merchantId());}
         return find(q,p);
     }
     private PageResult<OrderView> find(QueryWrapper q, PageInput p) {
         int page=p.page()==null?1:p.page(), size=p.size()==null?20:p.size();
         require(page>=1 && page<=100000 && size>=1 && size<=100,"分页参数不正确");
-        if(p.storeId()!=null) q.eq(ConsumptionOrderEntity::getStoreId,p.storeId());
+        if(p.startTime()!=null && p.endTime()!=null) require(!p.startTime().after(p.endTime()),"开始时间不能晚于结束时间");
+        if(p.startTime()!=null)q.ge(ConsumptionOrderEntity::getCreatedAt,p.startTime());
+        if(p.endTime()!=null)q.le(ConsumptionOrderEntity::getCreatedAt,p.endTime());
+        if(p.storeId()!=null) {require(p.storeId()>0,"门店筛选无效");q.eq(ConsumptionOrderEntity::getStoreId,p.storeId());}
         if(p.customerCouponId()!=null) q.eq(ConsumptionOrderEntity::getCustomerCouponId,p.customerCouponId());
         if(p.status()!=null) {require(Set.of("PENDING","COMPLETED","CANCELLED").contains(p.status()),"账单状态无效");q.eq(ConsumptionOrderEntity::getStatus,p.status());}
         if(p.orderNo()!=null && !p.orderNo().isBlank()) {require(p.orderNo().length()<=40,"账单号过长");q.eq(ConsumptionOrderEntity::getOrderNo,p.orderNo());}

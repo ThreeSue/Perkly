@@ -92,6 +92,18 @@ public class TencentMapService {
         return address(result.getStr("address"), location, component(result));
     }
 
+    public AddressResult translateGps(BigDecimal longitude, BigDecimal latitude) {
+        coordinate(longitude, latitude);
+        var params = new TreeMap<String, String>();
+        params.put("locations", latitude.toPlainString() + "," + longitude.toPlainString());
+        params.put("type", "1");
+        JSONArray locations = call("/ws/coord/v1/translate", params).getJSONArray("locations");
+        if (locations == null || locations.size() != 1) throw new CoolException("坐标转换失败，请在地图上选点");
+        JSONObject point = locations.getJSONObject(0);
+        coordinate(point.getBigDecimal("lng"), point.getBigDecimal("lat"));
+        return address(null, point, new JSONObject());
+    }
+
     private JSONObject component(JSONObject result) {
         JSONObject component = result.getJSONObject("address_components");
         if (component == null) component = result.getJSONObject("address_component");

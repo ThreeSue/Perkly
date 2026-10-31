@@ -42,6 +42,8 @@ public class CouponTradeService {
     private final AppDiscoveryService discovery;
     private final MerchantAccountService merchants;
     private final com.cool.modules.merchant.service.MerchantStaffService staff;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.workspace.service.WorkspaceAuthorization workspaceAuthorization;
 
     public Map<String,Object> create(Long customerId, Long templateId, Integer quantity, String requestId) {
         customer(customerId, true);
@@ -295,8 +297,12 @@ public class CouponTradeService {
         Long merchantId = operator.getMerchantId();
         storeId = staff.requireStore(operator,storeId);
         require(Set.of("self","store").contains(scope),"记录范围无效");
-        require(!"store".equals(scope) || Set.of("MANAGER","OWNER").contains(operator.getMerchantRole()),"只有店长可查看门店记录");
+        require(!"store".equals(scope) || !("SELF".equals(operator.getStoreScope()) || operator.getStoreScope()==null && "STAFF".equals(operator.getMerchantRole())),"当前岗位只能查看本人记录");
         QueryWrapper query = q().eq(CouponRedemptionEntity::getMerchantId,merchantId);
+        if("MEMBER".equals(operator.getMerchantRole())) {
+            var ids=workspaceAuthorization.storeIds(operator);
+            if(ids.isEmpty())query.eq(CouponRedemptionEntity::getId,-1L);else query.in(CouponRedemptionEntity::getStoreId,ids);
+        }
         if ("self".equals(scope)) query.eq(CouponRedemptionEntity::getOperatorId,operatorId).eq(CouponRedemptionEntity::getOperatorType,"MERCHANT");
         if (storeId != null) {
             require(mapper.one("store",q().eq("id",storeId).eq("merchant_id",merchantId)) != null,"门店不存在或无权访问");

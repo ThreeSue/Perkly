@@ -9,6 +9,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.cool.core.enums.QueryModeEnum;
 import com.cool.core.util.ConvertUtil;
 import com.mybatisflex.annotation.Table;
@@ -153,7 +154,7 @@ public class CrudOption<T> {
             Arrays.stream(fieldEq).toList().forEach(filed -> {
                 String filedName = StrUtil.toCamelCase(filed.getName());
                 Object obj = requestParams.get(filedName);
-                if (ObjUtil.isEmpty(obj)) {
+                if (JSONUtil.isNull(obj) || ObjUtil.isEmpty(obj)) {
                     return;
                 }
                 if (obj instanceof JSONArray) {
@@ -167,11 +168,14 @@ public class CrudOption<T> {
         }
         if (ObjectUtil.isNotEmpty(this.keyWordLikeFields)) {
             Object keyWord = requestParams.get("keyWord");
-            if (ObjectUtil.isEmpty(keyWord)) {
+            if (JSONUtil.isNull(keyWord) || ObjectUtil.isEmpty(keyWord)) {
                 // // keyWord值为空，遍历keyWordLikeFields字段，根据queryColumn字段名构建查询条件
                 for (QueryColumn queryColumn : keyWordLikeFields) {
                     String fieldName = queryColumn.getName();
                     String paramName = StrUtil.toCamelCase(fieldName);
+                    if (JSONUtil.isNull(requestParams.get(paramName))) {
+                        continue;
+                    }
                     String paramValue = requestParams.getStr(paramName);
                     if (ObjectUtil.isNotEmpty(paramValue)) {
                         queryWrapper.and(queryColumn.like(paramValue));

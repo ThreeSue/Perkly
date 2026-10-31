@@ -11,6 +11,11 @@ import lombok.Setter;
 @Setter
 @Table(value = "merchant_info", comment = "商家资料")
 public class MerchantInfoEntity extends BaseEntity<MerchantInfoEntity> {
+    @ColumnDefine(comment = "商家自主设置的默认门店，可空")
+    private Long defaultStoreId;
+    @ColumnDefine(comment = "开通后锁定的营业执照号", length = 50)
+    private String licenseNumber;
+
     @ColumnDefine(comment = "商家名称", length = 100, notNull = true)
     private String name;
     @org.dromara.autotable.annotation.Index

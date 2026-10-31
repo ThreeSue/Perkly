@@ -93,4 +93,10 @@ class TencentMapServiceTest {
         assertThrows(CoolException.class, () -> service.reverse(new BigDecimal("181"), BigDecimal.ZERO));
         assertThrows(CoolException.class, () -> service.suggest(" ", null));
     }
+
+    @Test void gpsCoordinatesAreConvertedBeforeUsingTencentMap(){
+        server.expect(request -> {assertEquals("/ws/coord/v1/translate",request.getURI().getPath());assertTrue(request.getURI().getQuery().contains("type=1"));assertTrue(request.getURI().getQuery().contains("locations=26.1,119.2"));})
+            .andRespond(withSuccess("{\"status\":0,\"locations\":[{\"lat\":26.103,\"lng\":119.205}]}",MediaType.APPLICATION_JSON));
+        var result=service.translateGps(new BigDecimal("119.2"),new BigDecimal("26.1"));assertEquals("GCJ-02",result.coordinateSystem());assertEquals(new BigDecimal("119.205"),result.longitude());
+    }
 }

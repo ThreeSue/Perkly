@@ -34,6 +34,11 @@ public interface MerchantWorkspaceMapper extends RowMapper {
     default Page<Row> orderPage(Long merchantId, int page, int size) {
         return paginate(null, "purchase_order", new Page<>(page, size), orderQuery(merchantId).orderBy("id", false));
     }
+    default Page<Row> orderPage(Long merchantId,int page,int size,List<Long> allowed){
+        var query=orderQuery(merchantId).orderBy("id",false);
+        if(allowed!=null){if(allowed.isEmpty())query.eq(com.cool.modules.coupon.entity.PurchaseOrderEntity::getId,-1L);else query.in(com.cool.modules.coupon.entity.PurchaseOrderEntity::getId,allowed);}
+        return paginate(null,"purchase_order",new Page<>(page,size),query);
+    }
 
     default Row order(Long merchantId, Long id) {
         return selectOneByQuery(null, "purchase_order", orderQuery(merchantId).eq("id", id));

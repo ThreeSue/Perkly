@@ -65,7 +65,7 @@ public final class AppDiscoveryQueries {
                 .where(col(COUPON, "id").eq(id))
                 .and(col(COUPON, "merchant_id").eq(col(STORE, "merchant_id")))
                 .and(appliesTo(STORE));
-        return storeBase().and(exists(coupon)).orderBy(col(STORE, "id").asc());
+        return storeBase().and(col(STORE,"status").eq(1)).and(exists(coupon)).orderBy(col(STORE, "id").asc());
     }
 
     public static QueryWrapper contents(Long id) {
@@ -90,11 +90,11 @@ public final class AppDiscoveryQueries {
                 field(MERCHANT, "category_id", "categoryId"), field(CATEGORY, "name", "categoryName"),
                 col(STORE, "address"), col(STORE, "phone"),
                 field(STORE, "business_hours", "businessHours"), col(STORE, "longitude"),
-                col(STORE, "latitude"), col(STORE, "status"), string("营业中").as("statusText"))
+                col(STORE, "latitude"), col(STORE, "status"), case_().when(col(STORE,"status").eq(2)).then("停业").else_("营业中").end().as("statusText"))
                 .from(STORE).innerJoin(MERCHANT)
                 .on(col(MERCHANT, "id").eq(col(STORE, "merchant_id")))
                 .leftJoin(CATEGORY).on(col(CATEGORY, "id").eq(col(MERCHANT, "category_id")))
-                .where(col(STORE, "status").eq(1)).and(col(MERCHANT, "status").eq(1));
+                .where(col(STORE, "status").in(1,2)).and(col(MERCHANT, "status").eq(1));
     }
 
     private static QueryWrapper couponBase() {

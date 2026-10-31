@@ -40,8 +40,16 @@ public class BaseSysMenuServiceImpl extends BaseServiceImpl<BaseSysMenuMapper, B
     @Override
     public Object list(JSONObject requestParams, QueryWrapper queryWrapper) {
         List<BaseSysMenuEntity> list = baseSysPermsService.getMenus(CoolSecurityUtil.getAdminUsername());
+        String audience = requestParams.getStr("menuAudience", "ALL");
+        if ("PLATFORM".equals(audience)) {
+            list = list.stream().filter(e -> e.getAccountType() == null).toList();
+        } else if ("BUSINESS".equals(audience)) {
+            list = list.stream().filter(e -> List.of("MERCHANT", "STORE", "SHARED")
+                .contains(e.getAccountType() == null ? "" : e.getAccountType())).toList();
+        }
+        final List<BaseSysMenuEntity> visibleMenus = list;
         list.forEach(e -> {
-            List<BaseSysMenuEntity> parent = list.stream()
+            List<BaseSysMenuEntity> parent = visibleMenus.stream()
                 .filter(sysMenuEntity -> e.getParentId() != null && e.getParentId()
                     .equals(sysMenuEntity.getId()))
                 .toList();

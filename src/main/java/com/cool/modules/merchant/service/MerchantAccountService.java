@@ -34,6 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class MerchantAccountService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.workspace.service.WorkspaceLegacyAccountBridge workspaceBridge;
+
     private final BaseSysUserMapper users;
     private final MerchantInfoMapper merchants;
     private final com.cool.modules.approval.mapper.MerchantApplicationMapper applications;
@@ -61,6 +64,8 @@ public class MerchantAccountService {
             return issueApplicant(application);
         }
         requireActive(user);
+        if (input.getAccountType()!=null && !input.getAccountType().equals(com.cool.modules.workspace.service.WorkspaceAuthorization.type(user)))
+            throw new CoolException("账号不属于所选登录身份",403);
         // 商家账号使用BCrypt；历史MD5账号需运营重新设置密码后绑定，不自动接受弱哈希。
         if (input.getPassword() == null || !user.getPassword().startsWith("$2")
                 || !passwords.matches(input.getPassword(), user.getPassword())) {
@@ -185,7 +190,7 @@ public class MerchantAccountService {
 
     private void requireActive(BaseSysUserEntity user) {
         if (user == null || user.getMerchantId() == null || !Integer.valueOf(1).equals(user.getStatus())
-                || !java.util.Set.of("OWNER", "MANAGER", "STAFF").contains(user.getMerchantRole() == null ? "" : user.getMerchantRole()) || "admin".equals(user.getUsername())) unauthorized();
+                || !java.util.Set.of("OWNER", "MEMBER", "MANAGER", "STAFF").contains(user.getMerchantRole() == null ? "" : user.getMerchantRole()) || "admin".equals(user.getUsername())) unauthorized();
         var merchant = merchants.selectOneById(user.getMerchantId());
         if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) unauthorized();
     }
@@ -214,6 +219,7 @@ public class MerchantAccountService {
         user.setPassword(passwords.encode(password)); user.setPasswordV(1); user.setStatus(1);
         user.setMerchantId(merchantId); user.setMerchantRole("OWNER");
         users.insertSelective(user);
+        workspaceBridge.bind(user,"OWNER",false);
         return user.getId();
     }
 

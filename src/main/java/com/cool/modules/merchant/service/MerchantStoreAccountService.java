@@ -26,6 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
 public class MerchantStoreAccountService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.workspace.service.WorkspaceLegacyAccountBridge workspaceBridge;
+
     private final BaseSysUserMapper users;
     private final MerchantUserStoreMapper links;
     private final MerchantStoreMapper stores;
@@ -92,6 +95,8 @@ public class MerchantStoreAccountService {
                 .orderBy(MerchantStoreEntity::getId, true)).stream().map(s -> new StoreOption(s.getId(), s.getName(), s.getStatus())).toList();
     }
     public Long save(Long ownerId, SaveInput input) {
+        java.util.stream.Stream.of(input.storeId(),input.targetStoreId()).filter(Objects::nonNull).distinct().sorted()
+            .forEach(id->{if(stores.selectOneByQuery(QueryWrapper.create().eq(MerchantStoreEntity::getId,id).forUpdate())==null)throw new CoolException("门店不存在");});
         var source = scope(ownerId, input.storeId());
         var destination = scope(ownerId, input.targetStoreId() == null ? input.storeId() : input.targetStoreId());
         if (!Objects.equals(source.getMerchantId(), destination.getMerchantId())) throw new CoolException("账号只能绑定同一商家的一家门店", 403);
@@ -111,6 +116,7 @@ public class MerchantStoreAccountService {
             try { users.insertSelective(user); }
             catch (org.springframework.dao.DuplicateKeyException duplicate) { throw new CoolException("账号已存在，请更换账号"); }
             var link = new MerchantUserStoreEntity(); link.setUserId(user.getId()); link.setMerchantId(source.getMerchantId()); link.setStoreId(destination.getId()); links.insert(link);
+            workspaceBridge.bind(user,input.role(),false);
             return user.getId();
         }
         var user = target(input.id(), source, true);
@@ -120,6 +126,7 @@ public class MerchantStoreAccountService {
         change.setMerchantRole(input.role()); change.setStatus(input.status());
         if (!Objects.equals(user.getMerchantRole(), input.role()) || !Objects.equals(user.getStatus(), input.status()) || !source.getId().equals(destination.getId()))
             change.setPasswordV(version(user));
+        workspaceBridge.bind(user,input.role(),!Objects.equals(user.getMerchantRole(),input.role()));
         users.update(change);
         if (!source.getId().equals(destination.getId())) {
             var link = links.selectOneByQuery(QueryWrapper.create().eq(MerchantUserStoreEntity::getUserId, user.getId()));

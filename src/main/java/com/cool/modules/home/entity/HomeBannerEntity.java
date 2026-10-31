@@ -4,7 +4,9 @@ import com.cool.core.annotation.ColumnDefine;
 import com.cool.core.base.BaseEntity;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.mybatisflex.annotation.Table;
+
 import java.util.Date;
+
 import lombok.Getter;
 import lombok.Setter;
 

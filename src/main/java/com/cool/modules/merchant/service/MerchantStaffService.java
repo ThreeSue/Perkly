@@ -26,6 +26,8 @@ public class MerchantStaffService {
     private final MerchantStoreMapper stores;
     private final MerchantInfoMapper merchants;
     private final BaseSysUserMapper users;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.workspace.service.WorkspaceAuthorization workspaceAuthorization;
 
     public MerchantStoreEntity store(BaseSysUserEntity user) {
         var links = memberships.selectListByQuery(QueryWrapper.create()
@@ -34,13 +36,17 @@ public class MerchantStaffService {
             throw new CoolException("账号尚未绑定唯一门店，请联系管理员", 403);
         var store = stores.selectOneById(links.get(0).getStoreId());
         if (store == null || !Objects.equals(store.getMerchantId(), user.getMerchantId())
-                || !Integer.valueOf(1).equals(store.getStatus()))
+                || !java.util.Set.of(1,2).contains(store.getStatus()))
             throw new CoolException("所属门店已停用或授权无效", 403);
         return store;
     }
     public Long requireStore(BaseSysUserEntity user, Long requested) {
         // OWNER保留既有商家后台权限，手机核销端只接受已绑定门店的店长和员工。
         if ("OWNER".equals(user.getMerchantRole())) return requested;
+        if ("MERCHANT".equals(com.cool.modules.workspace.service.WorkspaceAuthorization.type(user))) {
+            if(requested!=null)workspaceAuthorization.requireStore(user.getId(),requested);
+            return requested;
+        }
         Long actual = store(user).getId();
         if (requested != null && !actual.equals(requested)) throw new CoolException("无权操作其他门店", 403);
         return actual;
@@ -54,7 +60,7 @@ public class MerchantStaffService {
             .set("merchantId",user.getMerchantId()).set("merchantName",merchants.selectOneById(user.getMerchantId()).getName())
             .set("storeId",store.getId()).set("storeName",store.getName()).set("role",user.getMerchantRole())
             .set("roleText","MANAGER".equals(user.getMerchantRole()) ? "店长" : "员工")
-            .set("canViewStoreRecords","MANAGER".equals(user.getMerchantRole()));
+            .set("canViewStoreRecords",!"SELF".equals(user.getStoreScope()) && (user.getStoreScope()!=null || "MANAGER".equals(user.getMerchantRole())));
     }
     public String operatorName(Long id) {
         var user = users.selectOneById(id);

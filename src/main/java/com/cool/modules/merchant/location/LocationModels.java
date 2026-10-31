@@ -42,7 +42,7 @@ public final class LocationModels {
             keyword = text(keyword, "关键词", 100, false);
             if ((merchantId != null && merchantId < 1) || (storeTypeId != null && storeTypeId < 1))
                 throw new CoolException("筛选ID须大于0");
-            if (status != null && status != 0 && status != 1) throw new CoolException("门店状态只能为0或1");
+            if (status != null && !com.cool.modules.merchant.service.StoreStatus.valid(status)) throw new CoolException("门店状态无效");
         }
     }
 

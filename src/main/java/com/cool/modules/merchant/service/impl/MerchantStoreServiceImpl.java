@@ -11,6 +11,7 @@ import com.cool.modules.merchant.mapper.MerchantStoreMapper;
 import com.cool.modules.merchant.service.MerchantInfoService;
 import com.cool.modules.merchant.service.MerchantStoreCategoryService;
 import com.cool.modules.merchant.service.MerchantStoreService;
+import com.cool.modules.merchant.service.StoreStatus;
 import java.math.BigDecimal;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
@@ -29,9 +30,15 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
 
     @org.springframework.beans.factory.annotation.Autowired
     private MerchantSummaryService summaries;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.approval.service.ApprovalHistoryService history;
 
     @org.springframework.beans.factory.annotation.Autowired
     private com.cool.modules.coupon.mapper.ConsumptionOrderMapper consumptionOrders;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.merchant.mapper.MerchantUserStoreMapper employeeBindings;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.merchant.mapper.MerchantInfoMapper defaultMerchants;
 
     @Override
     public Object page(cn.hutool.json.JSONObject params, com.mybatisflex.core.paginate.Page<MerchantStoreEntity> page, QueryWrapper query) {
@@ -54,11 +61,14 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
         Long[] ordered = java.util.Arrays.stream(ids).distinct().sorted().toArray(Long[]::new);
         for (Long id : ordered) {
             if (mapper.lockForCouponCheck(id) == null) throw new CoolException("门店不存在");
-            if (mapper.couponReferenceCount(id) > 0) throw new CoolException("门店已关联优惠券或核销记录，不能删除");
+            if(!employeeBindings.selectListByQuery(QueryWrapper.create().eq(com.cool.modules.merchant.entity.MerchantUserStoreEntity::getStoreId,id).forUpdate()).isEmpty())
+                throw new CoolException("门店仍绑定员工账号，请先调整账号归属；结束经营请关闭门店并保留历史");
+            if (mapper.couponReferenceCount(id) > 0) throw new CoolException("门店已关联优惠券或核销记录，不能删除，请关闭门店保留历史");
             if (consumptionOrders.selectCountByQuery(QueryWrapper.create()
                     .eq(com.cool.modules.coupon.entity.ConsumptionOrderEntity::getStoreId,id)) > 0)
-                throw new CoolException("门店已关联消费账单，不能删除");
+                throw new CoolException("门店已关联消费账单，不能删除，请关闭门店保留历史");
         }
+        if(defaultMerchants.selectCountByQuery(QueryWrapper.create().in(MerchantInfoEntity::getDefaultStoreId,java.util.Arrays.asList(ordered)))>0)throw new CoolException("门店正在用作默认门店，请先取消默认设置");
         return super.delete(ordered);
     }
 
@@ -75,11 +85,13 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
     @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public boolean update(MerchantStoreEntity entity) {
         if (entity.getId() == null) throw new CoolException("门店ID不能为空");
-        MerchantStoreEntity existing = getById(entity.getId());
+        MerchantStoreEntity existing = mapper.selectOneByQuery(QueryWrapper.create().eq(MerchantStoreEntity::getId,entity.getId()).forUpdate());
         if (existing == null) throw new CoolException("门店不存在");
         normalize(entity);
         validate(entity, existing);
-        return super.update(entity);
+        boolean result=super.update(entity);
+        if(result&&!Objects.equals(existing.getStatus(),entity.getStatus()))history.record("STORE_STATE",entity.getId(),entity.getMerchantId(),1,"STATUS",StoreStatus.text(existing.getStatus())+" → "+StoreStatus.text(entity.getStatus()),null);
+        return result;
     }
 
     private void normalize(MerchantStoreEntity entity) {
@@ -112,8 +124,8 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
         if (StrUtil.isBlank(entity.getPhone()) || entity.getPhone().length() > 30) {
             throw new CoolException("门店电话不能为空且不能超过30个字符");
         }
-        if (!Integer.valueOf(0).equals(entity.getStatus()) && !Integer.valueOf(1).equals(entity.getStatus())) {
-            throw new CoolException("门店状态只能为0或1");
+        if (!com.cool.modules.merchant.service.StoreStatus.valid(entity.getStatus())) {
+            throw new CoolException("请选择营业、停业、禁用或关闭");
         }
         MerchantValidation.phone(entity.getPhone(), "门店电话");
         if (entity.getCover() != null && entity.getCover().length() > 500) throw new CoolException("门店封面地址不能超过500个字符");

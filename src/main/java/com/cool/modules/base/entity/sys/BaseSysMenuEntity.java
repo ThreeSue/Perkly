@@ -13,6 +13,9 @@ import org.dromara.autotable.annotation.Index;
 @Setter
 @Table(value = "base_sys_menu", comment = "系统菜单表")
 public class BaseSysMenuEntity extends BaseEntity<BaseSysMenuEntity> {
+    @ColumnDefine(comment = "管理空间：MERCHANT、STORE、SHARED；空值为平台", length = 20)
+    private String accountType;
+
     @Index
     @ColumnDefine(comment = "父菜单ID", type = "bigint")
     private Long parentId;

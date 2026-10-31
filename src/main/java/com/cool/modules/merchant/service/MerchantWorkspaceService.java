@@ -35,8 +35,13 @@ public class MerchantWorkspaceService {
     private final CouponPublicationService publications;
     private final MerchantInfoMapper merchants;
     private final MerchantWorkspaceMapper workspaceMapper;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.workspace.service.WorkspaceAuthorization authorization;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.workspace.service.WorkspaceDataScope dataScope;
 
     public Long merchant(Long userId) { return accounts.current(userId).getMerchantId(); }
+    public List<Long> allowedStoreIds(Long userId){return "OWNER".equals(accounts.current(userId).getMerchantRole())?null:authorization.storeIds(accounts.current(userId));}
 
     public Object me(Long userId) {
         var user = accounts.current(userId);
@@ -51,16 +56,23 @@ public class MerchantWorkspaceService {
 
     public Object storePage(Long userId, int page, int size, String keyword) {
         QueryWrapper query = QueryWrapper.create().eq(MerchantStoreEntity::getMerchantId, merchant(userId));
+        if(!"OWNER".equals(accounts.current(userId).getMerchantRole())) {
+            var allowed=authorization.storeIds(accounts.current(userId));
+            if(allowed.isEmpty())query.eq(MerchantStoreEntity::getId,-1L);else query.in(MerchantStoreEntity::getId,allowed);
+        }
         if (keyword != null && !keyword.isBlank()) query.like(MerchantStoreEntity::getName, keyword.trim());
         query.orderBy(MerchantStoreEntity::getId, false);
         return stores.page(new JSONObject(), new Page<MerchantStoreEntity>(Math.max(1, page), limit(size)), query);
     }
 
-    public Object storeInfo(Long userId, Long id) { own("store", id, merchant(userId)); return stores.info(id); }
+    public Object storeInfo(Long userId, Long id) { own("store", id, merchant(userId)); storeAccess(userId,id); return stores.info(id); }
 
     public Object storeSave(Long userId, MerchantStoreEntity input) {
         Long merchantId = merchant(userId);
-        if (input.getId() != null) own("store", input.getId(), merchantId);
+        if (input.getId() != null) {own("store", input.getId(), merchantId);storeAccess(userId,input.getId());}
+        else if(!"OWNER".equals(accounts.current(userId).getMerchantRole()))throw new CoolException("新增门店请由商家老板操作",403);
+        if(input.getStatus()!=null && input.getStatus()==0)throw new CoolException("平台禁用请由运营处理",403);
+        if(input.getId()!=null){var old=stores.getById(input.getId());if(old!=null&&(Integer.valueOf(0).equals(old.getStatus())||Integer.valueOf(3).equals(old.getStatus()))&&!Objects.equals(old.getStatus(),input.getStatus()))throw new CoolException("禁用或关闭后的恢复请联系运营确认",403);}
         input.setMerchantId(merchantId);
         if (input.getId() == null) return stores.add(input);
         input.setCreateTime(stores.getById(input.getId()).getCreateTime());
@@ -69,7 +81,7 @@ public class MerchantWorkspaceService {
 
     public Object storeDelete(Long userId, List<Long> ids) {
         checkIds(ids); Long merchantId = merchant(userId);
-        ids.stream().distinct().sorted().forEach(id -> own("store", id, merchantId));
+        ids.stream().distinct().sorted().forEach(id -> {own("store", id, merchantId);storeAccess(userId,id);});
         return stores.delete(ids.toArray(Long[]::new));
     }
 
@@ -81,21 +93,28 @@ public class MerchantWorkspaceService {
     }
 
     public Object storeOptions(Long userId) {
-        return workspaceMapper.storeOptions(merchant(userId));
+        if("OWNER".equals(accounts.current(userId).getMerchantRole()))return workspaceMapper.storeOptions(merchant(userId));
+        var ids=authorization.storeIds(accounts.current(userId));
+        return ids.isEmpty()?List.of():stores.list(QueryWrapper.create().in(MerchantStoreEntity::getId,ids));
     }
 
     public Object couponPage(Long userId, int page, int size, String keyword) {
         QueryWrapper query = QueryWrapper.create().eq(CouponTemplateEntity::getMerchantId, merchant(userId));
+        if(!"OWNER".equals(accounts.current(userId).getMerchantRole())) {
+            var allowed=dataScope.couponIds(accounts.current(userId));
+            if(allowed!=null){if(allowed.isEmpty())query.eq(CouponTemplateEntity::getId,-1L);else query.in(CouponTemplateEntity::getId,allowed);}
+        }
         if (keyword != null && !keyword.isBlank()) query.like(CouponTemplateEntity::getName, keyword.trim());
         query.orderBy(CouponTemplateEntity::getId, false);
         return coupons.page(new JSONObject(), new Page<CouponTemplateEntity>(Math.max(1, page), limit(size)), query);
     }
 
-    public Object couponInfo(Long userId, Long id) { own("coupon_template", id, merchant(userId)); return coupons.info(id); }
+    public Object couponInfo(Long userId, Long id) { own("coupon_template", id, merchant(userId)); couponAccess(userId,id);return coupons.info(id); }
 
     public Object couponSave(Long userId, CouponTemplateEntity input) {
         Long merchantId = merchant(userId);
-        if (input.getId() != null) own("coupon_template", input.getId(), merchantId);
+        if (input.getId() != null) {own("coupon_template", input.getId(), merchantId);couponAccess(userId,input.getId());}
+        if(!"OWNER".equals(accounts.current(userId).getMerchantRole()))dataScope.couponInput(accounts.current(userId),input);
         input.setMerchantId(merchantId);
         // 关联门店和商品的同商家检查由原有模板服务再次校验。
         return input.getId() == null ? coupons.add(input) : coupons.update(input);
@@ -103,12 +122,13 @@ public class MerchantWorkspaceService {
 
     public Object couponDelete(Long userId, List<Long> ids) {
         checkIds(ids); Long merchantId = merchant(userId);
-        ids.stream().distinct().sorted().forEach(id -> own("coupon_template", id, merchantId));
+        ids.stream().distinct().sorted().forEach(id -> {own("coupon_template", id, merchantId);couponAccess(userId,id);});
         return coupons.delete(ids.toArray(Long[]::new));
     }
 
     public Object publication(Long userId, Long id, Integer version, String action) {
         own("coupon_template", id, merchant(userId));
+        couponAccess(userId,id);
         return switch (action) {
             case "submitAudit" -> publications.submitAudit(id, version);
             case "withdrawAudit" -> publications.withdrawAudit(id, version);
@@ -121,14 +141,18 @@ public class MerchantWorkspaceService {
     public Object products(Long userId) { return coupons.productOptions(merchant(userId)); }
 
     public Object orderPage(Long userId, int page, int size) {
-        return workspaceMapper.orderPage(merchant(userId), Math.max(1, page), limit(size));
+        List<Long> allowed="OWNER".equals(accounts.current(userId).getMerchantRole())?null:dataScope.purchaseIds(accounts.current(userId));
+        return workspaceMapper.orderPage(merchant(userId), Math.max(1, page), limit(size),allowed);
     }
 
     public Object orderInfo(Long userId, Long id) {
         Long merchantId = merchant(userId); own("purchase_order", id, merchantId);
+        if(!"OWNER".equals(accounts.current(userId).getMerchantRole()))dataScope.purchase(accounts.current(userId),id);
         return Map.of("order", workspaceMapper.order(merchantId, id), "items", workspaceMapper.orderItems(merchantId, id));
     }
 
+    private void storeAccess(Long userId,Long id){if(!"OWNER".equals(accounts.current(userId).getMerchantRole()))authorization.requireStore(userId,id);}
+    private void couponAccess(Long userId,Long id){if(!"OWNER".equals(accounts.current(userId).getMerchantRole()))dataScope.coupon(accounts.current(userId),id);}
     private void own(String table, Long id, Long merchantId) {
         if (!Set.of("store", "coupon_template", "purchase_order").contains(table) || id == null || id <= 0) throw new CoolException("数据不存在或无权访问", 403);
         // 所有写入先锁行并核对归属；事务内再调用现有业务校验，避免先查后改的归属竞态。

@@ -43,6 +43,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(rollbackFor=Exception.class)
 public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardingService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.workspace.service.WorkspaceLegacyAccountBridge workspaceBridge;
+
     private final MerchantActivationMapper activations;
     private final MerchantApplicationMapper applications;
     private final MerchantCategoryMapper categories;
@@ -81,13 +84,14 @@ public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardi
         data.put("categoryName",category.getName()); data.put("contactName",input.contactName().trim());
         data.put("contactPhone",phone);
         data.put("introduction",input.introduction());
+        data.put("licenseNumber",input.licenseNumber()==null?null:input.licenseNumber().toUpperCase(java.util.Locale.ROOT));
         if (!resubmit) {
             var existing=activations.selectOneByQuery(QueryWrapper.create().eq(MerchantActivationEntity::getPhone,phone)
                     .eq(MerchantActivationEntity::getRequestId,input.requestId()).forUpdate());
             if (existing != null) {
                 var current=current(existing.getApplicationNo(),false);
                 var snapshot=JSONUtil.parseObj(current.getSnapshot());
-                for (String key:List.of("name","categoryId","contactName","introduction"))
+                for (String key:List.of("name","categoryId","contactName","introduction","licenseNumber"))
                     require(Objects.equals(String.valueOf(data.get(key)),String.valueOf(snapshot.get(key))),"同一requestId不能用于不同申请资料");
                 return response(current,existing,true);
             }
@@ -170,11 +174,13 @@ public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardi
         var merchant=new MerchantInfoEntity();merchant.setName(a.getMerchantName());merchant.setCategoryId(snapshot.getLong("categoryId"));
         // 地址与坐标由OWNER后续创建门店时填写，不从旧申请快照迁入商家资料。
         merchant.setContactName(snapshot.getStr("contactName"));merchant.setContactPhone(phone);
+        merchant.setLicenseNumber(snapshot.getStr("licenseNumber"));
         merchant.setIntroduction(snapshot.getStr("introduction"));merchant.setStatus(1);Long merchantId=merchants.add(merchant);
         var account=new BaseSysUserEntity();account.setUsername(input.username());account.setName(merchant.getContactName());
         account.setNickName(merchant.getContactName());account.setPassword(passwords.encode(input.password()));account.setPasswordV(1);
         account.setStatus(1);account.setMerchantId(merchantId);account.setMerchantRole("OWNER");
         try {accounts.insertSelective(account);} catch(org.springframework.dao.DuplicateKeyException conflict) {throw new CoolException("商家账号已被使用");}
+        workspaceBridge.bind(account,"OWNER",false);
         a.setMerchantId(merchantId);applications.update(a);
         c.setAccountId(account.getId());c.setActivatedAt(new Date());c.setCodeCipher(null);activations.update(c,false);
         history.append("MERCHANT_APPLICATION",a.getId(),merchantId,a.getSubmissionNo(),a.getSubmissionNo(),"ACTIVATE",null,null,a.getSubmittedBy());

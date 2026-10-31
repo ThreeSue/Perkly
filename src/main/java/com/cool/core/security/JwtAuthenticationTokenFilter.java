@@ -40,6 +40,8 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
     final private UserInfoMapper appUsers;
     @org.springframework.beans.factory.annotation.Autowired
     private com.cool.modules.merchant.service.MerchantAccountService merchantAccounts;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.workspace.service.WorkspaceAuthorization workspaceAuthorization;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -80,18 +82,16 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
                         chain.doFilter(request, response); return;
                     }
                     var user = merchantAccounts.validate(authToken, false);
-                    if (!"OWNER".equals(user.getMerchantRole()) && !java.util.Set.of(
-                            "/merchant/staff/me", "/merchant/redemption/inspect", "/merchant/redemption/preview", "/merchant/redemption/confirm",
-                            "/merchant/redemption/page", "/merchant/consumption/prepare", "/merchant/consumption/revise",
-                            "/merchant/consumption/confirm", "/merchant/consumption/redeemContent", "/merchant/consumption/cancel",
-                            "/merchant/consumption/page", "/merchant/consumption/info", "/merchant/auth/logout", "/merchant/auth/changePassword").contains(requestURI)) {
-                        response.sendError(403, "当前门店账号无此权限"); return;
-                    }
+                    String workspace=request.getHeader("X-Workspace");
+                    if(workspace!=null && !workspace.equals(com.cool.modules.workspace.service.WorkspaceAuthorization.type(user))) {response.sendError(403,"账号与所选登录身份不一致");return;}
+                    workspaceAuthorization.checkRoute(user.getId(), requestURI);
                     var principal = merchantAccounts.principal(user);
                     var authentication = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     request.setAttribute("merchantUserId", user.getId());
                     request.setAttribute("tokenInfo", jwt);
+                } catch (com.cool.core.exception.CoolException denied) {
+                    response.sendError(denied.getCode()==403 ? 403 : 401,denied.getMessage());return;
                 } catch (Exception invalidMerchant) { response.sendError(401); return; }
                 chain.doFilter(request, response);
                 return;

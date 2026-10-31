@@ -38,11 +38,12 @@ public class MerchantAuthController {
     @GetMapping("/registrationCategories")
     public R<?> registrationCategories() { return R.ok(accounts.registrationCategories()); }
 
-    public record RefreshInput(String refreshToken) {}
+    public record RefreshInput(String refreshToken, String accountType) {}
 
     @TokenIgnore
     @PostMapping("/refreshToken")
-    public R<?> refresh(@RequestBody RefreshInput input) { return R.ok(accounts.refresh(input.refreshToken())); }
+    public R<?> refresh(@RequestBody RefreshInput input) { if(input.accountType()!=null){var user=accounts.validate(input.refreshToken(),true);if(!input.accountType().equals(com.cool.modules.workspace.service.WorkspaceAuthorization.type(user)))throw new com.cool.core.exception.CoolException("账号与所选身份不一致",403);}
+        return R.ok(accounts.refresh(input.refreshToken())); }
 
     @GetMapping("/onboarding")
     public R<?> onboarding(@RequestHeader("Authorization") String token) {

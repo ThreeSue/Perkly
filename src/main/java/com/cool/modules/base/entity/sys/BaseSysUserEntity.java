@@ -17,6 +17,12 @@ import java.util.List;
 @Setter
 @Table(value = "base_sys_user", comment = "系统用户表")
 public class BaseSysUserEntity extends TenantEntity<BaseSysUserEntity> {
+    @ColumnDefine(comment = "管理账号类型：PLATFORM、MERCHANT、STORE", length = 20)
+    private String accountType;
+
+    @ColumnDefine(comment = "商家账号门店范围：ALL、SELECTED；门店账号固定单店", length = 20)
+    private String storeScope;
+
     @Index
     @ColumnDefine(comment = "所属商家，平台运营账号为空")
     private Long merchantId;
