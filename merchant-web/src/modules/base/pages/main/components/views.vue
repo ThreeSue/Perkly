@@ -1,7 +1,6 @@
 <template>
 	<div class="app-views">
-		<OnboardingLock v-if="onboardingLocked" />
-		<router-view v-else v-slot="{ Component }">
+		<router-view v-slot="{ Component }">
 			<transition :name="app.info.router.transition || 'none'">
 				<keep-alive :key="key" :include="caches">
 					<component :is="Component" />
@@ -19,11 +18,9 @@ defineOptions({
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useBase } from '/$/base';
 import { useCool } from '/@/cool';
-import OnboardingLock from '../../../../merchant/components/onboarding-lock.vue';
 
 const { mitt } = useCool();
-const { process, app, user } = useBase();
-const onboardingLocked = computed(() => (user.info as any)?.onboardingLocked === true);
+const { process, app } = useBase();
 
 // 缓存数
 const key = ref(1);

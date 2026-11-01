@@ -200,7 +200,12 @@ public class WorkspaceManagementService {
             u.setUsername(p.username());u.setPhone(p.username());u.setPassword(hash(p.password()));u.setPasswordV(1);
         }else{
             if(!Objects.equals(u.getUsername(),p.username()))throw new CoolException("登录账号不可修改");
-            if(p.password()!=null&&!p.password().isBlank())u.setPassword(hash(p.password()));u.setPasswordV(u.getPasswordV()==null?1:u.getPasswordV()+1);
+            if(p.password()!=null&&!p.password().isBlank()) {
+                u.setPassword(hash(p.password()));
+                u.setPasswordV(u.getPasswordV()==null?1:u.getPasswordV()+1);
+            } else if (!Objects.equals(u.getAccountType(),p.accountType()) || !Objects.equals(u.getMerchantId(),m) || !Objects.equals(u.getStatus(),p.status())) {
+                u.setPasswordV(u.getPasswordV()==null?1:u.getPasswordV()+1);
+            }
         }
         u.setName(p.name().trim());u.setNickName(p.name().trim());u.setMerchantId(m);u.setMerchantRole(legacy);u.setAccountType(p.accountType());u.setStatus(state(p.status()));u.setStoreScope("OWNER".equals(legacy)?"ALL":p.storeScope());
         if(p.id()==null)users.insert(u);else users.update(u);

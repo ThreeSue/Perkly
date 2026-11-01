@@ -57,7 +57,7 @@ const keyword = ref('');
 // 刷新列表
 async function refresh() {
 	return service.base.sys.menu.list().then(res => {
-		list.value = deepTree(res);
+		list.value = deepTree(res.filter(item => !item.accountType));
 	});
 }
 

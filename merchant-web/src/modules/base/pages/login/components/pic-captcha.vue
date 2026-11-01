@@ -16,16 +16,17 @@ defineOptions({
 	name: 'pic-captcha'
 });
 
+import { isPlatform } from '/@/workspace';
+import { merchantRequest } from '/@/merchant-api';
 import { onMounted, ref } from 'vue';
 import { ElMessageBox } from 'element-plus';
 import { Loading } from '@element-plus/icons-vue';
+import { useCool } from '/@/cool';
 import { useI18n } from 'vue-i18n';
-import { merchantRequest } from '/@/merchant-api';
-
-let generation = 0;
 
 const emit = defineEmits(['update:modelValue', 'change']);
 
+const { service } = useCool();
 const { t } = useI18n();
 
 // base64
@@ -36,13 +37,15 @@ const svg = ref('');
 
 // 刷新
 async function refresh() {
-	const current = ++generation;
 	svg.value = '';
 	base64.value = '';
 
-	await merchantRequest('auth/captcha')
+	await (
+		isPlatform
+			? service.base.open.captcha({ height: 45, width: 150, color: '#2c3142' })
+			: merchantRequest('auth/captcha')
+	)
 		.then(({ captchaId, data }) => {
-			if (current !== generation) return;
 			if (data) {
 				if (data.includes(';base64,')) {
 					base64.value = data;
@@ -64,7 +67,6 @@ async function refresh() {
 			}
 		})
 		.catch(err => {
-			if (current !== generation) return;
 			ElMessageBox.alert(err.message, {
 				title: t('提示'),
 				type: 'error'

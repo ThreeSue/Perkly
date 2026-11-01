@@ -1,6 +1,29 @@
 <template>
 	<cl-crud ref="Crud">
 		<cl-row>
+			<div class="menu-heading">
+				<h2>{{ initialAudience === 'BUSINESS' ? '商家与门店菜单' : '运营菜单' }}</h2>
+				<p>
+					维护页面和按钮目录；商家功能授权控制开放范围，岗位权限决定员工实际使用哪些功能。
+				</p>
+			</div>
+		</cl-row>
+		<cl-row>
+			<el-radio-group v-model="audience" @change="refresh()">
+				<el-radio-button value="PLATFORM">平台运营</el-radio-button>
+				<el-radio-button value="BUSINESS">商家与门店</el-radio-button>
+				<el-radio-button value="ALL">全部身份</el-radio-button>
+			</el-radio-group>
+			<cl-flex1 />
+			<el-input
+				v-model="keyword"
+				clearable
+				placeholder="搜索菜单名称"
+				style="width: 240px"
+				@input="refresh()"
+			/>
+		</cl-row>
+		<cl-row>
 			<!-- 刷新按钮 -->
 			<cl-refresh-btn />
 
@@ -9,7 +32,11 @@
 
 			<!-- 删除 -->
 			<cl-multi-delete-btn />
-			<OrderManager :service="service.base.sys.menu" @saved="refresh()" />
+			<OrderManager
+				:service="orderService"
+				:params="{ menuAudience: audience }"
+				@saved="refresh()"
+			/>
 
 			<!-- 自动创建菜单 -->
 			<auto-menu />
@@ -67,7 +94,11 @@
 		<!-- 新增、编辑 -->
 		<cl-upsert ref="Upsert">
 			<template #slot-parentId="{ scope }">
-				<cl-menu-select v-model="scope.parentId" :type="scope.type" />
+				<cl-menu-select
+					v-model="scope.parentId"
+					:type="scope.type"
+					:account-type="scope.accountType || 'PLATFORM'"
+				/>
 			</template>
 
 			<template #slot-perms="{ scope }">
@@ -89,7 +120,7 @@ defineOptions({
 import { useCrud, useTable, useUpsert } from '@cool-vue/crud';
 import { useCool } from '/@/cool';
 import { useStore } from '/$/base/store';
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Plugins } from '/#/crud';
 import MenuImp from './components/imp.vue';
@@ -101,6 +132,32 @@ import OrderManager from '/#/crud/components/order-manager.vue';
 const { service, mitt } = useCool();
 const { menu } = useStore();
 const { t } = useI18n();
+const { initialAudience = 'PLATFORM' } = defineProps<{ initialAudience?: string }>();
+const audience = ref(initialAudience);
+const keyword = ref('');
+const audienceNames: Record<string, string> = {
+	PLATFORM: '平台运营',
+	MERCHANT: '商家管理',
+	STORE: '门店管理',
+	SHARED: '商家与门店共用'
+};
+function inAudience(row: Eps.BaseSysMenuEntity, value: string) {
+	return (
+		value === 'ALL' ||
+		(value === 'PLATFORM'
+			? !row.accountType
+			: ['MERCHANT', 'STORE', 'SHARED'].includes(row.accountType || ''))
+	);
+}
+// 同时过滤旧版本服务的返回值，避免后端尚未重启时混入其他身份的菜单和排序。
+const orderService = {
+	_permission: service.base.sys.menu._permission,
+	list: async (params: any) =>
+		(await service.base.sys.menu.list(params)).filter(row =>
+			inAudience(row, params.menuAudience || 'ALL')
+		),
+	update: (data: any) => service.base.sys.menu.update(data)
+};
 
 const options = reactive({
 	type: [
@@ -149,6 +206,12 @@ const Table = useTable({
 		}
 	],
 	columns: [
+		{
+			prop: 'accountType',
+			label: '使用身份',
+			width: 150,
+			formatter: row => audienceNames[row.accountType || 'PLATFORM'] || row.accountType
+		},
 		{
 			type: 'selection'
 		},
@@ -245,6 +308,21 @@ const Upsert = useUpsert({
 		width: '800px'
 	},
 	items: [
+		{
+			prop: 'accountType',
+			label: '使用身份',
+			value: initialAudience === 'BUSINESS' ? 'SHARED' : null,
+			component: {
+				name: 'el-select',
+				props: { clearable: true, placeholder: '平台运营（默认）' },
+				options: [
+					{ label: '商家管理', value: 'MERCHANT' },
+					{ label: '门店管理', value: 'STORE' },
+					{ label: '商家与门店共用', value: 'SHARED' }
+				]
+			},
+			hook: { submit: value => value || null }
+		},
 		{
 			prop: 'type',
 			value: 0,
@@ -366,10 +444,30 @@ const Crud = useCrud(
 	{
 		service: service.base.sys.menu,
 		onRefresh(params, { render }) {
-			service.base.sys.menu.list(params).then(res => {
-				menu.get();
-				render(res);
-			});
+			const currentAudience = audience.value;
+			service.base.sys.menu
+				.list({ ...params, menuAudience: currentAudience })
+				.then(result => {
+					if (audience.value !== currentAudience) return;
+					const res = result.filter(row => inAudience(row, currentAudience));
+					menu.get();
+					// 搜索保留匹配节点的上级目录，避免树节点脱离所属业务。
+					const term = keyword.value.trim().toLowerCase();
+					const ids = new Set<number>(
+						res.filter(e => e.name?.toLowerCase().includes(term)).map(e => e.id)
+					);
+					const byId = new Map(res.map(e => [e.id, e]));
+					for (const id of Array.from(ids)) {
+						let parent = byId.get(id)?.parentId;
+						const seen = new Set<number>();
+						while (parent && !seen.has(parent)) {
+							seen.add(parent);
+							ids.add(parent);
+							parent = byId.get(parent)?.parentId;
+						}
+					}
+					render(term ? res.filter(e => ids.has(e.id)) : res);
+				});
 		}
 	},
 	app => {
@@ -386,8 +484,9 @@ function refresh(params?: any) {
 }
 
 // 子集新增
-function append({ type = 0, id }: Eps.BaseSysMenuEntity) {
+function append({ type = 0, id, accountType }: Eps.BaseSysMenuEntity) {
 	Crud.value?.rowAppend({
+		accountType: accountType || null,
 		parentId: id,
 		parentType: type,
 		type: type + 1,
@@ -397,8 +496,9 @@ function append({ type = 0, id }: Eps.BaseSysMenuEntity) {
 }
 
 // 设置权限
-function addPermission({ id }: Eps.BaseSysMenuEntity) {
+function addPermission({ id, accountType }: Eps.BaseSysMenuEntity) {
 	Crud.value?.rowAppend({
+		accountType: accountType || null,
 		parentId: id,
 		type: 2
 	});
@@ -406,3 +506,14 @@ function addPermission({ id }: Eps.BaseSysMenuEntity) {
 
 mitt.on('helper.createMenu', refresh);
 </script>
+
+<style scoped>
+.menu-heading h2 {
+	margin: 0 0 8px;
+	font-size: 20px;
+}
+.menu-heading p {
+	margin: 0 0 12px;
+	color: var(--el-text-color-secondary);
+}
+</style>

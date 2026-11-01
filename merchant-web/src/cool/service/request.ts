@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { identity } from '/@/workspace';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 import { ElMessage } from 'element-plus';
@@ -20,7 +21,7 @@ NProgress.configure({
 });
 
 // 请求队列，用于存储待处理的请求
-let queue: Array<(token: string) => void> = [];
+let queue: Array<{ resolve: (token: string) => void; reject: (error: any) => void }> = [];
 
 // 标识是否正在刷新 token
 let isRefreshing = false;
@@ -41,10 +42,10 @@ request.interceptors.request.use(
 		}
 
 		// 在开发环境中打印请求信息
-		if (isDev && !/auth\//.test(req.url || '')) {
+		if (isDev) {
 			console.group(req.url);
 			console.log('method:', req.method);
-			console.table('data:', req.method == 'get' ? req.params : req.data);
+			// Request bodies can contain passwords and activation credentials; never log them.
 			console.groupEnd();
 		}
 
@@ -52,16 +53,13 @@ request.interceptors.request.use(
 			req.headers = {};
 		}
 
+		req.headers['X-Workspace'] = identity;
 		// 设置请求头中的语言
 		if (req.headers['language'] !== null) {
 			req.headers['language'] = config.i18n.locale;
 		}
 
 		// 验证 token
-		if (/\/merchant\/auth\/(login|captcha|refreshToken|register|resubmit|registrationCategories)$/.test(req.url || '')) {
-			delete req.headers['Authorization'];
-			return req;
-		}
 		if (user.token) {
 			// 设置请求头中的 Authorization
 			if (req.headers['Authorization'] !== null) {
@@ -79,6 +77,7 @@ request.interceptors.request.use(
 				if (storage.isExpired('refreshToken')) {
 					ElMessage.error('登录状态已失效，请重新登录');
 					user.logout();
+					return Promise.reject(new Error('登录状态已失效'));
 				} else {
 					// 如果不在刷新中，则刷新 token
 					if (!isRefreshing) {
@@ -86,25 +85,28 @@ request.interceptors.request.use(
 
 						user.refreshToken()
 							.then(token => {
-								queue.forEach(cb => cb(token)); // 处理队列中的请求
+								queue.forEach(cb => cb.resolve(token)); // 处理队列中的请求
 								queue = [];
 								isRefreshing = false;
 							})
-							.catch(() => {
-								isRefreshing = false;
-								queue.forEach(cb => cb(''));
+							.catch(error => {
+								queue.forEach(cb => cb.reject(error));
 								queue = [];
+								isRefreshing = false;
 								user.logout();
 							});
 					}
 
 					// 返回一个新的 Promise，等待 token 刷新完成
-					return new Promise(resolve => {
-						queue.push(token => {
-							if (req.headers) {
-								req.headers['Authorization'] = token; // 重新设置 token
+					return new Promise((resolve, reject) => {
+						queue.push({
+							reject,
+							resolve: token => {
+								if (req.headers) {
+									req.headers['Authorization'] = token; // 重新设置 token
+								}
+								resolve(req);
 							}
-							resolve(req);
 						});
 					});
 				}
@@ -137,7 +139,7 @@ request.interceptors.response.use(
 			case 1000:
 				return data; // 成功返回数据
 			default:
-				return Promise.reject({ code, message }); // 处理错误
+				return Promise.reject({ code, message, business: true }); // 已收到明确业务响应
 		}
 	},
 	async error => {
@@ -168,7 +170,10 @@ request.interceptors.response.use(
 			}
 		}
 
-		return Promise.reject({ message: error.response?.data?.message || error.message }); // 返回错误信息
+		return Promise.reject({
+			code: error.response?.status,
+			message: error.response?.data?.message || error.message
+		}); // 返回错误信息
 	}
 );
 

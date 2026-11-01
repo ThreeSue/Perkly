@@ -6,10 +6,19 @@
 					<img src="/logo.png" alt="Logo" />
 				</div>
 
-				<span>{{ app.info.name }}</span>
+				<span>券管家管理后台</span>
 			</div>
 
-			<p class="desc">管理您的门店、优惠券与购券订单</p>
+			<p class="desc">券管家管理后台 · 分角色登录</p>
+			<el-radio-group
+				:model-value="identity"
+				@change="value => switchIdentity(value as WorkspaceIdentity)"
+				style="margin-bottom: 24px"
+			>
+				<el-radio-button value="PLATFORM">平台运营</el-radio-button
+				><el-radio-button value="MERCHANT">商家管理</el-radio-button
+				><el-radio-button value="STORE">门店管理</el-radio-button>
+			</el-radio-group>
 
 			<div class="form">
 				<el-form label-position="top" class="form" :disabled="saving">
@@ -17,7 +26,7 @@
 						<el-input
 							v-model="form.username"
 							:placeholder="$t('请输入用户名')"
-							maxlength="40"
+							maxlength="64"
 						/>
 					</el-form-item>
 
@@ -28,7 +37,7 @@
 							:placeholder="$t('请输入密码')"
 							maxlength="64"
 							show-password
-							autocomplete="current-password"
+							autocomplete="new-password"
 						/>
 					</el-form-item>
 
@@ -58,14 +67,16 @@
 							{{ $t('登录') }}
 						</el-button>
 					</div>
-					<div class="register-entry"><el-button link @click="Guide?.open()">申请商家入驻</el-button><el-button type="primary" link @click="Activation?.open()">已有营业码，开通账号</el-button></div>
+					<div v-if="identity === 'MERCHANT'" style="margin-top: 20px">
+						<el-button link type="primary" @click="activation?.open()"
+							>已有营业码，开通账号</el-button
+						><el-button link @click="guide?.open()">申请入驻指引</el-button>
+					</div>
 				</el-form>
 			</div>
 		</div>
 
-		<MerchantApplyGuide ref="Guide" />
-		<MerchantActivation ref="Activation" @activated="username => { form.username = username; form.password = ''; refs.picCaptcha?.refresh(); }" />
-
+		<MerchantActivation ref="activation" /><MerchantApplyGuide ref="guide" />
 		<div class="bg">
 			<cl-svg name="bg"></cl-svg>
 		</div>
@@ -85,19 +96,21 @@ import { useCool } from '/@/cool';
 import { useBase } from '/$/base';
 import { storage } from '/@/cool/utils';
 import { useI18n } from 'vue-i18n';
-import PicCaptcha from './components/pic-captcha.vue';
-import MerchantApplyGuide from './components/merchant-apply-guide.vue';
-import MerchantActivation from './components/merchant-activation.vue';
-const Guide = ref<InstanceType<typeof MerchantApplyGuide>>();
-const Activation = ref<InstanceType<typeof MerchantActivation>>();
+import { identity, switchIdentity, type WorkspaceIdentity, isPlatform } from '/@/workspace';
 import { merchantRequest } from '/@/merchant-api';
+import MerchantActivation from './components/merchant-activation.vue';
+import MerchantApplyGuide from './components/merchant-apply-guide.vue';
+const activation = ref(),
+	guide = ref();
+import PicCaptcha from './components/pic-captcha.vue';
 
-const { refs, setRefs, router } = useCool();
+const { refs, setRefs, router, service } = useCool();
 const { user, app } = useBase();
 const { t } = useI18n();
 
 // 状态
 const saving = ref(false);
+
 // 表单数据
 const form = reactive({
 	username: storage.get('username') || '',
@@ -105,6 +118,12 @@ const form = reactive({
 	captchaId: '',
 	verifyCode: ''
 });
+
+// 演示模式
+if (import.meta.env.MODE == 'demo') {
+	form.username = 'admin';
+	form.password = '123456';
+}
 
 // 登录
 async function toLogin() {
@@ -124,9 +143,11 @@ async function toLogin() {
 
 	try {
 		// 登录
-		user.clear();
-		const result = await merchantRequest('auth/login', form);
-		user.setToken(result);
+		await (
+			isPlatform
+				? service.base.open.login(form)
+				: merchantRequest('auth/login', { ...form, accountType: identity })
+		).then(user.setToken);
 
 		// token 事件
 		await Promise.all(app.events.hasToken.map(e => e()));
@@ -137,7 +158,6 @@ async function toLogin() {
 		// 跳转首页
 		router.push('/');
 	} catch (err) {
-		user.clear();
 		// 刷新验证码
 		refs.picCaptcha.refresh();
 
@@ -154,7 +174,6 @@ async function toLogin() {
 
 <style lang="scss" scoped>
 $color: #2c3142;
-.register-entry { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px; margin-top:18px; font-size:14px; color:var(--el-color-info); }
 
 .page-login {
 	display: flex;

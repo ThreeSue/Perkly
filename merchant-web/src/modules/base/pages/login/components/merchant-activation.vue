@@ -179,7 +179,7 @@ import {
 	activationApi as api,
 	ActivationRequestError,
 	type ActivationApplication
-} from '/$/merchant/activation-api';
+} from '/$/business/activation-api';
 const emit = defineEmits<{ activated: [username: string] }>();
 const visible = ref(false),
 	busy = ref(false),

@@ -60,10 +60,15 @@
 import { ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useCrud, useTable, useSearch, useUpsert } from '@cool-vue/crud';
-import { merchantRequest } from '/@/merchant-api';
+import { useCool } from '/@/cool';
 const props = defineProps<{ storeId: number; storeName: string }>();
-const api = (action: string, data?: unknown) =>
-	merchantRequest('workspace/storeAccount/' + action, data);
+const { service } = useCool();
+const api = (action: string, data?: unknown): Promise<any> =>
+	service.request({
+		url: 'admin/merchant/storeAccount/' + action,
+		method: data === undefined ? 'GET' : 'POST',
+		data
+	});
 const editing = ref(false);
 const busy = ref(false),
 	optionsLoading = ref(false),

@@ -19,13 +19,46 @@ defineOptions({
 	name: 'app-layout'
 });
 
+import { onMounted, onBeforeUnmount } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
+import { isPlatform } from '/@/workspace';
+import { workspaceApi } from '/$/workspace/api';
+const route = useRoute(), router = useRouter();
 import { useBase } from '/$/base';
 import Topbar from './components/topbar.vue';
 import Slider from './components/slider.vue';
 import process from './components/process.vue';
 import Views from './components/views.vue';
 
-const { app } = useBase();
+const { app, menu, user } = useBase();
+// 上级授权变化后刷新当前身份的菜单，不清除登录会话。
+let permissionTimer: ReturnType<typeof setInterval>;
+let syncing = false;
+async function syncPermissions() {
+ if (isPlatform || syncing || document.hidden || !user.token) return;
+ syncing = true;
+ try {
+  const result = await workspaceApi('permmenu');
+  if (JSON.stringify(result.menus) !== JSON.stringify(menu.all)) {
+   const previous = menu.routes.some(m => m.path === route.path);
+   await menu.get();
+   if (previous && !menu.routes.some(m => m.path === route.path)) {
+    ElMessage.info('上级已调整权限，当前页面已无权访问');
+    await router.replace(menu.routes[0]?.path || '/workspace-empty');
+   }
+  }
+ } catch { /* 请求层处理会话失效；网络异常保留现有页面并等待重试。 */ }
+ finally { syncing = false; }
+}
+onMounted(() => {
+ permissionTimer = setInterval(syncPermissions, 15000);
+ window.addEventListener('focus', syncPermissions);
+});
+onBeforeUnmount(() => {
+ clearInterval(permissionTimer);
+ window.removeEventListener('focus', syncPermissions);
+});
 </script>
 
 <style lang="scss" scoped>

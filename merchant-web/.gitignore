@@ -20,18 +20,10 @@ yarn-error.log*
 
 vite.config.ts.timestamp*
 
-# Local credentials and generated artifacts
-.env.*.local
 *.log
-/build/
+.env.*.local
 /output/
-/testing/output/
+/testing/unification/logs/
 .playwright-cli/
-.cursor/
-.vscode/
-coverage/
 *.tsbuildinfo
-
-# Framework source directories must override backend ignore rules
-!**/plugin/
-!**/plugin/**
+/docs/screenshots/

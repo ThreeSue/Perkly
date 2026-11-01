@@ -101,3 +101,8 @@ spring:
 3、如果看到以下界面，说明启动成功。这时候再启动前端项目即可，数据库会自动初始化，默认账号：admin，密码：123456
 
 ![](https://cool-show.oss-cn-shanghai.aliyuncs.com/admin/run.png)
+
+
+## 三端统一管理后台
+
+网页管理端统一维护在 [merchant-web](./merchant-web)，沿用原前端路径和提交历史，支持运营、商家、门店身份。启动与检查见该目录 README。Java 后端继续维护在根目录 src。
