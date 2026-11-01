@@ -1,7 +1,9 @@
+import { isPlatform } from '/@/workspace';
+import { workspaceApi } from '/$/workspace/api';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { deepTree, revDeepTree, storage } from '/@/cool/utils';
-import { isArray, orderBy } from 'lodash-es';
+import { isArray, isEmpty, orderBy } from 'lodash-es';
 import { router, service } from '/@/cool';
 import { revisePath } from '../utils';
 import { config } from '/@/config';
@@ -114,6 +116,17 @@ export const useMenuStore = defineStore('menu', function () {
 	async function get() {
 		function next(res: { menus: Menu.List; perms?: any[] }) {
 			// 所有菜单
+			if (!isPlatform && !res.menus?.some(e => e.type === 1))
+				res.menus = [
+					{
+						id: -100,
+						name: '待分配权限',
+						type: 1,
+						router: '/workspace-empty',
+						viewPath: 'modules/workspace/views/no-permission.vue',
+						isShow: true
+					} as any
+				];
 			all.value = res.menus;
 
 			// 菜单格式化
@@ -152,8 +165,15 @@ export const useMenuStore = defineStore('menu', function () {
 			return list;
 		}
 
-		// 商家中心菜单在开发阶段配置，保持与运营端独立。
-        next({ menus: revDeepTree(config.app.menu.list || []) });
+		// 自定义菜单
+		if (!isEmpty(config.app.menu.list)) {
+			next({
+				menus: revDeepTree(config.app.menu.list || [])
+			});
+		} else {
+			// 动态菜单
+			await (isPlatform ? service.base.comm.permmenu() : workspaceApi('permmenu')).then(next);
+		}
 	}
 
 	// 获取菜单路径

@@ -18,7 +18,6 @@ export default ({ mode }: ConfigEnv): UserConfig => {
 	const isDev = mode === 'development';
 
 	return {
-		cacheDir: './build/vite-cache',
 		plugins: [
 			vue(),
 			compression(),
@@ -28,7 +27,7 @@ export default ({ mode }: ConfigEnv): UserConfig => {
 				type: 'admin',
 				proxy,
 				eps: {
-					enable: isDev
+					enable: true
 				},
 				svg: {
 					skipNames: ['base', 'theme']
@@ -46,7 +45,7 @@ export default ({ mode }: ConfigEnv): UserConfig => {
 		],
 		base: '/',
 		server: {
-			port: 9001,
+			port: 9000,
 			strictPort: true,
 			proxy,
 			hmr: {

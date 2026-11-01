@@ -32,6 +32,7 @@ import { deepTree } from '/@/cool/utils';
 
 const props = defineProps({
 	modelValue: [Number, String],
+	accountType: String,
 	type: {
 		type: Number,
 		default: 1
@@ -59,7 +60,14 @@ const list = ref<any[]>([]);
 const tree = computed(() => {
 	// 过滤掉自己和下级的数据
 	const data = list.value.filter(
-		e => e.id != Form.value?.form.id && (props.type === 0 ? e.type == 0 : props.type > e.type!)
+		e =>
+			e.id != Form.value?.form.id &&
+			(props.type === 0 ? e.type == 0 : props.type > e.type!) &&
+			(!props.accountType ||
+				(props.accountType === 'PLATFORM'
+					? !e.accountType
+					: e.accountType === props.accountType ||
+						(props.accountType !== 'SHARED' && e.accountType === 'SHARED')))
 	);
 
 	return deepTree(cloneDeep(data)).filter(e => !e.parentId);

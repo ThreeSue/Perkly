@@ -1,3 +1,4 @@
+import { isPlatform } from '/@/workspace';
 import { type ModuleConfig } from '/@/cool';
 import { useStore } from './store';
 import { config } from '/@/config';
@@ -22,10 +23,11 @@ export default (): ModuleConfig => {
 			{
 				path: '/my/info',
 				meta: {
-					label: t('账号中心'),
-					keepAlive: true
+					label: t('个人中心')
 				},
-				component: () => import('../merchant/views/account.vue')
+				component: isPlatform
+					? () => import('./views/info.vue')
+					: () => import('/$/workspace/views/personal.vue')
 			}
 		],
 		pages: [

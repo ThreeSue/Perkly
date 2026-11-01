@@ -27,7 +27,7 @@
 				@command="onCommand"
 			>
 				<div class="app-topbar__user">
-					<el-text class="mr-[10px]">{{ user.info.nickName }}</el-text>
+					<el-text class="mr-[10px]">{{ identityName }} · {{ user.info.nickName }}</el-text>
 					<cl-avatar :size="26" :src="user.info.headImg" />
 				</div>
 
@@ -36,7 +36,7 @@
 						<cl-avatar :size="34" :src="user.info.headImg" />
 
 						<div class="det">
-							<el-text size="small" tag="p">{{ user.info.nickName }}</el-text>
+							<el-text size="small" tag="p">{{ identityName }} · {{ user.info.nickName }}</el-text>
 							<el-text size="small" type="info">{{ user.info.email }}</el-text>
 						</div>
 					</div>
@@ -62,6 +62,8 @@ defineOptions({
 	name: 'app-topbar'
 });
 
+import { isPlatform, identityName } from '/@/workspace';
+import { merchantRequest } from '/@/merchant-api';
 import { computed, markRaw, onMounted, reactive } from 'vue';
 import { isFunction, orderBy } from 'lodash-es';
 import { useBase } from '/$/base';
@@ -70,9 +72,8 @@ import { ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import RouteNav from './route-nav.vue';
 import AMenu from './amenu.vue';
-import { merchantRequest } from '/@/merchant-api';
 
-const { router, browser } = useCool();
+const { router, service, browser } = useCool();
 const { user, app } = useBase();
 const { t } = useI18n();
 
@@ -87,10 +88,8 @@ async function onCommand(name: string) {
 				type: 'warning'
 			})
 				.then(async () => {
-					try {
-						await merchantRequest('auth/logout', {});
-					}
-					finally { user.logout(); }
+					if(isPlatform) await service.base.comm.logout(); else await merchantRequest('auth/logout', {});
+					user.logout();
 				})
 				.catch(() => null);
 			break;
