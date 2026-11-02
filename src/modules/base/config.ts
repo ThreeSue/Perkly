@@ -20,6 +20,8 @@ export default (): ModuleConfig => {
 		},
 		components: Object.values(import.meta.glob('./components/**/*.{vue,tsx}')),
 		views: [
+			{ path: '/my/notices', meta: { label: '站内通知' }, component: () => import('/$/workspace/views/notices.vue') },
+			{ path: '/my/chats', meta: { label: '门店客服' }, component: () => import('/$/workspace/views/chats.vue') },
 			{
 				path: '/my/info',
 				meta: {
