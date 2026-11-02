@@ -52,6 +52,10 @@ class CouponTradePersistenceTest {
     @Autowired org.mybatis.spring.SqlSessionTemplate session;
     @Autowired WebApplicationContext web;
     @Autowired @Qualifier("springSecurityFilterChain") Filter security;
+    @Autowired com.cool.modules.workspace.service.WorkspaceAuthorization workspaceAuth;
+    @Autowired com.cool.modules.workspace.service.WorkspaceLegacyAccountBridge workspaceBridge;
+    @Autowired com.cool.modules.workspace.mapper.WorkspaceGrantMapper workspaceGrants;
+    @Autowired com.cool.modules.base.mapper.sys.BaseSysUserMapper workspaceUsers;
     JdbcTemplate jdbc;
     Long merchant,store,otherStore,operator,customer,otherCustomer,templateId;
     String username;
@@ -64,6 +68,11 @@ class CouponTradePersistenceTest {
         otherStore = insert("INSERT INTO store(merchant_id,category_id,name,address,phone,status) VALUES(?,?,'自动测试其他门店','测试地址','13800000001',1)",merchant,category);
         username = "trade_"+UUID.randomUUID().toString().replace("-","").substring(0,12);
         operator = accounts.provision(username,"自动核销测试管理员","MerchantTest123!",merchant);
+        // 三端合并后新商家不再自动获得权限；测试夹具须显式授予原交易能力。
+        var tradePermissions=Set.of("dashboard:view","store:view","store:edit","coupon:view","coupon:edit","purchase:view","bill:view","redeem:use","account:manage","role:manage","grant:manage","profile:view","profile:edit");
+        for(var menu:workspaceAuth.catalog())if(tradePermissions.contains(menu.getPerms())){
+            var grant=new com.cool.modules.workspace.entity.WorkspaceGrantEntity();grant.setSubjectType("MERCHANT");grant.setSubjectId(merchant);grant.setMenuId(menu.getId());grant.setAllowed(true);workspaceGrants.insert(grant);
+        }
         customer = user(); otherCustomer = user();
         var c = new CouponTemplateEntity(); c.setMerchantId(merchant); c.setName("自动购券测试代金券_回滚");
         c.setType("CASH"); c.setDeductAmount(new BigDecimal("20")); c.setSalePrice(new BigDecimal("9.90"));
@@ -72,6 +81,10 @@ class CouponTradePersistenceTest {
         templateId = templates.add(c); publish(templateId);
     }
     @AfterEach void cleanContext() { org.springframework.security.core.context.SecurityContextHolder.clearContext(); cache.del("app:userDetails:"+customer,"app:userDetails:"+otherCustomer); }
+    void storeRole(Long userId,String role){
+        var user=workspaceUsers.selectOneById(userId);user.setMerchantRole(role);workspaceUsers.update(user);
+        workspaceBridge.bind(user,role,true); // 同步唯一岗位、身份及SELF/STORE范围，不能只改旧角色列。
+    }
     Long user() {
         String phone;
         do { phone = "199"+String.format("%08d",java.util.concurrent.ThreadLocalRandom.current().nextInt(100_000_000)); }
@@ -274,8 +287,8 @@ class CouponTradePersistenceTest {
     @Test void singleStoreStaffCannotCrossStoreOrReadOthersOrUseWorkspace() throws Exception {
 
         Long managerId=accounts.provision("manager_"+UUID.randomUUID().toString().substring(0,8),"试验店长","Manager123!",merchant);
-        jdbc.update("UPDATE base_sys_user SET merchant_role='MANAGER' WHERE id=?",managerId);
-        jdbc.update("UPDATE base_sys_user SET merchant_role='STAFF' WHERE id=?",operator);
+        storeRole(managerId,"MANAGER");
+        storeRole(operator,"STAFF");
         jdbc.update("INSERT INTO base_sys_user_store(merchant_id,user_id,store_id) VALUES(?,?,?),(?,?,?)",merchant,operator,store,merchant,managerId,store);
         session.clearCache();
         var credentials = new com.cool.modules.base.dto.sys.BaseSysLoginDto();
@@ -468,13 +481,13 @@ class CouponTradePersistenceTest {
     @Test void billIsolationAndStoreRolesApplyToDetailListCancelAndReceipt() {
         var a=bills.prepare(operator,billInput(issuedCode(),5000L,UUID.randomUUID().toString()));
         Long colleague=accounts.provision("bill_"+UUID.randomUUID().toString().substring(0,8),"账单测试员工","MerchantTest123!",merchant);
-        jdbc.update("UPDATE base_sys_user SET merchant_role='STAFF' WHERE id=?",colleague);
+        storeRole(colleague,"STAFF");
         jdbc.update("INSERT INTO base_sys_user_store(user_id,merchant_id,store_id) VALUES(?,?,?)",colleague,merchant,store);session.clearCache();
         assertEquals(0L,bills.page(colleague,new ConsumptionOrderService.PageInput(1,20,null,null,null,null,null)).getPagination().getTotal());
         assertThrows(CoolException.class,()->bills.info(colleague,a.id()));
         assertThrows(CoolException.class,()->bills.cancel(colleague,a.id()));
         assertThrows(CoolException.class,()->bills.confirm(colleague,new ConsumptionOrderService.ConfirmInput(a.id(),1,3000L)));
-        jdbc.update("UPDATE base_sys_user SET merchant_role='MANAGER' WHERE id=?",colleague);session.clearCache();
+        storeRole(colleague,"MANAGER");session.clearCache();
         assertEquals(a.id(),bills.info(colleague,a.id()).id());
         assertEquals(1L,bills.page(colleague,new ConsumptionOrderService.PageInput(1,20,null,store,null,a.orderNo(),null)).getPagination().getTotal());
         jdbc.update("UPDATE base_sys_user_store SET store_id=? WHERE user_id=?",otherStore,colleague);session.clearCache();

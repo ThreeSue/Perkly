@@ -37,4 +37,5 @@ build/
 .vscode/
 .DS_Store
 lib
-plugin
+# 仅忽略根目录动态插件产物；Java及前端源码中的plugin目录须可跟踪。
+/plugin/

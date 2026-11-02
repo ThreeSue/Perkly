@@ -45,6 +45,12 @@ public class WorkspaceInitializer implements ApplicationRunner {
         page("门店功能授权","authorization","grant:manage","modules/workspace/views/grants.vue",8,"MERCHANT");
         var profile=page("商家资料","profile","profile:view","modules/business/views/profile.vue",9,"MERCHANT");
         action(profile,"默认门店及执照资料","profile:edit",1);
+        // 仅注册可授权目录，不追加既有商家上限、岗位或个人授权。
+        var notice=page("站内通知","notices","notice:view","modules/workspace/views/notices.vue",10,"SHARED");
+        action(notice,"发送下级通知","notice:send",1);
+        page("储值消费账单","wallet","bill:view","modules/workspace/views/wallet.vue",11,"SHARED");
+        page("支付优惠活动","activities","activity:apply","modules/workspace/views/activities.vue",12,"MERCHANT");
+        page("门店客服","chats","chat:view","modules/workspace/views/chats.vue",13,"STORE");
         var all=menus.selectListByQuery(QueryWrapper.create().in(BaseSysMenuEntity::getAccountType,List.of("SHARED","MERCHANT","STORE")));
         var owner=role("ws_owner","商家老板","MERCHANT",all,Set.of(),true);
         var manager=role("ws_manager","店长","STORE",all,Set.of("dashboard:view","store:view","bill:view","redeem:use","account:manage","role:manage"),false);
@@ -63,9 +69,23 @@ public class WorkspaceInitializer implements ApplicationRunner {
         platformPage("下级账号管理","accounts","modules/workspace/views/accounts.vue",1);
         platformPage("下级岗位权限","roles","modules/workspace/views/roles.vue",2);
         platformPage("商家功能授权","authorization","modules/workspace/views/grants.vue",3);
+        if(menus.selectCountByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getRouter,"/workspace-admin/notices"))==0){
+            var n=new BaseSysMenuEntity();n.setName("站内通知");n.setRouter("/workspace-admin/notices");
+            n.setViewPath("modules/workspace/views/notices.vue");n.setType(1);n.setPerms("notice:view");
+            n.setIsShow(true);n.setKeepAlive(false);n.setOrderNum(64);n.setIcon("icon-menu");menus.insert(n);
+            var send=new BaseSysMenuEntity();send.setParentId(n.getId());send.setName("发送下级通知");
+            send.setType(2);send.setPerms("notice:send");send.setIsShow(true);menus.insert(send);
+        }
         if(menus.selectCountByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getPerms,"merchant:map:translateGps"))==0){var m=new BaseSysMenuEntity();m.setName("地图定位坐标转换");m.setType(2);m.setPerms("merchant:map:translateGps");m.setIsShow(false);menus.insert(m);}
+        featurePage("用户反馈","feedback","feedback:manage","modules/workspace/views/feedback.vue",65);
+        featurePage("平台储值账务","wallet","wallet:manage","modules/workspace/views/wallet.vue",66);
+        featurePage("支付优惠活动","activities","activity:manage","modules/workspace/views/activities.vue",67);
     }
     private void grant(Long merchant,Long menu,boolean allowed){var g=new WorkspaceGrantEntity();g.setSubjectType("MERCHANT");g.setSubjectId(merchant);g.setMenuId(menu);g.setAllowed(allowed);grants.insert(g);}
+    private void featurePage(String name,String route,String permission,String view,int order){
+        String path="/workspace-admin/"+route;if(menus.selectCountByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getRouter,path))>0)return;
+        var m=new BaseSysMenuEntity();m.setName(name);m.setRouter(path);m.setViewPath(view);m.setType(1);m.setPerms(permission);m.setIsShow(true);m.setKeepAlive(false);m.setOrderNum(order);m.setIcon("icon-menu");menus.insert(m);
+    }
     private BaseSysMenuEntity page(String name,String route,String permission,String view,int order,String type){
         String path="/merchant/"+route;var m=menus.selectOneByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getRouter,path).eq(BaseSysMenuEntity::getAccountType,type));
         if(m!=null)return m;m=new BaseSysMenuEntity();m.setName(name);m.setType(1);m.setRouter(path);m.setViewPath(view);m.setPerms(permission);m.setAccountType(type);m.setIsShow(true);m.setKeepAlive(false);m.setOrderNum(order);m.setIcon("icon-menu");menus.insert(m);return m;

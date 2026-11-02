@@ -19,6 +19,8 @@
 		</ul>
 
 		<!-- 用户信息 -->
+		<el-button v-if="user.info" text @click="router.push('/my/notices')">站内通知</el-button>
+		<el-button v-if="identity === 'STORE' && user.info" text @click="router.push('/my/chats')">门店客服</el-button>
 		<template v-if="user.info">
 			<el-dropdown
 				hide-on-click
@@ -62,7 +64,7 @@ defineOptions({
 	name: 'app-topbar'
 });
 
-import { isPlatform, identityName } from '/@/workspace';
+import { isPlatform, identityName, identity } from '/@/workspace';
 import { merchantRequest } from '/@/merchant-api';
 import { computed, markRaw, onMounted, reactive } from 'vue';
 import { isFunction, orderBy } from 'lodash-es';
