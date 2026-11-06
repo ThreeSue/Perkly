@@ -158,12 +158,19 @@ public class WorkspaceAuthorization {
         else if(route.startsWith("/merchant/workspace/storeAccount/"))permission="account:manage";
         else if(route.startsWith("/merchant/workspace/store/"))permission=route.endsWith("/delete")?"store:delete":route.endsWith("/save")||route.endsWith("/update")?"store:edit":"store:view";
         else if(route.startsWith("/merchant/workspace/map/"))permission="store:view";
-        else if(route.startsWith("/merchant/workspace/coupon/"))permission=route.endsWith("/page")||route.endsWith("/info")?"coupon:view":"coupon:edit";
+        else if(route.startsWith("/merchant/workspace/coupon/")){
+            switch(route){
+                case "/merchant/workspace/coupon/page", "/merchant/workspace/coupon/info" -> permission="coupon:view";
+                // 保存和发布的动作由请求体决定，统一在业务入口校验。
+                case "/merchant/workspace/coupon/save", "/merchant/workspace/coupon/delete", "/merchant/workspace/coupon/publication" -> {context(id);return;}
+                default -> throw new CoolException("该账号没有此接口权限",403);
+            }
+        }
         else if(route.startsWith("/merchant/workspace/order/"))permission="purchase:view";
         else if(route.equals("/merchant/workspace/profile"))permission="profile:view";
         else if(route.equals("/merchant/workspace/category/options") || route.equals("/merchant/workspace/product/options"))permission="coupon:view";
         else if(route.equals("/merchant/workspace/image/upload")){
-            var p=permissions(id);if(!p.contains("store:edit")&&!p.contains("coupon:edit")&&!p.contains("profile:edit"))throw new CoolException("没有图片上传权限",403);return;
+            var p=permissions(id);if(Collections.disjoint(p,Set.of("store:edit","coupon:create","coupon:update","profile:edit")))throw new CoolException("没有图片上传权限",403);return;
         }
         // New business actions can use their exact route permission in the platform catalog.
         if(permission==null && route.startsWith("/merchant/"))permission=route.substring("/merchant/".length()).replace('/',':');

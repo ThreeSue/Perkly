@@ -5,6 +5,7 @@ import com.cool.core.enums.UserTypeEnum;
 import com.cool.core.exception.CoolException;
 import com.cool.core.request.R;
 import com.cool.core.util.CoolSecurityUtil;
+import com.cool.modules.coupon.service.ConsumptionOrderService;
 import com.cool.modules.coupon.service.CouponTradeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AppOrderController {
     private final CouponTradeService trade;
+    private final ConsumptionOrderService consumptionOrders;
 
     public record CreateInput(Long couponTemplateId, Integer quantity, String requestId) {
     }
@@ -63,6 +65,19 @@ public class AppOrderController {
     @PostMapping("/page")
     public R<?> page(@RequestBody PageInput input) {
         return R.ok(trade.orders(customer(), input.page(), input.size(), input.status()));
+    }
+
+    public record BillPageInput(Integer page, Integer size) {
+    }
+
+    @PostMapping("/consumption/page")
+    public R<?> consumptionPage(@RequestBody BillPageInput input) {
+        return R.ok(consumptionOrders.customerBillPage(customer(), input.page(), input.size()));
+    }
+
+    @GetMapping("/consumption/info")
+    public R<?> consumptionInfo(@RequestParam Long id) {
+        return R.ok(consumptionOrders.customerBillInfo(customer(), id));
     }
 
     public static Long customer() {

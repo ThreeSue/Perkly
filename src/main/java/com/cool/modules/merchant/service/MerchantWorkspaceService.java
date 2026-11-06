@@ -6,6 +6,7 @@ import com.cool.modules.coupon.entity.CouponTemplateEntity;
 import com.cool.modules.coupon.service.CouponPublicationService;
 import com.cool.modules.coupon.service.CouponTemplateService;
 import com.cool.modules.merchant.entity.MerchantStoreEntity;
+import com.cool.modules.space.service.MerchantMaterialService;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import java.util.*;
@@ -35,6 +36,7 @@ public class MerchantWorkspaceService {
     private final CouponPublicationService publications;
     private final MerchantInfoMapper merchants;
     private final MerchantWorkspaceMapper workspaceMapper;
+    private final MerchantMaterialService materials;
     @org.springframework.beans.factory.annotation.Autowired
     private com.cool.modules.workspace.service.WorkspaceAuthorization authorization;
     @org.springframework.beans.factory.annotation.Autowired
@@ -72,10 +74,13 @@ public class MerchantWorkspaceService {
         if (input.getId() != null) {own("store", input.getId(), merchantId);storeAccess(userId,input.getId());}
         else if(!"OWNER".equals(accounts.current(userId).getMerchantRole()))throw new CoolException("新增门店请由商家老板操作",403);
         if(input.getStatus()!=null && input.getStatus()==0)throw new CoolException("平台禁用请由运营处理",403);
-        if(input.getId()!=null){var old=stores.getById(input.getId());if(old!=null&&(Integer.valueOf(0).equals(old.getStatus())||Integer.valueOf(3).equals(old.getStatus()))&&!Objects.equals(old.getStatus(),input.getStatus()))throw new CoolException("禁用或关闭后的恢复请联系运营确认",403);}
+        var old = input.getId() == null ? null : stores.getById(input.getId());
+        if(old!=null&&(Integer.valueOf(0).equals(old.getStatus())||Integer.valueOf(3).equals(old.getStatus()))&&!Objects.equals(old.getStatus(),input.getStatus()))throw new CoolException("禁用或关闭后的恢复请联系运营确认",403);
         input.setMerchantId(merchantId);
+        input.setCover(materials.selectCover(userId, merchantId, input.getCoverMaterialId(), input.getCover(),
+            old == null ? null : old.getCover()));
         if (input.getId() == null) return stores.add(input);
-        input.setCreateTime(stores.getById(input.getId()).getCreateTime());
+        input.setCreateTime(old.getCreateTime());
         return stores.update(input);
     }
 
@@ -112,21 +117,30 @@ public class MerchantWorkspaceService {
     public Object couponInfo(Long userId, Long id) { own("coupon_template", id, merchant(userId)); couponAccess(userId,id);return coupons.info(id); }
 
     public Object couponSave(Long userId, CouponTemplateEntity input) {
+        authorization.require(userId, input.getId() == null ? "coupon:create" : "coupon:update");
         Long merchantId = merchant(userId);
         if (input.getId() != null) {own("coupon_template", input.getId(), merchantId);couponAccess(userId,input.getId());}
         if(!"OWNER".equals(accounts.current(userId).getMerchantRole()))dataScope.couponInput(accounts.current(userId),input);
         input.setMerchantId(merchantId);
+        var old = input.getId() == null ? null : coupons.getById(input.getId());
+        input.setCover(materials.selectCover(userId, merchantId, input.getCoverMaterialId(), input.getCover(),
+            old == null ? null : old.getCover()));
         // 关联门店和商品的同商家检查由原有模板服务再次校验。
         return input.getId() == null ? coupons.add(input) : coupons.update(input);
     }
 
     public Object couponDelete(Long userId, List<Long> ids) {
+        authorization.require(userId, "coupon:delete");
         checkIds(ids); Long merchantId = merchant(userId);
         ids.stream().distinct().sorted().forEach(id -> {own("coupon_template", id, merchantId);couponAccess(userId,id);});
         return coupons.delete(ids.toArray(Long[]::new));
     }
 
     public Object publication(Long userId, Long id, Integer version, String action) {
+        if (action == null || !Set.of("submitAudit", "withdrawAudit", "publish", "unpublish").contains(action)) {
+            throw new CoolException("不支持此商家操作", 403);
+        }
+        authorization.require(userId, "coupon:" + action);
         own("coupon_template", id, merchant(userId));
         couponAccess(userId,id);
         return switch (action) {

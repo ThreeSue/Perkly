@@ -16,6 +16,16 @@ import org.dromara.autotable.annotation.Index;
 @Setter
 @Table(value = "space_info", comment = "文件空间信息")
 public class SpaceInfoEntity extends BaseEntity<SpaceInfoEntity> {
+    @Index
+    @ColumnDefine(comment = "商家素材归属，空值为原平台文件")
+    private Long merchantId;
+
+    @ColumnDefine(comment = "商家素材上传人")
+    private Long uploaderId;
+
+    @ColumnDefine(comment = "商家素材删除标记")
+    private Boolean materialDeleted;
+
     @ColumnDefine(comment = "地址", notNull = true)
     private String url;
 

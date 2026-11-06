@@ -32,12 +32,18 @@ public class CouponTemplateEntity extends BaseEntity<CouponTemplateEntity> {
 
     @ColumnDefine(comment = "券类型编码", length = 20, notNull = true)
     private String type;
+    @ColumnDefine(comment="PUBLIC公开或TASK_ONLY任务专用，历史为空表示公开",length=32)
+    private String issueChannel;
 
     @ColumnDefine(comment = "使用说明", length = 2000)
     private String description;
 
     @ColumnDefine(comment = "封面图片地址", length = 500)
     private String cover;
+
+    @com.mybatisflex.annotation.Column(ignore = true)
+    @org.dromara.autotable.annotation.Ignore
+    private Long coverMaterialId;
 
     @ColumnDefine(comment = "售价", length = 10, decimalLength = 2, notNull = true, defaultValue = "0.00")
     private BigDecimal salePrice;

@@ -118,6 +118,7 @@ public final class AppDiscoveryQueries {
                         .and(col(PUBLICATION, "merchant_id").eq(col(COUPON, "merchant_id"))))
                 .leftJoin(CATEGORY).on(col(CATEGORY, "id").eq(col(MERCHANT, "category_id")))
                 .where(col(COUPON, "status").eq(1)).and(col(MERCHANT, "status").eq(1))
+                .and(col(COUPON,"issue_channel").isNull().or(col(COUPON,"issue_channel").eq("PUBLIC")))
                 .and(col(PUBLICATION, "channel").eq("PLATFORM"))
                 .and(col(PUBLICATION, "audit_status").eq(2)).and(col(PUBLICATION, "publish_status").eq(1))
                 .and(col(PUBLICATION, "published_version").eq(col(COUPON, "rule_version")))

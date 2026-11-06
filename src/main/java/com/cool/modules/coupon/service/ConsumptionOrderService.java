@@ -29,6 +29,7 @@ import static com.cool.modules.coupon.service.CouponTradeRules.require;
 @Transactional(rollbackFor=Exception.class, isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
 public class ConsumptionOrderService {
     private final ConsumptionOrderMapper orders;
+    private final com.cool.modules.promotion.service.StampVisitService stampVisits;
     private final CouponTradeService trade;
     private final MerchantAccountService accounts;
     private final MerchantStaffService staff;
@@ -130,6 +131,7 @@ public class ConsumptionOrderService {
     }
     public OrderView revise(Long userId, ReviseInput p) {
         var o=own(userId,p.orderId(),true); pending(o,p.version());
+        require(o.getSettlementBillId()==null,"请通过统一消费账单处理");
         require(isMonetary(o.getCouponType()),"内容类账单不能修改消费金额");
         var preview=trade.preview(userId,o.getStoreId(),o.getCouponCode(),p.consumptionAmount());
         o.setConsumptionAmount(p.consumptionAmount());o.setDiscountAmount(((Number)preview.get("discountAmount")).longValue());
@@ -137,7 +139,41 @@ public class ConsumptionOrderService {
         orders.update(o); return view(o);
     }
     public OrderView confirm(Long userId, ConfirmInput p) {
-        return finish(userId,own(userId,p.orderId(),true),p);
+        var order=own(userId,p.orderId(),true);
+        require(order.getSettlementBillId()==null,"此账单由顾客在统一消费账单中付款");
+        return finish(userId,order,p);
+    }
+    public void linkSettlement(Long userId, Long orderId, Long billId) {
+        var order=own(userId,orderId,true);
+        require("PENDING".equals(order.getStatus()) && isMonetary(order.getCouponType()),"仅待结算金额券账单可关联统一支付");
+        require(order.getSettlementBillId()==null || Objects.equals(order.getSettlementBillId(),billId),"用券订单已关联其他消费");
+        order.setSettlementBillId(billId);
+        orders.update(order);
+    }
+
+    public OrderView settlementPreview(Long billId, Long orderId) {
+        var order=orders.selectOneByQuery(QueryWrapper.create().eq(ConsumptionOrderEntity::getId,orderId).forUpdate());
+        require(order!=null && Objects.equals(billId,order.getSettlementBillId()),"用券订单关联异常");
+        require("PENDING".equals(order.getStatus()),"用券订单已处理");
+        var preview=trade.preview(order.getOperatorId(),order.getStoreId(),order.getCouponCode(),order.getConsumptionAmount());
+        require(Objects.equals(order.getDiscountAmount(),preview.get("discountAmount")),"券优惠已变化，请重新开单");
+        return view(order);
+    }
+
+    public void settleLinked(Long billId, Long orderId, String mode, Long paidAmount) {
+        var order=orders.selectOneByQuery(QueryWrapper.create().eq(ConsumptionOrderEntity::getId,orderId).forUpdate());
+        require(order!=null && Objects.equals(billId,order.getSettlementBillId()),"用券订单关联异常");
+        finish(order.getOperatorId(),order,new ConfirmInput(orderId,order.getVersion(),order.getPayableAmount()));
+        order.setPaymentMode(mode);
+        order.setReceivedAmount(paidAmount);
+        orders.update(order);
+    }
+
+    public void cancelLinked(Long actor, Long billId, Long orderId) {
+        var order=orders.selectOneByQuery(QueryWrapper.create().eq(ConsumptionOrderEntity::getId,orderId).forUpdate());
+        require(order!=null,"用券订单不存在");
+        require(Objects.equals(billId,order.getSettlementBillId()),"用券订单关联异常");
+        cancelPending(order);
     }
     private OrderView finish(Long userId, ConsumptionOrderEntity o, ConfirmInput p) {
         if("COMPLETED".equals(o.getStatus())) {
@@ -151,10 +187,15 @@ public class ConsumptionOrderService {
         o.setRedemptionId(((Number)result.get("redemptionId")).longValue());o.setStatus("COMPLETED");
         o.setPaymentMode(o.getPayableAmount()==0 ? "NONE" : "OFFLINE");o.setReceivedAmount(p.receivedAmount());
         o.setConfirmedBy(userId);o.setConfirmedByName(staff.operatorName(userId));
-        o.setCompletedAt(new Date());o.setVersion(o.getVersion()+1);orders.update(o);return view(o);
+        o.setCompletedAt(new Date());o.setVersion(o.getVersion()+1);orders.update(o);
+        stampVisits.consumption(o.getId());return view(o);
     }
     public OrderView cancel(Long userId, Long id) {
         var o=own(userId,id,true);
+        require(o.getSettlementBillId()==null,"请通过统一消费账单取消");
+        return cancelPending(o);
+    }
+    private OrderView cancelPending(ConsumptionOrderEntity o) {
         if("CANCELLED".equals(o.getStatus())) return view(o);
         require("PENDING".equals(o.getStatus()),"已完成账单不能取消");
         o.setStatus("CANCELLED");o.setActiveCouponId(null);o.setVersion(o.getVersion()+1);
@@ -172,6 +213,45 @@ public class ConsumptionOrderService {
         if(p.merchantId()!=null) {require(p.merchantId()>0,"商家筛选无效");q.eq(ConsumptionOrderEntity::getMerchantId,p.merchantId());}
         return find(q,p);
     }
+    public record CustomerBill(Long id, String orderNo, String storeName, String couponName,
+        Long consumptionAmount, Long discountAmount, Long receivedAmount, Date completedAt) {}
+
+    private CustomerBill customerBill(ConsumptionOrderEntity order) {
+        return new CustomerBill(order.getId(), order.getOrderNo(), order.getStoreName(), order.getCouponName(),
+            order.getConsumptionAmount(), order.getDiscountAmount(), order.getReceivedAmount(), order.getCompletedAt());
+    }
+
+    private QueryWrapper customerBills(Long customerId) {
+        require(customerId != null && customerId > 0, "请使用用户账号登录");
+        var ownedCoupons = QueryWrapper.create().select("id").from("customer_coupon").eq("customer_id", customerId);
+        return QueryWrapper.create().eq(ConsumptionOrderEntity::getStatus, "COMPLETED")
+            .in(ConsumptionOrderEntity::getCustomerCouponId, ownedCoupons);
+    }
+
+    @Transactional(readOnly = true)
+    public CustomerBill customerBillInfo(Long customerId, Long id) {
+        require(id != null && id > 0, "请提供有效账单ID");
+        var order = orders.selectOneByQuery(customerBills(customerId).eq(ConsumptionOrderEntity::getId, id));
+        if (order == null) throw new CoolException("账单不存在或无权访问", 404);
+        return customerBill(order);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResult<CustomerBill> customerBillPage(Long customerId, Integer page, Integer size) {
+        int pageNumber = page == null ? 1 : page;
+        int pageSize = size == null ? 20 : size;
+        require(pageNumber >= 1 && pageNumber <= 100000 && pageSize >= 1 && pageSize <= 100, "分页参数不正确");
+        var data = orders.paginate(new Page<ConsumptionOrderEntity>(pageNumber, pageSize),
+            customerBills(customerId).orderBy(ConsumptionOrderEntity::getCompletedAt, false)
+                .orderBy(ConsumptionOrderEntity::getId, false));
+        var result = new PageResult<CustomerBill>();
+        result.setList(data.getRecords().stream().map(this::customerBill).toList());
+        result.getPagination().setPage(data.getPageNumber());
+        result.getPagination().setSize(data.getPageSize());
+        result.getPagination().setTotal(data.getTotalRow());
+        return result;
+    }
+
     private PageResult<OrderView> find(QueryWrapper q, PageInput p) {
         int page=p.page()==null?1:p.page(), size=p.size()==null?20:p.size();
         require(page>=1 && page<=100000 && size>=1 && size<=100,"分页参数不正确");

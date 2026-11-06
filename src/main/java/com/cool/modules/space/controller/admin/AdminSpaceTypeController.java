@@ -5,6 +5,7 @@ import com.cool.core.annotation.CoolRestController;
 import com.cool.core.base.BaseController;
 import com.cool.modules.space.entity.SpaceTypeEntity;
 import com.cool.modules.space.service.SpaceTypeService;
+import com.mybatisflex.core.query.QueryWrapper;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +19,7 @@ public class AdminSpaceTypeController extends BaseController<SpaceTypeService, S
 
     @Override
     protected void init(HttpServletRequest request, JSONObject requestParams) {
-
+        setPageOption(createOp().queryWrapper(QueryWrapper.create().isNull(SpaceTypeEntity::getMerchantId)));
+        setListOption(createOp().queryWrapper(QueryWrapper.create().isNull(SpaceTypeEntity::getMerchantId)));
     }
 }

@@ -1,5 +1,6 @@
 package com.cool.modules.coupon.entity;
 import com.mybatisflex.annotation.*;
+import com.cool.core.annotation.ColumnDefine;
 import lombok.Getter;
 import lombok.Setter;
 import java.util.Date;
@@ -27,6 +28,7 @@ public class ConsumptionOrderEntity {
     private String couponCode;
     private String couponName;
     private String couponType;
+    @ColumnDefine(type = "mediumtext")
     private String couponSnapshot;
     private String status;
     private Long consumptionAmount;
@@ -39,6 +41,8 @@ public class ConsumptionOrderEntity {
     private Long activeCouponId;
     private Long redemptionId;
     private Long confirmedBy;
+    @ColumnDefine(comment = "统一消费账单，历史为空")
+    private Long settlementBillId;
     private String confirmedByName;
     private Date createdAt;
     private Date completedAt;

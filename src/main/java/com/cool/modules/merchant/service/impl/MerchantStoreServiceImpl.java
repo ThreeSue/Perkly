@@ -12,6 +12,7 @@ import com.cool.modules.merchant.service.MerchantInfoService;
 import com.cool.modules.merchant.service.MerchantStoreCategoryService;
 import com.cool.modules.merchant.service.MerchantStoreService;
 import com.cool.modules.merchant.service.StoreStatus;
+import com.cool.modules.space.service.MerchantMaterialService;
 import java.math.BigDecimal;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,8 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
     private com.cool.modules.merchant.mapper.MerchantUserStoreMapper employeeBindings;
     @org.springframework.beans.factory.annotation.Autowired
     private com.cool.modules.merchant.mapper.MerchantInfoMapper defaultMerchants;
+    @org.springframework.beans.factory.annotation.Autowired
+    private MerchantMaterialService materials;
 
     @Override
     public Object page(cn.hutool.json.JSONObject params, com.mybatisflex.core.paginate.Page<MerchantStoreEntity> page, QueryWrapper query) {
@@ -77,6 +80,9 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
     public Long add(MerchantStoreEntity entity) {
         if (entity.getStatus() == null) entity.setStatus(1);
         normalize(entity);
+        if (entity.getCoverMaterialId() != null || StrUtil.isNotBlank(entity.getCover())) {
+            entity.setCover(materials.resolveCover(entity.getMerchantId(), entity.getCoverMaterialId(), entity.getCover()));
+        }
         validate(entity, null);
         return super.add(entity);
     }
@@ -88,6 +94,10 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
         MerchantStoreEntity existing = mapper.selectOneByQuery(QueryWrapper.create().eq(MerchantStoreEntity::getId,entity.getId()).forUpdate());
         if (existing == null) throw new CoolException("门店不存在");
         normalize(entity);
+        String cover = entity.getCover() == null ? existing.getCover() : entity.getCover();
+        if (entity.getCoverMaterialId() != null || StrUtil.isNotBlank(cover)) {
+            entity.setCover(materials.resolveCover(entity.getMerchantId(), entity.getCoverMaterialId(), cover));
+        }
         validate(entity, existing);
         boolean result=super.update(entity);
         if(result&&!Objects.equals(existing.getStatus(),entity.getStatus()))history.record("STORE_STATE",entity.getId(),entity.getMerchantId(),1,"STATUS",StoreStatus.text(existing.getStatus())+" → "+StoreStatus.text(entity.getStatus()),null);

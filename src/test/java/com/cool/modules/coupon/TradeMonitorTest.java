@@ -97,7 +97,7 @@ class TradeMonitorTest {
     @Test void consumptionControllerRejectsOtherIdentities(){
         var read=mock(ConsumptionOrderService.class);var controller=new AdminConsumptionOrderController(read);identity(UserTypeEnum.MERCHANT,"coupon:consumptionOrder:info");assertThrows(CoolException.class,()->controller.info(1L));verifyNoInteractions(read);
     }
-    private ConsumptionOrderService consumption(ConsumptionOrderMapper mapper,MerchantAccountService accounts,MerchantStaffService staff){return new ConsumptionOrderService(mapper,mock(CouponTradeService.class),accounts,staff,mock(BaseSysUserMapper.class));}
+    private ConsumptionOrderService consumption(ConsumptionOrderMapper mapper,MerchantAccountService accounts,MerchantStaffService staff){return new ConsumptionOrderService(mapper,mock(com.cool.modules.promotion.service.StampVisitService.class),mock(CouponTradeService.class),accounts,staff,mock(BaseSysUserMapper.class));}
     @Test void ownerCannotUseMerchantFilterToReadAnotherMerchant(){
         var mapper=mock(ConsumptionOrderMapper.class);var accounts=mock(MerchantAccountService.class);var staff=mock(MerchantStaffService.class);var owner=new BaseSysUserEntity();owner.setId(3L);owner.setMerchantId(7L);owner.setMerchantRole("OWNER");when(accounts.current(3L)).thenReturn(owner);
         var page=new Page<ConsumptionOrderEntity>(1,20,0);page.setRecords(List.of());when(mapper.paginate(any(Page.class),any(QueryWrapper.class))).thenReturn(page);

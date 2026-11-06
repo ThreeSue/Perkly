@@ -26,6 +26,10 @@ public class MerchantStoreEntity extends BaseEntity<MerchantStoreEntity> {
     @ColumnDefine(comment = "门店封面图片地址", length = 500)
     private String cover;
 
+    @com.mybatisflex.annotation.Column(ignore = true)
+    @org.dromara.autotable.annotation.Ignore
+    private Long coverMaterialId;
+
     @ColumnDefine(comment = "门店详细地址", length = 500, notNull = true)
     private String address;
 

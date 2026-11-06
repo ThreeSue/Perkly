@@ -8,12 +8,19 @@ import cn.hutool.core.lang.Dict;
 import com.cool.core.cache.CoolCache;
 import com.cool.core.exception.CoolException;
 import com.cool.core.security.jwt.JwtTokenUtil;
+import com.cool.modules.base.entity.sys.BaseSysMenuEntity;
+import com.cool.modules.base.mapper.sys.BaseSysMenuMapper;
 import com.cool.modules.base.dto.sys.BaseSysLoginDto;
 import com.cool.modules.base.security.JwtUserDetailsServiceImpl;
 import com.cool.modules.coupon.entity.CouponTemplateEntity;
 import com.cool.modules.merchant.entity.MerchantStoreEntity;
 import com.cool.modules.merchant.service.MerchantAccountService;
 import com.cool.modules.merchant.service.MerchantWorkspaceService;
+import com.cool.modules.workspace.entity.WorkspaceGrantEntity;
+import com.cool.modules.workspace.mapper.WorkspaceGrantMapper;
+import com.cool.modules.workspace.service.WorkspaceAuthorization;
+import com.cool.modules.workspace.service.WorkspaceInitializer;
+import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.servlet.Filter;
 import java.math.BigDecimal;
 import java.util.*;
@@ -48,6 +55,10 @@ class MerchantWorkspaceIsolationTest {
     JdbcTemplate jdbc;
     @Autowired MerchantAccountService accounts;
     @Autowired MerchantWorkspaceService workspace;
+    @Autowired WorkspaceAuthorization workspaceAuth;
+    @Autowired WorkspaceInitializer workspaceInitializer;
+    @Autowired BaseSysMenuMapper workspaceMenus;
+    @Autowired WorkspaceGrantMapper workspaceGrants;
     @Autowired JwtTokenUtil tokens;
     @Autowired CoolCache cache;
     @Autowired WebApplicationContext web;
@@ -104,6 +115,7 @@ class MerchantWorkspaceIsolationTest {
         return new org.springframework.mock.web.MockMultipartFile("file",name,"image/png",output.toByteArray());
     }
     @Test void ownerUploadsValidatedImageWithoutChangingBusinessCover() throws Exception {
+        grantFixturePermissions(merchantA, userA, "store:edit");
         org.mockito.Mockito.when(imageStorage.upload(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.isNull()))
             .thenReturn("http://localhost:8001/uploads/test-cover.png");
         mvc.perform(multipart("/merchant/workspace/image/upload").file(image("cover.png")).header("Authorization",access))
@@ -113,6 +125,7 @@ class MerchantWorkspaceIsolationTest {
         org.mockito.Mockito.verify(imageStorage).upload(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.isNull());
     }
     @Test void rejectsFakeOversizedAndMismatchedImagesBeforeStorage() throws Exception {
+        grantFixturePermissions(merchantA, userA, "store:edit");
         var invalid = List.of(
             new org.springframework.mock.web.MockMultipartFile("file","bad.png","image/png","not an image".getBytes()),
             new org.springframework.mock.web.MockMultipartFile("file","empty.png","image/png",new byte[0]),
@@ -225,6 +238,9 @@ class MerchantWorkspaceIsolationTest {
     }
 
     @Test void couponsForceOwnMerchantAndRejectForeignStoresAndPublication() {
+        for (String permission : List.of("coupon:create", "coupon:publish", "coupon:delete")) {
+            grantCouponPermission("MERCHANT", merchantA, couponMenu(permission).getId(), true);
+        }
         var c = coupon(); Long id = (Long) workspace.couponSave(userA,c);
         assertEquals(merchantA,jdbc.queryForObject("SELECT merchant_id FROM coupon_template WHERE id=?",Long.class,id));
         Long b = insert("INSERT INTO coupon_template(merchant_id,name,type,validity_type,valid_days,status) VALUES(?,?,'CASH','AFTER_ISSUE',30,0)",merchantB,"乙券");
@@ -235,6 +251,185 @@ class MerchantWorkspaceIsolationTest {
         final var crossStore = c;
         assertThrows(CoolException.class, () -> workspace.couponSave(userA,crossStore));
         assertThrows(CoolException.class, () -> workspace.publication(userA,id,1,"audit"));
+    }
+
+    @Test void migratedCouponPermissionsRemainSeparateAfterParentRevokesActions() throws Exception {
+        var legacy = couponMenu("coupon:update");
+        legacy.setPerms("coupon:edit");
+        workspaceMenus.update(legacy);
+        grantCouponPermission("MERCHANT", merchantA, legacy.getId(), true);
+        grantCouponPermission("USER", userA, legacy.getId(), false);
+
+        workspaceInitializer.run(null);
+        assertEquals(legacy.getId(), couponMenu("coupon:update").getId());
+        assertNull(couponMenu("coupon:edit"));
+        assertFalse(workspaceAuth.permissions(userA).contains("coupon:publish"));
+
+        workspaceGrants.deleteByQuery(QueryWrapper.create().eq(WorkspaceGrantEntity::getSubjectType, "USER")
+            .eq(WorkspaceGrantEntity::getSubjectId, userA));
+        var actions = Set.of("coupon:create", "coupon:update", "coupon:submitAudit", "coupon:withdrawAudit",
+            "coupon:publish", "coupon:unpublish", "coupon:delete");
+        assertTrue(workspaceAuth.permissions(userA).containsAll(actions));
+        var draft = coupon();
+        Long id = (Long) workspace.couponSave(userA, draft);
+
+        workspaceGrants.deleteByQuery(QueryWrapper.create().eq(WorkspaceGrantEntity::getSubjectType, "MERCHANT")
+            .eq(WorkspaceGrantEntity::getSubjectId, merchantA).ne(WorkspaceGrantEntity::getMenuId, legacy.getId()));
+        workspaceInitializer.run(null);
+        assertEquals(Set.of("coupon:update"), workspaceAuth.permissions(userA));
+        assertEquals(Set.of(legacy.getId()), workspaceAuth.grantable(workspaceAuth.user(userA)));
+        draft.setId(id);
+        assertEquals(true, workspace.couponSave(userA, draft));
+        for (String action : List.of("submitAudit", "withdrawAudit", "publish", "unpublish")) {
+            SecurityContextHolder.clearContext();
+            mvc.perform(post("/merchant/workspace/coupon/publication").header("Authorization", access)
+                    .contentType("application/json")
+                    .content("{\"id\":" + id + ",\"version\":1,\"action\":\"" + action + "\"}"))
+                .andExpect(jsonPath("$.code").value(403));
+        }
+        SecurityContextHolder.clearContext();
+        mvc.perform(post("/merchant/workspace/coupon/save").header("Authorization", access)
+                .contentType("application/json").content("{}"))
+            .andExpect(jsonPath("$.code").value(403));
+        SecurityContextHolder.clearContext();
+        mvc.perform(post("/merchant/workspace/coupon/delete").header("Authorization", access)
+                .contentType("application/json").content("{\"ids\":[" + id + "]}"))
+            .andExpect(jsonPath("$.code").value(403));
+    }
+
+    private BaseSysMenuEntity couponMenu(String permission) {
+        return workspaceMenus.selectOneByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getPerms, permission));
+    }
+
+    @Test void merchantMaterialIsSharedWithAuthorizedStaffAndProtectedWhileUsed() throws Exception {
+        String path = "/merchant/governance/materials";
+        String url = "http://localhost:8001/upload/20261105/" + UUID.randomUUID() + ".png";
+        org.mockito.Mockito.when(imageStorage.upload(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.isNull())).thenReturn(url);
+        grantFixturePermissions(merchantA, userA, "material:view", "material:manage", "coupon:create", "coupon:update", "store:edit");
+        Long category = cn.hutool.json.JSONUtil.parseObj(materialPost(path + "/categories/save", access,
+            "{\"name\":\"秋季封面\"}", 1000)).getJSONObject("data").getLong("id");
+        SecurityContextHolder.clearContext();
+        String response = mvc.perform(multipart(path + "/upload").file(image("material.png"))
+                .param("categoryId", category.toString()).header("Authorization", access))
+            .andExpect(jsonPath("$.code").value(1000)).andExpect(jsonPath("$.data.url").value(url))
+            .andReturn().getResponse().getContentAsString();
+        Long imageId = cn.hutool.json.JSONUtil.parseObj(response).getJSONObject("data").getLong("id");
+        String idBody = "{\"id\":" + imageId + "}";
+        materialPost(path + "/categories/delete", access, "{\"id\":" + category + "}", 409);
+
+        String staffName = username + "_staff";
+        Long staff = accounts.provision(staffName, "素材复用员工", "MerchantTest123!", merchantA);
+        var users = web.getBean(com.cool.modules.base.mapper.sys.BaseSysUserMapper.class);
+        var staffRow = users.selectOneById(staff);
+        staffRow.setMerchantRole("STAFF");
+        users.update(staffRow);
+        web.getBean(com.cool.modules.workspace.service.WorkspaceLegacyAccountBridge.class).bind(staffRow, "STAFF", true);
+        var membership = new com.cool.modules.merchant.entity.MerchantUserStoreEntity();
+        membership.setMerchantId(merchantA);
+        membership.setUserId(staff);
+        membership.setStoreId(storeA);
+        web.getBean(com.cool.modules.merchant.mapper.MerchantUserStoreMapper.class).insert(membership);
+        grantFixturePermissions(merchantA, staff, "store:edit");
+        String staffToken = materialLogin(staffName);
+        String storeForm = "{\"id\":" + storeA + ",\"categoryId\":" + categoryA
+            + ",\"name\":\"素材门店\",\"address\":\"测试地址\",\"phone\":\"13800000001\",\"status\":1,";
+        materialPost("/merchant/workspace/store/save", staffToken, storeForm + "\"coverMaterialId\":" + imageId + "}", 403);
+        grantFixturePermissions(merchantA, staff, "material:view");
+        SecurityContextHolder.clearContext();
+        mvc.perform(get(path + "/info").param("id", imageId.toString()).header("Authorization", staffToken)
+                .header("X-Workspace", "STORE"))
+            .andExpect(jsonPath("$.data.uploaderId").value(userA.intValue()));
+        materialPost(path + "/delete", staffToken, idBody, 403);
+        materialPost("/merchant/workspace/store/save", staffToken, storeForm + "\"coverMaterialId\":" + imageId + "}", 1000);
+        materialPost(path + "/delete", access, idBody, 409);
+
+        var draft = coupon();
+        draft.setCoverMaterialId(imageId);
+        Long couponId = (Long) workspace.couponSave(userA, draft);
+        materialPost("/merchant/workspace/store/save", staffToken, storeForm + "\"cover\":\"/old-store.jpg\"}", 1000);
+        materialPost(path + "/delete", access, idBody, 409);
+        draft.setId(couponId);
+        draft.setCoverMaterialId(null);
+        draft.setCover("/old-coupon.jpg");
+        assertEquals(true, workspace.couponSave(userA, draft));
+        materialPost(path + "/move", access, "{\"id\":" + imageId + ",\"categoryId\":0}", 1000);
+        materialPost(path + "/categories/delete", access, "{\"id\":" + category + "}", 1000);
+        materialPost(path + "/delete", access, idBody, 1000);
+        materialPost("/merchant/workspace/store/save", staffToken, storeForm + "\"cover\":\"" + url + "\"}", 409);
+        SecurityContextHolder.clearContext();
+        mvc.perform(get(path + "/page").header("Authorization", access))
+            .andExpect(jsonPath("$.data.total").value(0));
+    }
+
+    @Test void materialIdsCategoriesAndUrlAliasesCannotCrossMerchantBoundaries() throws Exception {
+        String path = "/merchant/governance/materials";
+        String url = "http://localhost:8001/upload/20261105/" + UUID.randomUUID() + ".png";
+        org.mockito.Mockito.when(imageStorage.upload(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.isNull())).thenReturn(url);
+        grantFixturePermissions(merchantA, userA, "material:view", "material:manage");
+        Long category = cn.hutool.json.JSONUtil.parseObj(materialPost(path + "/categories/save", access,
+            "{\"name\":\"甲商家分类\"}", 1000)).getJSONObject("data").getLong("id");
+        SecurityContextHolder.clearContext();
+        String response = mvc.perform(multipart(path + "/upload").file(image("private.png"))
+                .param("categoryId", category.toString()).header("Authorization", access))
+            .andExpect(jsonPath("$.code").value(1000)).andReturn().getResponse().getContentAsString();
+        Long imageId = cn.hutool.json.JSONUtil.parseObj(response).getJSONObject("data").getLong("id");
+        String otherName = username + "_other";
+        Long other = accounts.provision(otherName, "其他商家", "MerchantTest123!", merchantB);
+        grantFixturePermissions(merchantB, other, "material:view", "material:manage", "coupon:create", "store:edit");
+        String token = materialLogin(otherName);
+        mvc.perform(get(path + "/page").header("Authorization", token))
+            .andExpect(jsonPath("$.data.total").value(0));
+        SecurityContextHolder.clearContext();
+        mvc.perform(get(path + "/info").param("id", imageId.toString()).header("Authorization", token))
+            .andExpect(jsonPath("$.code").value(403));
+        SecurityContextHolder.clearContext();
+        mvc.perform(multipart(path + "/upload").file(image("other.png")).param("categoryId", category.toString())
+                .header("Authorization", token)).andExpect(jsonPath("$.code").value(403));
+        materialPost(path + "/categories/save", token, "{\"id\":" + category + ",\"name\":\"越权\"}", 403);
+        materialPost(path + "/move", token, "{\"id\":" + imageId + ",\"categoryId\":0}", 403);
+        materialPost(path + "/delete", token, "{\"id\":" + imageId + "}", 403);
+        materialPost("/merchant/workspace/coupon/save", token, "{\"coverMaterialId\":" + imageId + "}", 403);
+        String alias = url.replace("localhost", "127.0.0.1");
+        int first = alias.lastIndexOf('/') + 1;
+        alias = alias.substring(0, first) + String.format("%%%02x", (int) alias.charAt(first)) + alias.substring(first + 1);
+        materialPost("/merchant/workspace/store/save", token, "{\"id\":" + storeB + ",\"cover\":\""
+            + alias + "?v=2 test\"}", 403);
+        assertThrows(CoolException.class, () -> web.getBean(com.cool.modules.space.service.SpaceInfoService.class).info(imageId));
+        assertThrows(CoolException.class, () -> web.getBean(com.cool.modules.space.service.SpaceTypeService.class).delete(category));
+    }
+
+    private String materialLogin(String name) {
+        SecurityContextHolder.clearContext();
+        var input = loginInput();
+        input.setUsername(name);
+        return ((Dict) accounts.login(input)).getStr("token");
+    }
+
+    private String materialPost(String path, String token, String body, int code) throws Exception {
+        SecurityContextHolder.clearContext();
+        return mvc.perform(post(path).header("Authorization", token).contentType("application/json").content(body))
+            .andExpect(jsonPath("$.code").value(code)).andReturn().getResponse().getContentAsString();
+    }
+
+    private void grantFixturePermissions(Long merchant, Long user, String... permissions) {
+        for (String permission : permissions) {
+            Long id = couponMenu(permission).getId();
+            if (!workspaceAuth.cap("MERCHANT", merchant, Set.of()).contains(id)) {
+                grantCouponPermission("MERCHANT", merchant, id, true);
+            }
+            grantCouponPermission("USER", user, id, true);
+        }
+    }
+
+    private void grantCouponPermission(String subject, Long id, Long menuId, boolean allowed) {
+        var grant = new WorkspaceGrantEntity();
+        grant.setSubjectType(subject);
+        grant.setSubjectId(id);
+        grant.setMenuId(menuId);
+        grant.setAllowed(allowed);
+        workspaceGrants.insert(grant);
     }
 
     @Test void ordersAndItemsStayInsideMerchantAndHaveNoWriteEndpoint() throws Exception {

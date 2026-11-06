@@ -106,6 +106,32 @@ public class CouponTradeService {
         require(Objects.equals(rule.getInt("ruleVersion"),current.getRuleVersion()),"优惠券规则已变更，请重新下单");
         Row publication = relations.publicationState(templateId);
         require(number(publication.get("id")) == number(item.get("publication_id")),"优惠券发布记录已变更，请重新下单");
+        issue(customerId,current,rule,quantity,number(item.get("publication_id")),number(item.get("id")),
+            decimal(order.get("total_amount")).signum()==0?"CLAIM":"PURCHASE");
+        Date now = new Date(System.currentTimeMillis() / 1000 * 1000);
+        mapper.change("purchase_order",orderId,Row.of("order_status","PAID").set("payment_status","SUCCESS").set("paid_at",now).setRaw("update_time","NOW()"));
+        return orderInfo(customerId,orderId);
+    }
+
+    /** 任务发券与购券共用有效期、券码、库存和持券落库；调用者负责锁定任务进度。 */
+    public Long issueTaskReward(Long customerId,Long templateId,Integer version,String snapshot) {
+        customer(customerId,true);
+        require(relations.lockTemplate(templateId)!=null,"奖励券不存在");
+        var coupon=templates.validateForPublication(templateId,version);
+        require("TASK_ONLY".equals(coupon.getIssueChannel()),"奖励须为任务专用券，请制作专用副本");
+        var publication=relations.publicationState(templateId);
+        require(number(publication.get("audit_status"))==2 && number(publication.get("publish_status"))==1
+            && number(publication.get("published_version"))==version,"奖励券当前版本须审核通过并上架");
+        require(coupon.getIssueLimit()==null || coupon.getIssuedCount()<coupon.getIssueLimit(),"奖励券库存不足");
+        require(mapper.count("customer_coupon",q().eq("customer_id",customerId).eq("coupon_template_id",templateId))
+            <coupon.getPerCustomerLimit(),"奖励券已达每人发放上限");
+        return issue(customerId,coupon,JSONUtil.parseObj(snapshot),1,number(publication.get("id")),null,"TASK_REWARD").get(0);
+    }
+
+    private List<Long> issue(Long customerId,CouponTemplateEntity current,JSONObject rule,int quantity,
+                             Long publicationId,Long itemId,String source) {
+        Long templateId=current.getId();
+        var issued=new ArrayList<Long>();
         // DATETIME(0)由数据库按秒保存；发券起点取整，避免四舍五入后短暂显示未生效。
         Date now = new Date(System.currentTimeMillis() / 1000 * 1000);
         Date from = "FIXED".equals(rule.getStr("validityType")) ? rule.getDate("validFrom") : now;
@@ -114,16 +140,15 @@ public class CouponTradeService {
         require(to != null && to.after(now) && from != null && to.after(from),"优惠券有效期不可用");
         for (int sequence=1;sequence<=quantity;sequence++) {
             String code = code();
-            mapper.create("customer_coupon",Row.of("merchant_id",order.get("merchant_id")).set("customer_id",customerId)
-                    .set("coupon_template_id",templateId).set("publication_id",item.get("publication_id"))
-                    .set("order_item_id",item.get("id")).set("issue_sequence",sequence)
-                    .set("source_type",decimal(order.get("total_amount")).signum() == 0 ? "CLAIM" : "PURCHASE")
+            issued.add(mapper.create("customer_coupon",Row.of("merchant_id",current.getMerchantId()).set("customer_id",customerId)
+                    .set("coupon_template_id",templateId).set("publication_id",publicationId)
+                    .set("order_item_id",itemId).set("issue_sequence",sequence)
+                    .set("source_type",source)
                     .set("channel","PLATFORM").set("code",code).set("qr_code_image",qrImage(code)).set("status",0)
-                    .set("valid_from",from).set("valid_to",to).set("rule_snapshot",item.get("rule_snapshot")).set("issued_at",now));
+                    .set("valid_from",from).set("valid_to",to).set("rule_snapshot",rule.toString()).set("issued_at",now)));
         }
         require(mapper.consumeStock(templateId,current.getIssuedCount(),quantity),"库存已变化，请重新尝试支付");
-        mapper.change("purchase_order",orderId,Row.of("order_status","PAID").set("payment_status","SUCCESS").set("paid_at",now).setRaw("update_time","NOW()"));
-        return orderInfo(customerId,orderId);
+        return issued;
     }
 
     public Map<String,Object> cancel(Long customerId, Long id) {
@@ -328,6 +353,7 @@ public class CouponTradeService {
 
     private CouponTemplateEntity available(Long customerId, Long templateId, int quantity) {
         require(relations.lockTemplate(templateId) != null,"优惠券不存在");
+        require(!"TASK_ONLY".equals(templates.getById(templateId).getIssueChannel()),"任务奖励券不支持公开领取或购买");
         Map<String,Object> display = discovery.coupon(templateId);
         require("AVAILABLE".equals(display.get("saleState")),"优惠券未开始、已结束或已售罄");
         CouponTemplateEntity coupon = (CouponTemplateEntity)templates.info(templateId);

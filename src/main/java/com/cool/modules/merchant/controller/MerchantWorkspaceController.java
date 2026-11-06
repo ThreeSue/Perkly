@@ -1,6 +1,7 @@
 package com.cool.modules.merchant.controller;
 
 import com.cool.core.exception.CoolException;
+import com.cool.core.file.strategy.LocalFileUploadStrategy;
 import com.cool.core.request.R;
 import com.cool.modules.coupon.entity.CouponTemplateEntity;
 import com.cool.modules.merchant.entity.MerchantStoreEntity;
@@ -53,23 +54,7 @@ public class MerchantWorkspaceController {
     public R<?> uploadImage(@RequestPart("file") org.springframework.web.multipart.MultipartFile file) {
         // 复用OWNER工作区归属及停用校验，不扩大店长、员工或入驻申请人的权限。
         workspace.me(user());
-        if (file.isEmpty() || file.getSize() > 5 * 1024 * 1024)
-            throw new CoolException("请选择不超过5MB的图片");
-        String name = java.util.Objects.toString(file.getOriginalFilename(), "").toLowerCase(java.util.Locale.ROOT);
-        if (!name.matches(".*\\.(png|jpe?g|gif)$")) throw new CoolException("仅支持JPG、PNG、GIF图片");
-        String expected = name.endsWith(".png") ? "png" : name.endsWith(".gif") ? "gif" : "jpeg";
-        try (var input = file.getInputStream(); var stream = javax.imageio.ImageIO.createImageInputStream(input)) {
-            if (stream == null) throw new CoolException("图片内容无效");
-            var readers = javax.imageio.ImageIO.getImageReaders(stream);
-            if (!readers.hasNext()) throw new CoolException("图片内容无效");
-            var reader = readers.next();
-            try {
-                reader.setInput(stream);
-                if (!expected.equalsIgnoreCase(reader.getFormatName())) throw new CoolException("图片格式与扩展名不一致");
-                long pixels = (long) reader.getWidth(0) * reader.getHeight(0);
-                if (pixels <= 0 || pixels > 40_000_000L) throw new CoolException("图片尺寸过大或无效");
-            } finally { reader.dispose(); }
-        } catch (java.io.IOException invalid) { throw new CoolException("图片读取失败，请重新选择图片"); }
+        LocalFileUploadStrategy.validateImage(file);
         // 图片直接进入已有本地存储，不返回云存储签名或借用运营上传权限。
         return R.ok(localFiles.upload(new org.springframework.web.multipart.MultipartFile[]{file}, request, null));
     }

@@ -11,6 +11,7 @@ import com.cool.modules.coupon.mapper.CouponTemplateRelationsMapper;
 import com.cool.modules.coupon.service.CouponTemplateService;
 import com.cool.modules.merchant.entity.MerchantInfoEntity;
 import com.cool.modules.merchant.mapper.MerchantInfoMapper;
+import com.cool.modules.space.service.MerchantMaterialService;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import java.util.*;
@@ -35,6 +36,7 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         implements CouponTemplateService {
     private final MerchantInfoMapper merchants;
     private final CouponTemplateRelationsMapper relations;
+    private final MerchantMaterialService materials;
 
     @Override
     public List<Map<String, Object>> productOptions(Long merchantId) {
@@ -60,9 +62,11 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
 
     @Override
     public Long add(CouponTemplateEntity e) {
+        channel(e);
         e.setId(null);
         e.setIssuedCount(0L);
         e.setRuleVersion(1);
+        e.setCover(materials.resolveCover(e.getMerchantId(), e.getCoverMaterialId(), e.getCover()));
         CouponTemplateRules.validate(e);
         validateMerchant(e);
         validateStores(e, List.of());
@@ -76,6 +80,11 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
     @Override
     public boolean update(CouponTemplateEntity e) {
         CouponTemplateEntity old = lock(e.getId());
+        if(e.getIssueChannel()==null)e.setIssueChannel(old.getIssueChannel());
+        channel(e);
+        if(!Objects.equals(Objects.toString(old.getIssueChannel(),"PUBLIC"),e.getIssueChannel()))
+            throw new CoolException("发放渠道创建后不能切换，请制作专用副本");
+        channel(old);
         if (!Integer.valueOf(1).equals(e.getStatus()) && relations.activePublications(e.getId()) > 0) {
             throw new CoolException("此券正在审核或已上架，请先撤回审核或下架后停用");
         }
@@ -86,6 +95,7 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         if (e.getStoreIds() == null) e.setStoreIds(oldStores);
         e.setIssuedCount(old.getIssuedCount());
         e.setCreateTime(old.getCreateTime());
+        e.setCover(materials.resolveCover(e.getMerchantId(), e.getCoverMaterialId(), e.getCover()));
         CouponTemplateRules.validate(e);
         validateMerchant(e);
         validateStores(e, oldStores);
@@ -141,6 +151,11 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         List<CouponTemplateEntity> result = (List<CouponTemplateEntity>) super.list(params, query);
         enrich(result);
         return result;
+    }
+
+    private void channel(CouponTemplateEntity e) {
+        if(e.getIssueChannel()==null)e.setIssueChannel("PUBLIC");
+        if(!java.util.Set.of("PUBLIC","TASK_ONLY").contains(e.getIssueChannel()))throw new CoolException("发放渠道无效");
     }
 
     private CouponTemplateEntity lock(Long id) {
