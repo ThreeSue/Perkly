@@ -1,8 +1,10 @@
+import { isPlatform } from '/@/workspace';
 import { usePlugin } from './hooks';
 import { type ModuleConfig } from '/@/cool';
 
 export default (): ModuleConfig => {
 	return {
+		enable: isPlatform,
 		options: {
 			index: 'https://cool-js.com',
 			api: 'https://service.cool-js.com/api'

@@ -1,3 +1,4 @@
+import { isPlatform } from '/@/workspace';
 import { type ModuleConfig } from '/@/cool';
 import { useStore } from './store';
 import { config } from '/@/config';
@@ -19,13 +20,16 @@ export default (): ModuleConfig => {
 		},
 		components: Object.values(import.meta.glob('./components/**/*.{vue,tsx}')),
 		views: [
+			{ path: '/my/notices', meta: { label: '站内通知' }, component: () => import('/$/workspace/views/notices.vue') },
+			{ path: '/my/chats', meta: { label: '门店客服' }, component: () => import('/$/workspace/views/chats.vue') },
 			{
 				path: '/my/info',
 				meta: {
-					label: t('账号中心'),
-					keepAlive: true
+					label: t('个人中心')
 				},
-				component: () => import('../merchant/views/account.vue')
+				component: isPlatform
+					? () => import('./views/info.vue')
+					: () => import('/$/workspace/views/personal.vue')
 			}
 		],
 		pages: [

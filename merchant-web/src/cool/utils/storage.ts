@@ -1,5 +1,7 @@
 import store from 'store';
-const prefix = 'quanguanjia:merchant:';
+import { identity } from '/@/workspace';
+const prefix = identity === 'PLATFORM' ? '' : `workspace:${identity}:`;
+const keyOf = (key: string) => prefix + key;
 
 export default {
 	// 后缀标识
@@ -10,7 +12,7 @@ export default {
 	 * @param {string} key 关键字
 	 */
 	get(key: string) {
-		return store.get(prefix + key);
+		return store.get(keyOf(key));
 	},
 
 	/**
@@ -20,7 +22,8 @@ export default {
 		const data: Record<string, any> = {};
 
 		store.each((value: any, key: any) => {
-			if (key.startsWith(prefix)) data[key.slice(prefix.length)] = value;
+			if (prefix ? key.startsWith(prefix) : !key.startsWith('workspace:'))
+				data[prefix ? key.slice(prefix.length) : key] = value;
 		});
 
 		return data;
@@ -33,11 +36,11 @@ export default {
 	 * @param {number} expires 过期时间
 	 */
 	set(key: string, value: any, expires?: number) {
-		store.set(prefix + key, value);
+		store.set(keyOf(key), value);
 
 		if (expires) {
 			const expirationTime = Date.now() + expires * 1000;
-			store.set(`${prefix}${key}${this.suffix}`, expirationTime);
+			store.set(keyOf(`${key}${this.suffix}`), expirationTime);
 		}
 	},
 
@@ -63,7 +66,7 @@ export default {
 	 * @param {string} key 关键字
 	 */
 	remove(key: string) {
-		store.remove(prefix + key);
+		store.remove(keyOf(key));
 		this.removeExpiration(key);
 	},
 
@@ -72,13 +75,13 @@ export default {
 	 * @param {string} key 关键字
 	 */
 	removeExpiration(key: string) {
-		store.remove(prefix + key + this.suffix);
+		store.remove(keyOf(key + this.suffix));
 	},
 
 	/**
 	 * 清理
 	 */
 	clearAll() {
-		Object.keys(this.info()).forEach(key => store.remove(prefix + key));
+		Object.keys(this.info()).forEach(key => store.remove(keyOf(key)));
 	}
 };

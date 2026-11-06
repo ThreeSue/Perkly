@@ -97,7 +97,7 @@ const tab = reactive({
 			icon: 'icon-dingdanliebiao',
 			isLogin: true,
 			permission: {
-				and: [service.dict?.info?.permission?.list || 'merchant:unavailable', service.dict?.type?.permission?.list || 'merchant:unavailable']
+				and: [service.dict.info.permission.list, service.dict.type.permission.list]
 			}
 		},
 		{

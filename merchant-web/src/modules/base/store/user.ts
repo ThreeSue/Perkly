@@ -1,14 +1,10 @@
+import { isPlatform, identity } from '/@/workspace';
+import { merchantRequest } from '/@/merchant-api';
+import { workspaceApi } from '/$/workspace/api';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { storage } from '/@/cool/utils';
-import { router } from '/@/cool';
-import { merchantRequest } from '/@/merchant-api';
-
-// 清除旧平台维护会话，商家中心不再接受运营登录模式。
-if (storage.get('authMode') === 'admin') {
-	['token', 'refreshToken', 'userInfo', 'base.menuGroup', 'base.menuPerms'].forEach(key => storage.remove(key));
-}
-storage.remove('authMode');
+import { service, router } from '/@/cool';
 
 // 本地缓存
 const data = storage.info();
@@ -35,8 +31,13 @@ export const useUserStore = defineStore('user', function () {
 	// 刷新标识
 	async function refreshToken(): Promise<string> {
 		return new Promise((resolve, reject) => {
-			const params = { refreshToken: storage.get('refreshToken') };
-			merchantRequest('auth/refreshToken', params)
+			(isPlatform
+				? service.base.open.refreshToken({ refreshToken: storage.get('refreshToken') })
+				: merchantRequest('auth/refreshToken', {
+						refreshToken: storage.get('refreshToken'),
+						accountType: identity
+					})
+			)
 				.then(res => {
 					setToken(res);
 					resolve(res.token);
@@ -77,8 +78,8 @@ export const useUserStore = defineStore('user', function () {
 
 	// 获取用户信息
 	async function get() {
-		return merchantRequest('workspace/me').then(res => {
-			set({ ...res, nickName: res.name });
+		return (isPlatform ? service.base.comm.person() : workspaceApi('me')).then(res => {
+			set(isPlatform ? res : { ...res, nickName: res.name });
 			return res;
 		});
 	}
