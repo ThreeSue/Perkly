@@ -1,7 +1,8 @@
 <template>
-    <el-button v-if="allowed" :disabled="disabled" @click="open">调整顺序</el-button>
+    <el-button v-if="allowed" :disabled="disabled" @click="open">{{ buttonText }}</el-button>
     <el-dialog v-model="visible" title="调整显示顺序" width="min(680px, 94vw)" :close-on-click-modal="false" :close-on-press-escape="!saving" :show-close="!saving" :before-close="close">
         <el-alert title="拖动调整同级顺序，也可用上下按钮；不分页展示完整范围，保存后生效。不会改变上下级归属。" type="info" :closable="false" />
+        <el-alert v-if="saveBlockedReason" :title="saveBlockedReason" type="warning" :closable="false" class="notice" />
         <el-alert v-if="error" :title="error" type="error" :closable="false" class="notice" />
         <el-scrollbar v-loading="loading" max-height="55vh" class="order-list">
             <el-tree :data="tree" :props="{ label: 'name' }" node-key="id" default-expand-all :expand-on-click-node="false" :draggable="!saving && !loading" :allow-drag="canDrag" :allow-drop="canDrop" @node-drop="dirty = true">
@@ -14,7 +15,7 @@
             </el-tree>
             <el-empty v-if="!loading && !tree.length" description="暂无可排序数据" :image-size="64" />
         </el-scrollbar>
-        <template #footer><el-button :disabled="saving" @click="load">重置顺序</el-button><el-button :disabled="saving" @click="close()">取消</el-button><el-button type="primary" :disabled="loading || !dirty" :loading="saving" @click="save">保存顺序</el-button></template>
+        <template #footer><el-button :disabled="saving" @click="load">重置顺序</el-button><el-button :disabled="saving" @click="close()">取消</el-button><el-button type="primary" :disabled="loading || !dirty || !!saveBlockedReason" :loading="saving" @click="save">保存顺序</el-button></template>
     </el-dialog>
 </template>
 <script setup lang="ts">
@@ -22,8 +23,8 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { buildOrderTree, orderChanges, orderSignature, siblingList, sameOrderParent, type OrderRow } from './order-model';
 const props = withDefaults(defineProps<{
-    service: any; field?: string; descending?: boolean; params?: Record<string, unknown>; disabled?: boolean; protectRoot?: boolean;
-}>(), { field: 'orderNum', descending: false, disabled: false, protectRoot: false });
+    service: any; field?: string; descending?: boolean; params?: Record<string, unknown>; disabled?: boolean; protectRoot?: boolean; buttonText?: string; saveBlockedReason?: string;
+}>(), { field: 'orderNum', buttonText: '调整顺序', descending: false, disabled: false, protectRoot: false });
 const emit = defineEmits<{ saved: [] }>();
 const visible = ref(false), loading = ref(false), saving = ref(false), dirty = ref(false), error = ref('');
 const tree = ref<OrderRow[]>([]);
@@ -60,7 +61,7 @@ function move(row: OrderRow, step: number) {
     [list[index], list[index + step]] = [list[index + step], list[index]]; dirty.value = true;
 }
 async function save() {
-    if (saving.value || loading.value || !dirty.value) return;
+    if (props.saveBlockedReason || saving.value || loading.value || !dirty.value) return;
     saving.value = true; error.value = '';
     try {
         const latest = await props.service.list(scope);

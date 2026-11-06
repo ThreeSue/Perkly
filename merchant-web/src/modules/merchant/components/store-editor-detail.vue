@@ -6,9 +6,9 @@
     <div v-if="!editing" class="cover-section">
      <div class="cover-label">门店封面</div>
      <el-image v-if="store.cover" class="store-cover" :src="store.cover" :preview-src-list="[store.cover]" preview-teleported fit="cover" :alt="`${store.name || '门店'}的封面`">
-      <template #error><div class="cover-placeholder"><el-icon :size="32"><Picture /></el-icon><span>暂无门店封面</span></div></template>
+      <template #error><CoverPlaceholder /></template>
      </el-image>
-     <div v-else class="store-cover cover-placeholder"><el-icon :size="32"><Picture /></el-icon><span>暂无门店封面</span></div>
+     <div v-else class="store-cover"><CoverPlaceholder /></div>
     </div>
     <div class="actions"><el-button v-if="!editing && service.merchant.store._permission?.update" type="primary" @click="beginEdit">编辑资料</el-button><template v-if="editing"><el-button type="primary" :loading="saving" @click="save">保存</el-button><el-button :disabled="saving" @click="cancel">取消</el-button></template></div>
     <el-form v-if="editing" ref="formRef" :model="draft" label-position="top"><el-row :gutter="20">
@@ -16,7 +16,7 @@
      <el-col :span="12"><el-form-item label="门店类型" prop="categoryId" :rules="required('门店类型')"><el-select v-model="draft.categoryId" filterable style="width:100%"><el-option v-for="item in availableCategories" :key="item.id" :value="item.id" :label="item.name" /></el-select></el-form-item></el-col>
      <el-col :span="12"><el-form-item label="门店名称" prop="name" :rules="required('门店名称')"><el-input v-model="draft.name" maxlength="100" /></el-form-item></el-col>
      <el-col :span="12"><el-form-item label="联系电话" prop="phone" :rules="[...required('联系电话'), phoneRule]"><el-input v-model="draft.phone" maxlength="30" /></el-form-item></el-col>
-     <el-col :span="24"><el-form-item label="门店封面"><cl-upload v-model="draft.cover" type="image" accept="image/*" :limit="1" :limit-size="5" /></el-form-item></el-col>
+     <el-col :span="24"><el-form-item label="门店封面"><CoverField v-model="draft.cover" /></el-form-item></el-col>
      <el-col :span="24"><el-form-item label="详细地址与位置" prop="address" :rules="required('详细地址')"><div class="location"><el-input v-model="draft.address" maxlength="500" /><el-button @click="picker?.open(draft)">地图选址</el-button><el-text size="small" type="info">{{ hasCoordinates(draft) ? `经度 ${draft.longitude}，纬度 ${draft.latitude}（GCJ-02）` : '尚未定位，可稍后补录。' }}</el-text></div></el-form-item></el-col>
      <el-col :span="24"><el-form-item label="营业时间"><el-input v-model="draft.businessHours" type="textarea" :rows="3" maxlength="4000" /></el-form-item></el-col>
      <el-col :span="12"><el-form-item label="状态"><el-select v-model="draft.status"><el-option label="营业" :value="1"/><el-option label="停业" :value="2"/><el-option label="禁用" :value="0"/><el-option label="关闭" :value="3"/></el-select></el-form-item></el-col>
@@ -33,8 +33,9 @@
  </el-drawer>
 </template>
 <script setup lang="ts">
+import CoverPlaceholder from '/$/space/components/cover-placeholder.vue';
 import { computed, ref } from 'vue';
-import { Picture } from '@element-plus/icons-vue';
+import CoverField from '/$/space/components/cover-field.vue';
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus';
 import { useCool } from '/@/cool';
 import MerchantSelect from './merchant-select.vue';
@@ -84,7 +85,6 @@ defineExpose({ open });
 .cover-section { margin-bottom: 20px; }
 .cover-label { margin-bottom: 10px; color: var(--el-text-color-regular); font-weight: 600; }
 .store-cover { display: block; width: min(100%, 360px); height: 180px; border-radius: 8px; overflow: hidden; }
-.cover-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 100%; background: var(--el-fill-color-light); color: var(--el-text-color-secondary); font-size: 13px; }
 .store-cover.cover-placeholder { width: min(100%, 360px); height: 180px; }
 
 .actions { display:flex; gap:10px; margin-bottom:20px; }.actions .el-button { margin-left:0; }

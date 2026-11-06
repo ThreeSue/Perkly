@@ -48,6 +48,7 @@
 				><h3>{{ detail.title }}</h3>
 				<p class="notice-meta">{{ detail.senderName }} · {{ time(detail.createTime) }}</p>
 				<p class="notice-content">{{ detail.content }}</p>
+				<el-button v-if="detail.businessType === 'WALLET_ACTIVITY'" type="primary" @click="$router.push('/my/activities?id=' + detail.businessId)">活动详情与参与设置</el-button>
 				<el-table v-if="sent" :data="receipts"
 					><el-table-column prop="name" label="接收人" /><el-table-column label="阅读状态"
 						><template #default="{ row }">{{
@@ -92,6 +93,43 @@
 					/></el-select>
 				</el-form-item>
 			</el-form>
+			<el-space v-if="isPlatform" wrap class="recipient-tools">
+				<el-select
+					v-model="recipientMerchantId"
+					aria-label="商家范围"
+					filterable
+					style="width: 200px"
+					:disabled="sending || loadingRecipients"
+					@change="filterRecipients"
+				>
+					<el-option label="所有商家" :value="0" />
+					<el-option v-for="merchant in merchants" :key="merchant.id" :label="merchant.name" :value="merchant.id" />
+				</el-select>
+				<el-select
+					v-model="recipientAccountType"
+					aria-label="接收账号类型"
+					style="width: 160px"
+					:disabled="sending || loadingRecipients"
+					@change="filterRecipients"
+				>
+					<el-option label="全部可通知人员" value="" />
+					<el-option label="商家账号" value="MERCHANT" />
+					<el-option label="门店员工" value="STORE" />
+				</el-select>
+				<el-button
+					:disabled="sending || loadingRecipients || !!recipientError || !recipientTotal"
+					@click="selectAllRecipients"
+				>
+					全选筛选结果
+				</el-button>
+				<el-button
+					:disabled="sending || loadingRecipients || !form.recipientIds.length"
+					@click="form.recipientIds = []"
+				>
+					清空选择
+				</el-button>
+				<span>已选 {{ form.recipientIds.length }} / 100 人</span>
+			</el-space>
 			<el-alert
 				v-if="recipientError"
 				:title="recipientError"
@@ -117,7 +155,7 @@
 						><el-button
 							link
 							:disabled="
-								sending ||
+								sending || loadingRecipients ||
 								form.recipientIds.includes(row.id) ||
 								form.recipientIds.length >= 100
 							"
@@ -132,12 +170,13 @@
 				:page-size="20"
 				:total="recipientTotal"
 				layout="total, prev, pager, next"
+				:disabled="sending || loadingRecipients"
 				@current-change="loadRecipients"
 			/>
 			<template #footer
-				><el-button :disabled="sending" @click="closeEditor(() => (editorOpen = false))"
+				><el-button :disabled="sending || loadingRecipients" @click="closeEditor(() => (editorOpen = false))"
 					>取消</el-button
-				><el-button type="primary" :loading="sending" @click="send"
+				><el-button type="primary" :loading="sending" :disabled="loadingRecipients" @click="send"
 					>确认发送</el-button
 				></template
 			>
@@ -149,6 +188,7 @@ import { ref, computed, onMounted } from 'vue';
 import dayjs from 'dayjs';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useBase } from '/$/base';
+import { isPlatform } from '/@/workspace';
 import { workspaceApi } from '../api';
 import ManagementShell from '../components/management-shell.vue';
 const { menu, user } = useBase();
@@ -174,6 +214,15 @@ const options = ref<any[]>([]),
 	recipientPage = ref(1),
 	recipientTotal = ref(0);
 const form = ref({ requestId: '', title: '', content: '', recipientIds: [] as number[] });
+const recipientMerchantId = ref(0);
+const recipientAccountType = ref('');
+const merchants = ref<{ id: number; name: string }[]>([]);
+function recipientUrl(pageNumber: number, pageSize: number) {
+	const params = new URLSearchParams({ pageNumber: String(pageNumber), pageSize: String(pageSize) });
+	if (recipientMerchantId.value) params.set('merchantId', String(recipientMerchantId.value));
+	if (recipientAccountType.value) params.set('accountType', recipientAccountType.value);
+	return `notices/recipients?${params}`;
+}
 const time = (v: string) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '—');
 const label = (r: any) =>
 	`${r.name || r.username} · ${r.merchantName}${r.storeName ? ' / ' + r.storeName : ''} · ${r.roleName}`;
@@ -211,17 +260,43 @@ async function open(row: any) {
 	}
 }
 async function loadRecipients() {
+	if (loadingRecipients.value) return;
 	loadingRecipients.value = true;
 	recipientError.value = '';
 	try {
-		const r = await workspaceApi(
-			`notices/recipients?pageNumber=${recipientPage.value}&pageSize=20`
-		);
+		const r = await workspaceApi(recipientUrl(recipientPage.value, 20));
 		options.value = r.list;
 		recipientTotal.value = r.total;
 	} catch (e: any) {
 		options.value = [];
+		recipientTotal.value = 0;
 		recipientError.value = e.message;
+	} finally {
+		loadingRecipients.value = false;
+	}
+}
+function filterRecipients() {
+	if (loadingRecipients.value || sending.value) return;
+	recipientPage.value = 1;
+	void loadRecipients();
+}
+async function selectAllRecipients() {
+	if (loadingRecipients.value || sending.value) return;
+	if (recipientTotal.value > 100) {
+		ElMessage.warning('筛选结果超过100人，请缩小范围后再全选');
+		return;
+	}
+	loadingRecipients.value = true;
+	try {
+		const result = await workspaceApi(recipientUrl(1, 100));
+		const ids = new Set([...form.value.recipientIds, ...result.list.map((row: any) => row.id)]);
+		if (result.total > 100 || ids.size > 100) {
+			ElMessage.warning('合计超过100人，请缩小筛选范围或移除部分已选人员');
+			return;
+		}
+		for (const row of result.list) add(row);
+	} catch (e: any) {
+		ElMessage.error(e.message || '全选失败，请重试');
 	} finally {
 		loadingRecipients.value = false;
 	}
@@ -230,15 +305,23 @@ function compose() {
 	form.value = { requestId: crypto.randomUUID(), title: '', content: '', recipientIds: [] };
 	selectedOptions.value = [];
 	recipientPage.value = 1;
+	recipientMerchantId.value = 0;
+	recipientAccountType.value = '';
 	editorOpen.value = true;
 	loadRecipients();
+	if (isPlatform) {
+		workspaceApi('merchants')
+			.then(result => (merchants.value = result))
+			.catch(() => ElMessage.error('商家列表加载失败，请重新打开通知窗口'));
+	}
 }
 function add(row: any) {
+	if (form.value.recipientIds.includes(row.id) || form.value.recipientIds.length >= 100) return;
 	if (!selectedOptions.value.some(r => r.id === row.id)) selectedOptions.value.push(row);
 	form.value.recipientIds.push(row.id);
 }
 async function closeEditor(done: () => void) {
-	if (sending.value) return;
+	if (sending.value || loadingRecipients.value) return;
 	if (form.value.title || form.value.content || form.value.recipientIds.length) {
 		try {
 			await ElMessageBox.confirm(
@@ -252,6 +335,7 @@ async function closeEditor(done: () => void) {
 	done();
 }
 async function send() {
+	if (sending.value || loadingRecipients.value) return;
 	if (!form.value.title.trim() || !form.value.content.trim() || !form.value.recipientIds.length)
 		return ElMessage.warning('请填写标题、正文并选择具体接收人员');
 	sending.value = true;
@@ -278,6 +362,9 @@ onMounted(load);
 }
 .notice-meta {
 	color: var(--el-text-color-secondary);
+}
+.recipient-tools {
+	margin-bottom: 12px;
 }
 .el-pagination {
 	margin-top: 16px;

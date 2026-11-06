@@ -112,7 +112,7 @@ const filteredScopes = computed(() => {
 	min-height: 0;
 	display: flex;
 	gap: 16px;
-	padding: 16px;
+	padding: 0;
 	box-sizing: border-box;
 	background: var(--el-fill-color-light);
 	color: var(--el-text-color-primary);
@@ -313,6 +313,24 @@ const filteredScopes = computed(() => {
 	overflow: auto;
 	box-sizing: border-box;
 }
+/* 带商家或门店选择栏的页面，收紧右侧区域间距。 */
+.management-shell.has-sidebar {
+	gap: 10px;
+	padding: 0;
+}
+.has-sidebar > .management-main {
+	gap: 8px;
+}
+.has-sidebar > .management-main > .management-heading {
+	padding: 10px 12px;
+}
+.has-sidebar > .management-main > .management-body {
+	padding: 12px;
+}
+.has-sidebar .management-toolbar {
+	gap: 8px;
+	margin-bottom: 10px;
+}
 .management-toolbar {
 	display: flex;
 	align-items: center;
@@ -398,7 +416,7 @@ const filteredScopes = computed(() => {
 	.management-shell {
 		flex-direction: column;
 		overflow: auto;
-		padding: 10px;
+		padding: 0;
 		gap: 10px;
 	}
 	.management-sidebar {

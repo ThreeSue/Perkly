@@ -78,3 +78,15 @@ test('权限不足不能打开；树节点不能跨父级或作为子节点拖�
   assert.equal(state.canDrop({ data: { id: 1, parentId: 3 } }, { data: { id: 2, parentId: 4 } }, 'before'), false);
   assert.equal(state.canDrop({ data: { id: 1 } }, { data: { id: 2 } }, 'inner'), false);
 });
+
+test('仅预览模式允许调整和取消，但不会写入顺序', async () => {
+  const { state, writes, messages } = manager({}, { saveBlockedReason: '批量接口待接入' });
+  await open(state);
+  state.move(state.tree.value[1], -1);
+  assert.equal(state.tree.value[0].id, 2);
+  await state.save();
+  assert.deepEqual(writes, []);
+  assert.deepEqual(messages, []);
+  await state.close();
+  assert.equal(state.visible.value, false);
+});

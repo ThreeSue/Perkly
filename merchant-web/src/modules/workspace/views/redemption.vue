@@ -39,20 +39,17 @@
 			<p>{{ inspection.description }}</p>
 			<p v-if="inspection.contents">权益内容：{{ inspection.contents }}</p>
 			<p>有效期：{{ inspection.validFrom }} 至 {{ inspection.validTo }}</p>
-			<template v-if="inspection.requiresConsumptionAmount"
-				><el-form label-position="top"
-					><el-form-item label="消费金额（元）"
-						><el-input
-							v-model="amount"
-							:disabled="!!order || uncertain"
-							inputmode="decimal" /></el-form-item></el-form></template
+			<template v-if="inspection.requiresConsumptionAmount">
+				<el-alert title="金额类优惠券在消费开单后选用，由顾客确认付款。" type="info" :closable="false" />
+				<el-button @click="openSettlement">前往消费开单</el-button>
+			</template
 			><el-input
 				v-model="remark"
 				:disabled="!!order || uncertain"
 				placeholder="消费备注（可选）"
 				maxlength="200"
 				show-word-limit
-			/><el-button v-if="!order" style="margin-top: 16px" type="primary" @click="prepare">{{
+			/><el-button v-if="!order && !inspection.requiresConsumptionAmount" style="margin-top: 16px" type="primary" @click="prepare">{{
 				inspection.requiresConsumptionAmount ? '生成消费账单' : '确认兑换并自动生成订单'
 			}}</el-button></el-card
 		><el-card v-if="order" shadow="never"
@@ -73,15 +70,13 @@
 					order.couponName
 				}}</el-descriptions-item></el-descriptions
 			><template v-if="order.status === 'PENDING'"
-				><el-checkbox v-model="received" v-if="order.payableAmount > 0"
-					>已核实线下补款 {{ money(order.payableAmount) }} 元到账</el-checkbox
 				>
 				<div class="actions">
 					<el-button
 						type="primary"
-						:disabled="uncertain || (order.payableAmount > 0 && !received)"
+						:disabled="uncertain"
 						@click="confirm"
-						>确认收款并核销</el-button
+						>转为顾客确认付款</el-button
 					><el-button :disabled="uncertain" @click="cancel">取消账单</el-button>
 				</div></template
 			><el-button style="margin-top: 16px" @click="recover"
@@ -98,11 +93,17 @@
 </template>
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { featureApi } from '../feature-api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { merchantRequest } from '/@/merchant-api';
 import { workspaceApi } from '../api';
 import { identity } from '/@/workspace';
 import { storage } from '/@/cool/utils';
+const router = useRouter();
+function openSettlement() {
+	void router.push('/' + (identity === 'STORE' ? 'store' : 'merchant') + '/wallet');
+}
 const stores = ref<any[]>([]),
 	storeId = ref<number>(),
 	code = ref(''),
@@ -204,12 +205,8 @@ async function prepare() {
 }
 async function confirm() {
 	await run(async () => {
-		order.value = await merchantRequest('consumption/confirm', {
-			orderId: order.value.id,
-			version: order.value.version,
-			receivedAmount: order.value.payableAmount
-		});
-		ElMessage.success('核销完成');
+		const bill = await featureApi('wallet/bills/import', { orderId: order.value.id });
+		await router.push({ path: '/' + (identity === 'STORE' ? 'store' : 'merchant') + '/wallet', query: { billId: bill.id } });
 	}, true);
 }
 async function cancel() {

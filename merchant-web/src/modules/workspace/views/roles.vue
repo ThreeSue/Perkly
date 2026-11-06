@@ -1,14 +1,14 @@
 <template>
 	<ManagementShell
-		title="岗位权限"
+		title="岗位管理"
 		eyebrow="岗位与功能"
-		description="先确定岗位适用范围，再勾选页面与操作权限"
+		description="岗位决定员工默认可以使用哪些功能；员工的权限可在员工账号中单独调整"
 		:sidebar="isPlatform"
 		:items="merchants"
 		:scope-id="merchantId"
 		:scope-name="scopeName"
 		:metrics="metrics"
-		all-hint="内置共享岗位与各商家自定义岗位"
+		all-hint="系统预设岗位与各商家的自定义岗位"
 		@scope-change="selectMerchant"
 	>
 		<el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
@@ -18,8 +18,8 @@
 			<span class="filter-label">类型</span
 			><el-radio-group v-model="builtinFilter" @change="page = 1"
 				><el-radio-button value="ALL">全部</el-radio-button
-				><el-radio-button value="BUILTIN">内置</el-radio-button
-				><el-radio-button value="CUSTOM">自定义</el-radio-button></el-radio-group
+				><el-radio-button value="BUILTIN">系统预设岗位</el-radio-button
+				><el-radio-button value="CUSTOM">自定义岗位</el-radio-button></el-radio-group
 			>
 			<span class="toolbar-spacer" /><el-input
 				v-model="keyword"
@@ -36,7 +36,7 @@
 					value="STORE"
 			/></el-select>
 			<p class="management-caption">
-				内置岗位全商家共用；选中商家后同时显示可用内置岗位和该商家的自定义岗位。
+				系统预设岗位由平台提供；自定义岗位由商家创建。选择商家后可查看该商家可用的岗位。
 			</p>
 		</div>
 		<el-table class="management-table" :data="pageRows" v-loading="busy" stripe>
@@ -61,11 +61,11 @@
 						>{{ row.accountType === 'MERCHANT' ? '商家账号' : '门店账号' }}</el-tag
 					>
 					<div class="cell-sub">
-						{{ row.builtin ? '内置共享' : '自定义岗位' }}
+						{{ row.builtin ? '系统预设岗位' : '自定义岗位' }}
 					</div></template
 				></el-table-column
 			>
-			<el-table-column label="适用门店" min-width="150"
+			<el-table-column label="工作范围" min-width="150"
 				><template #default="{ row }">{{ applicableText(row) }}</template></el-table-column
 			>
 			<el-table-column label="状态" width="85"
@@ -75,7 +75,7 @@
 					}}</el-tag></template
 				></el-table-column
 			>
-			<el-table-column label="使用账号" width="100"
+			<el-table-column label="使用人数" width="100"
 				><template #default="{ row }"
 					><el-button link type="primary" @click="viewAccounts(row)"
 						>{{ row.accountCount }} 人</el-button
@@ -85,8 +85,8 @@
 
 			<el-table-column label="操作" width="130" fixed="right"
 				><template #default="{ row }"
-					><el-button link :disabled="row.builtin && !isPlatform" @click="open(row)"
-						>编辑</el-button
+					><el-button link @click="open(row, row.builtin && !isPlatform)"
+						>{{ row.builtin && !isPlatform ? '查看权限' : '编辑' }}</el-button
 					><el-button link type="danger" :disabled="row.builtin" @click="remove(row)"
 						>删除</el-button
 					></template
@@ -106,11 +106,11 @@
 		<el-dialog
 			class="workspace-dialog"
 			v-model="visible"
-			title="岗位与权限"
+			:title="readOnly ? '查看岗位权限' : '岗位与权限'"
 			width="min(880px,95vw)"
 			:close-on-click-modal="false"
 			:before-close="closeForm"
-			><el-form label-position="top"
+			><el-alert v-if="readOnly" title="系统预设岗位由平台维护；如需调整个人权限，请前往员工账号。" type="info" :closable="false" show-icon /><el-form label-position="top" :disabled="readOnly"
 				><h3 class="role-section">1. 基本信息</h3>
 				<el-form-item v-if="isPlatform && !form.builtin" label="所属商家"
 					><el-select v-model="form.merchantId" filterable @change="loadStores"
@@ -145,7 +145,7 @@
 					></el-form-item
 				><el-form-item
 					v-if="form.accountType === 'STORE' && !form.builtin"
-					label="可分配给哪些门店（不选表示所属范围内全部门店）"
+					label="可分配给哪些门店（不选则可分配给授权范围内的门店）"
 					><el-select v-model="form.applicableStoreIds" multiple filterable
 						><el-option
 							v-for="s in stores"
@@ -163,16 +163,16 @@
 				<h3 class="role-section">3. 功能权限</h3><PermissionPreview :menus="available" :selected-ids="form.menuIds || []" :account-name="form.name" />
 				<el-tabs
 					><el-tab-pane label="岗位可使用的页面与操作"
-						><PermissionPicker v-model="form.menuIds" :menus="available" /></el-tab-pane
+						><PermissionPicker v-model="form.menuIds" :menus="available" :disabled="readOnly" /></el-tab-pane
 					><el-tab-pane label="允许向下级授予的功能"
 						><el-alert
 							title="授予范围独立于本人使用权限，且始终受上级授权限制。"
 							:closable="false" /><PermissionPicker
 							v-model="form.grantMenuIds"
-							:menus="available" /></el-tab-pane></el-tabs></el-form
+							:menus="available" :disabled="readOnly" /></el-tab-pane></el-tabs></el-form
 			><template #footer
 				><el-button @click="closeForm()">取消</el-button
-				><el-button type="primary" :loading="busy" @click="save"
+				><el-button v-if="!readOnly" type="primary" :loading="busy" @click="save"
 					>保存岗位</el-button
 				></template
 			></el-dialog
@@ -212,6 +212,7 @@ const rows = ref<any[]>([]),
 	busy = ref(false),
 	error = ref(''),
 	visible = ref(false),
+	readOnly = ref(false),
 	form = ref<any>({});
 const { state: filters, selectMerchant } = useManagementState('roles', {
 	merchantId: undefined as number | undefined,
@@ -230,18 +231,18 @@ const scopeName = computed(
 		(merchantId.value ? '所选商家' : isPlatform ? '全部商家' : '当前授权范围')
 );
 const metrics = computed(() => [
-	{ label: '查询岗位', value: busy.value ? undefined : rows.value.length },
-	{ label: '内置共享', value: busy.value ? undefined : rows.value.filter(r => r.builtin).length },
-	{ label: '自定义', value: busy.value ? undefined : rows.value.filter(r => !r.builtin).length }
+	{ label: '岗位总数', value: busy.value ? undefined : rows.value.length },
+	{ label: '系统预设岗位', value: busy.value ? undefined : rows.value.filter(r => r.builtin).length },
+	{ label: '自定义岗位', value: busy.value ? undefined : rows.value.filter(r => !r.builtin).length }
 ]);
 function applicableText(row: any) {
-	if (row.accountType !== 'STORE') return '不绑定门店';
+	if (row.accountType !== 'STORE') return row.label === 'ws_owner' ? '整个商家' : '按账号授权的门店';
 	const ids = row.applicableStoreIds || [];
 	return ids.length
 		? ids.every((id: number) => storeOptions.value.some(s => s.id === id))
 			? ids.map((id: number) => storeOptions.value.find(s => s.id === id)?.name).join('、')
 			: `指定 ${ids.length} 家门店`
-		: '所属范围内全部门店';
+		: '所在门店';
 }
 function resetFilters() {
 	keyword.value = '';
@@ -301,7 +302,8 @@ async function loadStores() {
 				)
 			: [];
 }
-async function open(row?: any) {
+async function open(row?: any, readonly = false) {
+	readOnly.value = readonly;
 	form.value = row
 		? JSON.parse(JSON.stringify(row))
 		: {
