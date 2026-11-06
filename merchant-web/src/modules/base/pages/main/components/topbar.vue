@@ -19,7 +19,9 @@
 		</ul>
 
 		<!-- 用户信息 -->
-		<el-button v-if="user.info" text @click="router.push('/my/notices')">站内通知</el-button>
+		<el-badge v-if="user.info" is-dot :hidden="notices.unread === 0">
+			<el-button text @click="router.push('/my/notices')">站内通知</el-button>
+		</el-badge>
 		<el-button v-if="identity === 'STORE' && user.info" text @click="router.push('/my/chats')">门店客服</el-button>
 		<template v-if="user.info">
 			<el-dropdown
@@ -66,6 +68,7 @@ defineOptions({
 
 import { isPlatform, identityName, identity } from '/@/workspace';
 import { merchantRequest } from '/@/merchant-api';
+import { useNoticeStore } from '/$/workspace/stores/notices';
 import { computed, markRaw, onMounted, reactive } from 'vue';
 import { isFunction, orderBy } from 'lodash-es';
 import { useBase } from '/$/base';
@@ -77,6 +80,7 @@ import AMenu from './amenu.vue';
 
 const { router, service, browser } = useCool();
 const { user, app } = useBase();
+const notices = useNoticeStore();
 const { t } = useI18n();
 
 // 命令事件

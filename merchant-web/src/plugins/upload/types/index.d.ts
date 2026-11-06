@@ -17,6 +17,8 @@ declare namespace Upload {
 	}
 
 	interface Options {
+		// 素材空间内部自行登记时关闭，避免重复记录。
+		registerMaterial?: boolean;
 		prefixPath?: string;
 		onProgress?(progress: number): void;
 		[key: string]: any;

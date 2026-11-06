@@ -16,9 +16,13 @@
 							@clear="search"
 						/>
 						<el-button @click="search">搜索</el-button>
+						<el-select v-model="source" aria-label="素材来源" style="width: 150px" @change="refresh({ page: 1 })">
+							<el-option label="全部来源" value="ALL" /><el-option label="用户上传" value="UPLOAD" /><el-option label="AI生成" value="AI" />
+						</el-select>
 
 						<div v-if="!selectable" :style="{ margin: '0px 10px' }">
 							<cl-upload
+								:register-material="false"
 								:ref="setRefs('upload')"
 								menu="space"
 								type="file"
@@ -211,6 +215,7 @@ function onUpload(data: any) {
 
 const keyword = ref('');
 const activeKeyword = ref('');
+const source = ref('ALL');
 const loadError = ref('');
 let requestVersion = 0;
 let classifyId: number | undefined;
@@ -223,7 +228,7 @@ async function refresh(params?: { classifyId?: number; page?: number }) {
 	const page = params?.page ?? pagination.page;
 	const size = pagination.size;
 	const term = activeKeyword.value;
-	const query = { classifyId, size, type: props.accept?.split('/')[0].replace('*', '') || undefined };
+	const query = { classifyId, size, source: source.value, type: props.accept?.split('/')[0].replace('*', '') || undefined };
 	const version = ++requestVersion;
 	loading.value = true;
 	loadError.value = '';

@@ -101,7 +101,7 @@
 
 		<!-- 新增、编辑 -->
 		<cl-upsert ref="Upsert">
-			<template #slot-cover="{ scope }"><CoverField v-model="scope.cover" /></template>
+			<template #slot-cover="{ scope }"><CoverField v-model="scope.cover" v-model:material-id="scope.coverMaterialId" :ai-draft="scope" /></template>
 			<template #slot-edit-merchant="{ scope }">
 				<el-input v-if="scope.id" :model-value="scope.merchantName" readonly />
 				<MerchantSelect
@@ -666,6 +666,7 @@ const Upsert = useUpsert({
 			component: { name: 'slot-cover' },
 			span: 24
 		},
+		{ prop: 'coverMaterialId', hidden: true },
 		{
 			label: '使用说明',
 			prop: 'description',

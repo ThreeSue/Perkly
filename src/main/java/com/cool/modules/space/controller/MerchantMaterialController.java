@@ -32,8 +32,8 @@ public class MerchantMaterialController {
                      @RequestParam(defaultValue = "1") int pageNumber,
                      @RequestParam(defaultValue = "20") int pageSize,
                      @RequestParam(required = false) String keyword,
-                     @RequestParam(required = false) Long categoryId) {
-        return R.ok(materials.page(actor, pageNumber, pageSize, keyword, categoryId));
+                     @RequestParam(required = false) Long categoryId,@RequestParam(required=false) String source) {
+        return R.ok(materials.page(actor, pageNumber, pageSize, keyword, categoryId,source));
     }
 
     @GetMapping("/info")

@@ -1,0 +1,8 @@
+# 复制为 ai.local.yml 后在本机填写；私有文件不提交。
+perkly:
+  ai:
+    base-url: https://llm-o00jm6uas5b7l5b5.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+    api-key: ${BAILIAN_API_KEY:}
+    text-model: qwen3.8-flash
+    image-model: qwen-image-3.0
+    timeout-seconds: 180

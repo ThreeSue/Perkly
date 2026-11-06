@@ -105,6 +105,7 @@
 						v-model:material-id="scope.coverMaterialId"
 						:can-browse="can('material:view')"
 						:can-manage="can('material:manage')"
+						:ai-draft="kind === 'coupon' ? scope : undefined"
 						@busy-change="uploadBusy = $event"
 				/></template>
 				<template #slot-location="{ scope }"
@@ -174,6 +175,7 @@
 						style="margin-left: 12px; width: 150px"
 				/></template>
 				<template #slot-content="{ scope }">
+					<div class="content-list">
 					<div
 						v-for="(item, index) in scope.contentItems || []"
 						:key="index"
@@ -208,6 +210,7 @@
 						"
 						>添加内容项目</el-button
 					>
+					</div>
 				</template>
 			</cl-upsert>
 			<cl-dialog v-model="orderVisible" title="模拟购券订单详情" width="680px">
@@ -863,10 +866,28 @@ async function detail(row: any) {
 	color: #fff;
 	white-space: nowrap;
 }
+.content-list {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	width: 100%;
+	min-width: 0;
+}
+.content-list > .el-button {
+	align-self: flex-start;
+}
 .content-row {
 	display: flex;
 	gap: 8px;
 	margin-bottom: 12px;
+}
+.content-row > .el-input {
+	flex: 1;
+	min-width: 100px;
+}
+.content-row > .el-select {
+	width: 100px;
+	flex: none;
 }
 .content-row .el-input-number {
 	flex: none;

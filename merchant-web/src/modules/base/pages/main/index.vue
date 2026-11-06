@@ -19,11 +19,12 @@ defineOptions({
 	name: 'app-layout'
 });
 
-import { onMounted, onBeforeUnmount } from 'vue';
+import { onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { isPlatform } from '/@/workspace';
 import { workspaceApi } from '/$/workspace/api';
+import { useNoticeStore } from '/$/workspace/stores/notices';
 const route = useRoute(), router = useRouter();
 import { useBase } from '/$/base';
 import Topbar from './components/topbar.vue';
@@ -32,6 +33,15 @@ import process from './components/process.vue';
 import Views from './components/views.vue';
 
 const { app, menu, user } = useBase();
+const notices = useNoticeStore();
+let noticeTimer: ReturnType<typeof setInterval>;
+function refreshNotices() {
+ if (!document.hidden && user.token) void notices.refresh();
+}
+watch(() => [user.info?.id, Boolean(user.token)], () => {
+ notices.reset();
+ refreshNotices();
+});
 // 上级授权变化后刷新当前身份的菜单，不清除登录会话。
 let permissionTimer: ReturnType<typeof setInterval>;
 let syncing = false;
@@ -53,11 +63,19 @@ async function syncPermissions() {
  finally { syncing = false; }
 }
 onMounted(() => {
+ refreshNotices();
+ noticeTimer = setInterval(refreshNotices, 30000);
+ window.addEventListener('focus', refreshNotices);
+ document.addEventListener('visibilitychange', refreshNotices);
  void syncPermissions();
  permissionTimer = setInterval(syncPermissions, 15000);
  window.addEventListener('focus', syncPermissions);
 });
 onBeforeUnmount(() => {
+ clearInterval(noticeTimer);
+ window.removeEventListener('focus', refreshNotices);
+ document.removeEventListener('visibilitychange', refreshNotices);
+ notices.reset();
  clearInterval(permissionTimer);
  window.removeEventListener('focus', syncPermissions);
 });

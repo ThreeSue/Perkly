@@ -84,7 +84,7 @@ export function useUpload() {
 						// 上传
 						await service
 							.request(reqData as any)
-							.then(res => {
+							.then(async res => {
 								if (progress != 100) {
 									onProgress?.(100);
 								}
@@ -99,6 +99,13 @@ export function useUpload() {
 									url = pathJoin(preview || host, key);
 								}
 
+								if (opts.registerMaterial !== false && (file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(file.name))) {
+									try {
+										await service.space.info.add({ url, fileId, key, name: file.name, size: file.size, type: 'image' });
+									} catch (cause: any) {
+										throw new Error('图片未登记到素材库，不能选用：' + (cause?.message || '请检查文件空间新增权限'));
+									}
+								}
 								resolve({
 									key,
 									url,

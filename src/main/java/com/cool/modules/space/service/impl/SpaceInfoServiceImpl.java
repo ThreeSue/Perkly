@@ -45,6 +45,8 @@ public class SpaceInfoServiceImpl extends BaseServiceImpl<SpaceInfoMapper, Space
     }
 
     private void requirePlatformInput(SpaceInfoEntity entity) {
+        if(entity.getAiTaskId()!=null || entity.getParentMaterialId()!=null || entity.getSource()!=null && !"UPLOAD".equals(entity.getSource()))
+            throw new CoolException("AI素材来源只能由生成任务写入",403);
         if (entity.getMerchantId() != null || entity.getUploaderId() != null || entity.getMaterialDeleted() != null) {
             throw new CoolException("商家素材不属于平台文件空间", 403);
         }

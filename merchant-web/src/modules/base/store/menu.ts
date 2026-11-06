@@ -1,9 +1,10 @@
-import { isPlatform } from '/@/workspace';
+import { isPlatform, identity } from '/@/workspace';
+import { buildNavigation } from '../utils/navigation';
 import { workspaceApi } from '/$/workspace/api';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { deepTree, revDeepTree, storage } from '/@/cool/utils';
-import { isArray, isEmpty, orderBy } from 'lodash-es';
+import { revDeepTree, storage } from '/@/cool/utils';
+import { isArray, isEmpty } from 'lodash-es';
 import { router, service } from '/@/cool';
 import { revisePath } from '../utils';
 import { config } from '/@/config';
@@ -108,7 +109,7 @@ export const useMenuStore = defineStore('menu', function () {
 
 	// 设置菜单组
 	function setGroup(list: Menu.List) {
-		group.value = orderBy(deepTree(list), 'orderNum');
+		group.value = buildNavigation(list, identity) as Menu.List;
 		storage.set('base.menuGroup', group.value);
 	}
 

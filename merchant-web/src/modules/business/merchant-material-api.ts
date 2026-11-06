@@ -6,6 +6,9 @@ export interface MerchantMaterial {
 	id: number;
 	url: string;
 	name: string;
+	source?: 'UPLOAD' | 'AI';
+	aiTaskId?: number;
+	parentMaterialId?: number;
 }
 
 export interface MaterialCategory {
@@ -30,14 +33,20 @@ export function uploadMaterial(file: File, signal?: AbortSignal): Promise<Mercha
 	}) as Promise<MerchantMaterial>;
 }
 
-export function listMaterials(page: number, keyword: string, categoryId?: number): Promise<MaterialPage> {
+export function listMaterials(page: number, keyword: string, categoryId?: number, source = 'ALL', merchantId?: number): Promise<MaterialPage> {
 	const params = new URLSearchParams({ pageNumber: String(page), pageSize: '20' });
 	if (keyword) params.set('keyword', keyword);
 	if (categoryId !== undefined) params.set('categoryId', String(categoryId));
+	params.set('source', source);
+	if (merchantId !== undefined) {
+		params.set('merchantId', String(merchantId));
+		return request({ url: `${config.baseUrl}/admin/ai/images/materials?${params}`, method: 'GET' }) as Promise<MaterialPage>;
+	}
 	return merchantRequest(`governance/materials/page?${params}`);
 }
 
-export function listMaterialCategories(): Promise<MaterialCategory[]> {
+export function listMaterialCategories(merchantId?: number): Promise<MaterialCategory[]> {
+	if (merchantId !== undefined) return request({ url: `${config.baseUrl}/admin/ai/images/categories?merchantId=${merchantId}`, method: 'GET' }) as Promise<MaterialCategory[]>;
 	return merchantRequest('governance/materials/categories');
 }
 

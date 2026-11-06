@@ -40,6 +40,7 @@ springdoc:
 logging:
   level:
     com.cool: debug
+    com.cool.modules.ai.mapper: info
 
 # 短信配置
 sms-auth:

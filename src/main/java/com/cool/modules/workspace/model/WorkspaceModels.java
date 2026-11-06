@@ -24,7 +24,7 @@ public final class WorkspaceModels {
         Long storeId,Boolean builtin,Integer status,List<Long> menuIds,List<Long> grantMenuIds,List<Long> applicableStoreIds,long accountCount,Long globalAccountCount) {}
     public record AccountInput(Long id,Long merchantId,Long storeId,String username,String name,String password,String accountType,
         Long roleId,Integer status,String storeScope,List<Long> storeIds,List<Long> allowMenuIds,List<Long> denyMenuIds) {}
-    public record AccountPreview(String roleName,List<BaseSysMenuEntity> effectiveMenus,List<BaseSysMenuEntity> suppressedMenus) {}
+    public record AccountPreview(String roleName,List<BaseSysMenuEntity> effectiveMenus,List<BaseSysMenuEntity> suppressedMenus,List<Long> assignableMenuIds) {}
     public record AccountView(Long id,String username,String name,String accountType,Long merchantId,String merchantName,
         Long storeId,String storeName,Long roleId,String roleName,Integer status,String storeScope,List<Long> storeIds,
         List<Long> allowMenuIds,List<Long> denyMenuIds) {}

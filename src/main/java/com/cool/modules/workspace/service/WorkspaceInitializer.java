@@ -85,6 +85,10 @@ public class WorkspaceInitializer implements ApplicationRunner {
         featurePage("平台储值账务","wallet","wallet:manage","modules/workspace/views/wallet.vue",66);
         featurePage("支付优惠活动","activities","activity:manage","modules/workspace/views/activities.vue",67);
         featurePage("跨商家消费集章","stamps","stamp:manage","modules/workspace/views/stamps.vue",68);
+        materialPermission("AI生成与完善优惠券封面","ai:image:generate",16);
+        featurePage("AI图片控制台","ai-images","ai:manage","modules/ai/views/console.vue",69);
+        var aiPage=menus.selectOneByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getRouter,"/workspace-admin/ai-images"));
+        action(aiPage,"AI生成与完善优惠券封面","ai:image:generate",1);
     }
     private void materialPermission(String name, String permission, int order) {
         if (menus.selectCountByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getPerms, permission)) > 0) return;

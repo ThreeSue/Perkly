@@ -2,6 +2,7 @@ import { defineComponent, h, watch } from 'vue';
 import { useBase } from '/$/base';
 import { useCool } from '/@/cool';
 import { debounce } from 'lodash-es';
+import { useNoticeStore } from '/$/workspace/stores/notices';
 
 export default defineComponent({
 	name: 'b-menu',
@@ -13,6 +14,9 @@ export default defineComponent({
 	setup(props) {
 		const { router, route, browser, refs, setRefs } = useCool();
 		const { menu, app } = useBase();
+		const notices = useNoticeStore();
+		const isNotice = (item: Menu.Item) =>
+			item.path?.endsWith('/notices') || item.router?.endsWith('/notices');
 
 		// 页面跳转
 		function onSelect(url: string) {
@@ -59,6 +63,9 @@ export default defineComponent({
 								{e.meta?.label}
 							</span>
 						];
+						if (isNotice(e) && notices.unread > 0) {
+							arr.push(<i class="b-menu__notice-dot" role="img" aria-label="有未读通知" />);
+						}
 
 						if (e.type == 1 && e.badge) {
 							arr.push(
@@ -104,7 +111,22 @@ export default defineComponent({
 				});
 			}
 
-			return deep(menu.list);
+			function hasNotice(list: Menu.Item[]): boolean {
+				return list.some(item => item.isShow &&
+					(isNotice(item) || hasNotice(item.children || [])));
+			}
+			const list = [...menu.list];
+			if (!hasNotice(list)) {
+				list.push({
+					id: -101,
+					type: 1,
+					path: '/my/notices',
+					icon: 'icon-notice',
+					isShow: true,
+					meta: { label: '站内通知' }
+				} as Menu.Item);
+			}
+			return deep(list);
 		}
 
 		// 展开所有

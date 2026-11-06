@@ -20,8 +20,12 @@ import static com.cool.modules.space.entity.table.SpaceInfoEntityTableDef.SPACE_
 public class AdminSpaceInfoController extends BaseController<SpaceInfoService, SpaceInfoEntity> {
     @Override
     protected void init(HttpServletRequest request, JSONObject requestParams) {
-        setPageOption(createOp().queryWrapper(QueryWrapper.create().isNull(SpaceInfoEntity::getMerchantId))
+        var pageQuery=QueryWrapper.create().isNull(SpaceInfoEntity::getMerchantId);
+        var listQuery=QueryWrapper.create().isNull(SpaceInfoEntity::getMerchantId);
+        com.cool.modules.space.service.MerchantMaterialService.filterSource(pageQuery,requestParams.getStr("source"));
+        com.cool.modules.space.service.MerchantMaterialService.filterSource(listQuery,requestParams.getStr("source"));
+        setPageOption(createOp().queryWrapper(pageQuery)
             .fieldEq(SPACE_INFO_ENTITY.TYPE, SPACE_INFO_ENTITY.CLASSIFY_ID));
-        setListOption(createOp().queryWrapper(QueryWrapper.create().isNull(SpaceInfoEntity::getMerchantId)));
+        setListOption(createOp().queryWrapper(listQuery));
     }
 }

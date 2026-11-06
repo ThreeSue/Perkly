@@ -15,7 +15,11 @@ import org.dromara.autotable.annotation.Index;
 @Getter
 @Setter
 @Table(value = "space_info", comment = "文件空间信息")
+@org.dromara.autotable.annotation.TableIndex(name="uk_space_ai_task",type=org.dromara.autotable.annotation.enums.IndexTypeEnum.UNIQUE,fields={"aiTaskId"})
 public class SpaceInfoEntity extends BaseEntity<SpaceInfoEntity> {
+    @ColumnDefine(length=16,comment="UPLOAD或AI，历史空值表示上传") private String source;
+    @ColumnDefine(comment="AI生成任务") private Long aiTaskId;
+    @ColumnDefine(comment="参考原图素材") private Long parentMaterialId;
     @Index
     @ColumnDefine(comment = "商家素材归属，空值为原平台文件")
     private Long merchantId;

@@ -224,7 +224,9 @@ public class WorkspaceManagementService {
         Set<Long> configured=new HashSet<>(role.menuIds());configured.addAll(ids(p.allowMenuIds()));configured.removeAll(ids(p.denyMenuIds()));
         var ceiling=auth.cap("MERCHANT",mid,Set.of());if("STORE".equals(p.accountType()))ceiling.retainAll(auth.cap("STORE",p.storeId(),ceiling));
         var catalog=auth.catalog().stream().filter(m->"SHARED".equals(m.getAccountType())||p.accountType().equals(m.getAccountType())).filter(m->configured.contains(m.getId())).toList();
-        return new AccountPreview(role.name(),catalog.stream().filter(m->ceiling.contains(m.getId())).toList(),catalog.stream().filter(m->!ceiling.contains(m.getId())).toList());
+        var assignable = new HashSet<>(ceiling);
+        if(a!=null)assignable.retainAll(auth.grantable(a));
+        return new AccountPreview(role.name(),catalog.stream().filter(m->ceiling.contains(m.getId())).toList(),catalog.stream().filter(m->!ceiling.contains(m.getId())).toList(),assignable.stream().sorted().toList());
     }
     private String hash(String password){if(password==null||password.length()<6||password.length()>64||password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>72)throw new CoolException("初始密码需6至64位且不超过72字节");return passwords.encode(password);}
     private int state(Integer s){if(s==null||s!=0&&s!=1)throw new CoolException("请选择启用或停用");return s;}

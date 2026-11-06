@@ -48,7 +48,7 @@ public class MerchantMaterialService {
     private final MerchantInfoMapper merchants;
 
     public record Material(Long id, String url, String name, Integer size, Integer categoryId,
-                           Long uploaderId, Date createTime) {}
+                           Long uploaderId, Date createTime, String source,Long aiTaskId,Long parentMaterialId) {}
     public record Category(Long id, String name) {}
     public record MaterialPage(List<Material> list, long total, long pageNumber, long pageSize) {}
     public record ImportResult(int imported, int skipped) {}
@@ -91,8 +91,12 @@ public class MerchantMaterialService {
     }
 
     public MaterialPage page(Long actor, int pageNumber, int pageSize, String keyword, Long categoryId) {
+        return page(actor,pageNumber,pageSize,keyword,categoryId,null);
+    }
+    public MaterialPage page(Long actor, int pageNumber, int pageSize, String keyword, Long categoryId,String source) {
         Long merchant = merchant(actor, false);
         var query = activeImages(merchant).orderBy(SpaceInfoEntity::getId, false);
+        filterSource(query,source);
         if (categoryId != null) {
             Integer category = categoryId(merchant, categoryId, false);
             if (category == null) query.isNull(SpaceInfoEntity::getClassifyId);
@@ -260,7 +264,15 @@ public class MerchantMaterialService {
     }
 
     private Material view(SpaceInfoEntity e) {
-        return new Material(e.getId(), e.getUrl(), e.getName(), e.getSize(), e.getClassifyId(), e.getUploaderId(), e.getCreateTime());
+        return new Material(e.getId(), e.getUrl(), e.getName(), e.getSize(), e.getClassifyId(), e.getUploaderId(), e.getCreateTime(),
+            Objects.toString(e.getSource(),"UPLOAD"),e.getAiTaskId(),e.getParentMaterialId());
+    }
+    public static void filterSource(QueryWrapper query,String source){
+        if(source==null || source.isBlank() || "ALL".equals(source))return;
+        if("AI".equals(source))query.eq(SpaceInfoEntity::getSource,"AI");
+        else if("UPLOAD".equals(source))query.and((QueryWrapper q)->{q.isNull(SpaceInfoEntity::getSource)
+            .or((QueryWrapper other)->{other.eq(SpaceInfoEntity::getSource,"UPLOAD");});});
+        else throw new CoolException("素材来源筛选无效",400);
     }
 
     private String fileName(String value) {
