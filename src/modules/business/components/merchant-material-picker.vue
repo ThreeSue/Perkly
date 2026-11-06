@@ -1,7 +1,10 @@
 <template>
-	<el-button :disabled="disabled" @click="open">从素材库选择</el-button>
+	<el-button :disabled="disabled" @click="open">{{ label || '从素材库选择' }}</el-button>
 	<el-dialog v-model="visible" title="选择商家素材" width="min(760px, 94vw)" append-to-body>
 		<div class="filters">
+			<el-select v-model="source" aria-label="素材来源" @change="search">
+				<el-option label="全部来源" value="ALL" /><el-option label="用户上传" value="UPLOAD" /><el-option label="AI生成" value="AI" />
+			</el-select>
 			<el-select v-model="category" aria-label="素材分类" @change="search">
 				<el-option label="全部分类" value="all" />
 				<el-option label="未分类" :value="0" />
@@ -21,6 +24,7 @@
 						<template #error><CoverPlaceholder /></template>
 					</el-image>
 					<el-radio :value="item.id" :title="item.name">{{ item.name }}</el-radio>
+					<el-tag size="small" :type="item.source === 'AI' ? 'success' : 'info'">{{ item.source === 'AI' ? 'AI生成' : '用户上传' }}</el-tag>
 				</div>
 			</el-radio-group>
 		</div>
@@ -46,11 +50,12 @@ import { importCoverMaterials } from '../merchant-material-api';
 import CoverPlaceholder from '/$/space/components/cover-placeholder.vue';
 import { listMaterials, listMaterialCategories, type MaterialCategory, type MerchantMaterial } from '../merchant-material-api';
 
-const props = defineProps<{ disabled?: boolean; currentId?: number | null; currentUrl?: string | null; canManage?: boolean }>();
+const props = defineProps<{ disabled?: boolean; currentId?: number | null; currentUrl?: string | null; canManage?: boolean; merchantId?: number; label?: string }>();
 const emit = defineEmits<{ select: [material: MerchantMaterial] }>();
 const visible = ref(false);
 const categories = ref<MaterialCategory[]>([]);
 const category = ref<number | 'all'>('all');
+const source = ref('ALL');
 const keyword = ref('');
 const appliedKeyword = ref('');
 const items = ref<MerchantMaterial[]>([]);
@@ -87,13 +92,14 @@ async function open() {
 	const version = ++opening;
 	visible.value = true;
 	category.value = 'all';
+	source.value = 'ALL';
 	keyword.value = '';
 	categories.value = [];
 	categoryError.value = '';
 	selectedId.value = props.currentId ?? undefined;
 	search();
 	try {
-		const result = await listMaterialCategories();
+		const result = await listMaterialCategories(props.merchantId);
 		if (version === opening) categories.value = result;
 	} catch (cause: any) {
 		if (version === opening) categoryError.value = cause?.message || '分类加载失败';
@@ -112,7 +118,7 @@ async function load(nextPage: number) {
 	items.value = [];
 	error.value = '';
 	try {
-		const result = await listMaterials(nextPage, appliedKeyword.value, category.value === 'all' ? undefined : category.value);
+		const result = await listMaterials(nextPage, appliedKeyword.value, category.value === 'all' ? undefined : category.value, source.value, props.merchantId);
 		if (version !== revision) return;
 		items.value = result.list;
 		if (selectedId.value === undefined && props.currentUrl) {
@@ -137,7 +143,7 @@ function confirm() {
 </script>
 
 <style scoped>
-.filters { display: flex; gap: 8px; margin-bottom: 12px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .filters .el-select { width: 180px; flex-shrink: 0; }
 .materials { min-height: 180px; margin: 12px 0; }
 .materials .el-radio-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }

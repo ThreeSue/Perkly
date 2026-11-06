@@ -48,7 +48,7 @@ test('双权限上传立即登记素材，可在另一个编辑框复用并重�
 	assert.equal(reopened.selectedId.value, form.coverMaterialId);
 });
 
-test('缺少任一素材权限沿用旧上传；登记失败不回退旧上传且保留原封面', async () => {
+test('缺少任一素材权限明确拒绝上传，不再产生不入库的封面；登记失败保留原封面', async () => {
 	for (const props of [{}, { canBrowse: true }, { canManage: true }]) {
 		let legacyCalls = 0;
 		const upload = setup('merchant-image-upload', props, () => {}, {
@@ -56,7 +56,8 @@ test('缺少任一素材权限沿用旧上传；登记失败不回退旧上传�
 			'/@/merchant-api': { uploadMerchantImage: async () => { legacyCalls++; return '/legacy.png'; } }
 		});
 		await upload.send({ file: {} });
-		assert.equal(legacyCalls, 1);
+		assert.equal(legacyCalls, 0);
+		assert.match(upload.error.value, /素材库查看与管理权限/);
 	}
 	for (const failure of ['没有素材库操作权限', '图片超出限制', null]) {
 		const changes = [];
@@ -97,6 +98,7 @@ test('商家素材入口读取有效查看权限，管理权限单独存在时�
 	const can = perms => new Function('menu', outputText)({ perms });
 	assert.match(form, /:can-browse="can\('material:view'\)"/);
 	assert.match(read('merchant-image-upload'), /<MerchantMaterialPicker\s+v-if="canBrowse"/);
+	assert.match(read('merchant-image-upload'), /<el-button v-else disabled/);
 	assert.equal(can(['material:view'])('material:view'), true);
 	assert.equal(can(['material:manage'])('material:view'), false);
 	assert.equal(can([])('material:view'), false);
@@ -113,10 +115,10 @@ test('素材选用提交 ID 和 URL，重开用服务端封面 URL 回显，更�
 			listMaterialCategories: async () => []
 		}
 	});
-	const upload = setup('merchant-image-upload', { modelValue: form.cover }, (event, value) => {
+	const upload = setup('merchant-image-upload', { modelValue: form.cover, canBrowse: true, canManage: true }, (event, value) => {
 		if (event === 'update:modelValue') form.cover = value;
 		if (event === 'update:materialId') form.coverMaterialId = value;
-	}, { '/@/merchant-api': { uploadMerchantImage: async () => '/uploads/new.png' } });
+	}, { '../merchant-material-api': { uploadMaterial: async () => ({ id: 43, url: '/uploads/new.png' }) } });
 	await pick.open();
 	pick.selectedId.value = material.id;
 	pick.confirm();
@@ -132,13 +134,13 @@ test('素材选用提交 ID 和 URL，重开用服务端封面 URL 回显，更�
 	await reopened.open();
 	assert.equal(reopened.selectedId.value, material.id);
 	await upload.send({ file: {} });
-	assert.deepEqual(form, { cover: '/uploads/new.png', coverMaterialId: null });
+	assert.deepEqual(form, { cover: '/uploads/new.png', coverMaterialId: 43 });
 	upload.selectMaterial(material);
 	upload.remove();
 	assert.deepEqual(form, { cover: '', coverMaterialId: null });
 });
 
-test('渲染商家编辑封面夹具，有查看权限显示选图按钮，无权限只保留直接上传', async () => {
+test('渲染商家编辑封面夹具：素材库入口始终可见，无权限显示授权说明', async () => {
 	const { renderToString } = await import('@vue/server-renderer');
 	const { descriptor } = parse(read('merchant-image-upload'));
 	const script = compileScript(descriptor, { id: 'material-render', inlineTemplate: true }).content;
@@ -167,7 +169,8 @@ test('渲染商家编辑封面夹具，有查看权限显示选图按钮，无�
 			});
 		}
 		const html = await renderToString(app);
-		assert.equal(html.includes('从素材库选择'), permissions.includes('material:view'));
+		assert.ok(html.includes('从素材库选择'));
+		if (!permissions.includes('material:view')) assert.ok(html.includes('请上级开放'));
 		assert.ok(html.includes('更换图片'));
 	}
 });

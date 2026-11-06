@@ -131,6 +131,10 @@
 				</template>
 			</vue-draggable>
 		</div>
+		<template v-if="type === 'image' && materialLibrary && !disabled && isPlatform">
+			<Space v-if="canBrowseMaterials" :model-value="modelValue" :multiple="multiple" :limit="limit" :show-list="false" selectable accept="image/*" text="从素材库选择" @update:model-value="selectMaterials" />
+			<el-button v-else disabled title="请管理员开放文件空间查看权限">从素材库选择</el-button>
+		</template>
 	</div>
 </template>
 
@@ -146,7 +150,9 @@ import { ElMessage } from 'element-plus';
 import { PictureFilled, UploadFilled, CircleCloseFilled } from '@element-plus/icons-vue';
 import { useForm } from '@cool-vue/crud';
 import { useCool } from '/@/cool';
-import { useBase } from '/$/base';
+import { checkPerm, useBase } from '/$/base';
+import { isPlatform } from '/@/workspace';
+import Space from '/$/space/components/space.vue';
 import { uuid, isPromise } from '/@/cool/utils';
 import { getUrls, getType } from '../utils';
 import { useUpload } from '../hooks';
@@ -156,6 +162,8 @@ import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
 	...CrudProps,
+	materialLibrary: { type: Boolean, default: true },
+	registerMaterial: { type: Boolean, default: true },
 	// 绑定值，单选时字符串，多选时字符串数组
 	modelValue: {
 		type: [String, Array],
@@ -217,6 +225,13 @@ const emit = defineEmits(['update:modelValue', 'change', 'upload', 'success', 'e
 
 const { refs, setRefs } = useCool();
 const { user } = useBase();
+const canBrowseMaterials = computed(() => user.info?.username === 'admin' || checkPerm({ and: ['space:info:page', 'space:type:list'] }));
+function selectMaterials(value: unknown) {
+	if (disabled.value || !canBrowseMaterials.value) return;
+	const urls = (Array.isArray(value) ? value : [value]).filter((url): url is string => typeof url === 'string' && !!url);
+	list.value = urls.slice(0, props.multiple ? limit : 1).map(url => ({ uid: uuid(), url, name: url.split('/').pop() || '素材图片', type: 'image', size: 0, progress: 100, preload: '', error: '' }));
+	update();
+}
 const Form = useForm();
 const { options, toUpload } = useUpload();
 const { t } = useI18n();
@@ -381,6 +396,7 @@ async function httpRequest(req: any, item?: Upload.Item) {
 
 	// 上传请求
 	toUpload(req.file, {
+		registerMaterial: props.registerMaterial,
 		prefixPath: props.prefixPath,
 		onProgress(progress) {
 			item!.progress = progress;

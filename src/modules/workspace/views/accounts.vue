@@ -228,7 +228,7 @@
 						</p>
 					</div>
 				</div>
-<el-form-item label="账号可用功能"><div style="width:100%"><p class="management-caption">勾选即可访问并展示，未勾选不可访问。功能受上级授权范围限制。</p><PermissionPicker v-model="selectedMenuIds" :menus="available" /><PermissionPreview :menus="available" :selected-ids="selectedMenuIds" :account-name="form.name" /></div></el-form-item></el-form
+<el-form-item label="账号可用功能"><div style="width:100%"><p class="management-caption">勾选即可访问并展示。灰色功能超出可分配范围，无法调整；已生效权限可在预览中查看。</p><PermissionPicker v-model="selectedMenuIds" :menus="available" :unavailable-ids="unavailableIds" /><PermissionPreview :menus="available" :selected-ids="selectedMenuIds" :account-name="form.name" /></div></el-form-item></el-form
 			><template #footer
 				><el-button @click="closeForm()">取消</el-button
 				><el-button type="primary" :loading="busy" @click="save"
@@ -373,13 +373,22 @@ const currentId = computed(() => context.value.id),
 	);
 const preview = ref<any[]>([]),
 	suppressed = ref<any[]>([]);
+const targetAssignable = ref<number[] | undefined>();
+const unavailableIds = computed(() => {
+ const granted = new Set<number>((context.value.grantMenuIds || []).map(Number));
+ const target = targetAssignable.value && new Set(targetAssignable.value);
+ return available.value.filter(m => (!isPlatform && !granted.has(Number(m.id))) ||
+  (target && !target.has(Number(m.id)))).map(m => Number(m.id));
+});
 const selectedMenuIds = computed<number[]>({
  get: () => preview.value.map(m => Number(m.id)),
  set: ids => {
-  const selected = new Set(ids.map(Number));
-  form.value.allowMenuIds = [...selected];
-  form.value.denyMenuIds = available.value.filter(m => !selected.has(Number(m.id))).map(m => Number(m.id));
-  preview.value = available.value.filter(m => selected.has(Number(m.id)));
+  const locked = new Set(unavailableIds.value);
+  const editable = available.value.filter(m => !locked.has(Number(m.id)));
+  const selected = new Set(ids.map(Number).filter(id => !locked.has(id)));
+  form.value.allowMenuIds = [...(form.value.allowMenuIds || []).filter((id: number) => locked.has(Number(id))), ...selected];
+  form.value.denyMenuIds = [...(form.value.denyMenuIds || []).filter((id: number) => locked.has(Number(id))), ...editable.filter(m => !selected.has(Number(m.id))).map(m => Number(m.id))];
+  preview.value = [...preview.value.filter(m => locked.has(Number(m.id))), ...editable.filter(m => selected.has(Number(m.id)))];
  }
 });
 async function loadPreview() {
@@ -393,6 +402,7 @@ async function loadPreview() {
 	const revision = previewRevision.next();
 	const result = await workspaceApi('accounts/preview', p);
 	if (previewRevision.current(revision)) {
+		targetAssignable.value = result.assignableMenuIds?.map(Number);
 		preview.value = result.effectiveMenus;
 		suppressed.value = result.suppressedMenus;
 	}
@@ -429,6 +439,7 @@ async function loadRoles() {
 	);
 }
 async function ownership() {
+	targetAssignable.value = undefined;
 	try {
 		form.value.roleId = undefined;
 		form.value.allowMenuIds = [];
@@ -449,6 +460,7 @@ async function ownership() {
 	}
 }
 async function open(row?: any) {
+	targetAssignable.value = undefined;
 	form.value = row
 		? { ...JSON.parse(JSON.stringify(row)), password: '' }
 		: {
@@ -475,6 +487,7 @@ async function open(row?: any) {
 	originalRole.value = row?.roleId;
 	originalName.value = row?.roleName || '';
 	try {
+		if (!isPlatform) context.value = await workspaceApi('me');
 		stores.value =
 			!isPlatform || form.value.merchantId
 				? await workspaceApi(

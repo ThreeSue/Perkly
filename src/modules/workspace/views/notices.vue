@@ -9,7 +9,7 @@
 					load();
 				"
 			>
-				<el-radio-button :value="false">收件箱（未读 {{ unread }}）</el-radio-button>
+				<el-radio-button :value="false">收件箱（未读 {{ notices.unread }}）</el-radio-button>
 				<el-radio-button :value="true">已发送</el-radio-button>
 			</el-radio-group>
 			<el-button :loading="busy" @click="load">刷新</el-button>
@@ -190,15 +190,16 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { useBase } from '/$/base';
 import { isPlatform } from '/@/workspace';
 import { workspaceApi } from '../api';
+import { useNoticeStore } from '../stores/notices';
 import ManagementShell from '../components/management-shell.vue';
 const { menu, user } = useBase();
+const notices = useNoticeStore();
 const canSend = computed(
 	() => menu.perms.includes('notice:send') || user.info?.username === 'admin'
 );
 const sent = ref(false),
 	page = ref(1),
 	total = ref(0),
-	unread = ref(0),
 	busy = ref(false),
 	error = ref('');
 const rows = ref<any[]>([]),
@@ -230,13 +231,12 @@ async function load() {
 	busy.value = true;
 	error.value = '';
 	try {
-		const [result, count] = await Promise.all([
+		const [result] = await Promise.all([
 			workspaceApi(`notices/page?sent=${sent.value}&pageNumber=${page.value}&pageSize=20`),
-			workspaceApi('notices/unread')
+			notices.refresh()
 		]);
 		rows.value = result.list;
 		total.value = result.total;
-		unread.value = count;
 	} catch (e: any) {
 		rows.value = [];
 		error.value = e.message || '通知加载失败';

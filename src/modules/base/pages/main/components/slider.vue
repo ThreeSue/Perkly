@@ -103,6 +103,18 @@ const keyWord = ref('');
 	&__menu {
 		user-select: none;
 
+		.b-menu__notice-dot {
+			position: absolute;
+			right: 12px;
+			top: 50%;
+			width: 7px;
+			height: 7px;
+			border-radius: 50%;
+			background-color: var(--el-color-danger);
+			transform: translateY(-50%);
+			pointer-events: none;
+		}
+
 		.b-menu__badge {
 			display: flex;
 			align-items: center;

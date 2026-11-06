@@ -16,7 +16,7 @@
 			:key="expandAll ? 'expanded' : 'collapsed'"
 			:data="nodes"
 			node-key="id"
-			:props="{ label: 'name', children: 'children' }"
+			:props="{ label: 'name', children: 'children', disabled: 'disabled' }"
 			show-checkbox
 			check-strictly
 			:default-expand-all="expandAll"
@@ -26,12 +26,12 @@
 			@check="changed"
 		>
 			<template #default="{ data }"
-				><div class="permission-node">
+				><div class="permission-node" :class="{ 'is-unavailable': data.unavailable }" :title="data.unavailable ? '超出当前账号或上级授权范围，无权分配' : ''">
 					<span>{{ data.name }}</span
 					><el-tag v-if="data.type === 2" size="small" type="info" effect="plain"
 						>操作</el-tag
 					><el-tag v-else-if="data.type === 0" size="small" effect="plain">目录</el-tag
-					><el-tag v-if="data.unavailable" size="small" type="warning">暂未开放</el-tag>
+					><el-tag v-if="data.unavailable" size="small" type="info">无权分配</el-tag>
 				</div></template
 			>
 		</el-tree>
@@ -58,7 +58,7 @@ const nodes = computed(() => {
 	ordered.forEach(m =>
 		byId.set(m.id, {
 			...m,
-			disabled: props.disabled,
+			disabled: props.disabled || props.unavailableIds?.includes(m.id),
 			unavailable: props.unavailableIds?.includes(m.id),
 			children: []
 		})
@@ -87,14 +87,16 @@ function filterNode(value: string, data: any) {
 	return !value || `${data.name} ${data.perms || ''}`.toLowerCase().includes(value.toLowerCase());
 }
 function changed(_data: any, value: { checkedKeys: number[] }) {
+	if (props.disabled) return;
 	// Preserve stored IDs outside the catalog: parent restrictions may temporarily hide them.
-	const shown = new Set(props.menus.map(m => m.id));
+	const shown = new Set(props.menus.filter(m => !props.unavailableIds?.includes(m.id)).map(m => m.id));
 	emit('update:modelValue', [
-		...new Set([...(props.modelValue || []).filter(id => !shown.has(id)), ...value.checkedKeys])
+		...new Set([...(props.modelValue || []).filter(id => !shown.has(id)), ...value.checkedKeys.filter(id => shown.has(id))])
 	]);
 }
 function clearVisible() {
-	const shown = new Set(props.menus.map(m => m.id));
+	if (props.disabled) return;
+	const shown = new Set(props.menus.filter(m => !props.unavailableIds?.includes(m.id)).map(m => m.id));
 	emit(
 		'update:modelValue',
 		(props.modelValue || []).filter(id => !shown.has(id))
@@ -146,6 +148,10 @@ watch(
 	align-items: center;
 	gap: 10px;
 	min-width: 0;
+}
+.permission-node.is-unavailable {
+	color: var(--el-text-color-disabled);
+	cursor: not-allowed;
 }
 .permission-node > span {
 	overflow: hidden;
