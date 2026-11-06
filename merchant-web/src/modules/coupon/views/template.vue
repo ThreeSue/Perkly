@@ -101,6 +101,7 @@
 
 		<!-- 新增、编辑 -->
 		<cl-upsert ref="Upsert">
+			<template #slot-cover="{ scope }"><CoverField v-model="scope.cover" /></template>
 			<template #slot-edit-merchant="{ scope }">
 				<el-input v-if="scope.id" :model-value="scope.merchantName" readonly />
 				<MerchantSelect
@@ -264,6 +265,7 @@ defineOptions({
 	name: 'coupon-template'
 });
 
+import CoverField from '/$/space/components/cover-field.vue';
 import { useCrud, useTable, useUpsert, useSearch } from '@cool-vue/crud';
 import { useCool } from '/@/cool';
 import { useI18n } from 'vue-i18n';
@@ -661,10 +663,7 @@ const Upsert = useUpsert({
 		{
 			label: '券封面',
 			prop: 'cover',
-			component: {
-				name: 'cl-upload',
-				props: { text: '选择封面', accept: 'image/*', size: 90 }
-			},
+			component: { name: 'slot-cover' },
 			span: 24
 		},
 		{

@@ -1,7 +1,8 @@
 import { createDir, error, firstUpperCase, readFile, rootDir, toCamel } from "../utils";
 import { join } from "path";
 import axios from "axios";
-import { compact, isEmpty, last, uniqBy, values } from "lodash";
+import lodash from "lodash";
+const { compact, isEmpty, last, uniqBy, values } = lodash;
 import { createWriteStream } from "fs";
 import prettier from "prettier";
 import { config } from "../config";
@@ -554,12 +555,9 @@ function createService() {
 					}
 					deep(d[k], i + 1);
 				} else {
-					// 不存在则创建
-					if (!d[k]) {
-						d[k] = {
-							permission: {},
-						};
-					}
+					// 子路由可能先创建了这一层，成为接口节点时再初始化权限表。
+					d[k] ??= {};
+					d[k].permission ??= {};
 
 					if (!d[k].namespace) {
 						d[k].namespace = path;

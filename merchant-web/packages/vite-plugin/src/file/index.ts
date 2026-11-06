@@ -1,7 +1,8 @@
 import { createWriteStream } from "fs";
 import { join } from "path";
 import { createDir, formatContent } from "../utils";
-import { isArray } from "lodash";
+import lodash from "lodash";
+const { isArray } = lodash;
 
 interface Item {
 	path: string;

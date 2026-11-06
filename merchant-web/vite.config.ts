@@ -7,7 +7,7 @@ import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite';
 import vueDevTools from 'vite-plugin-vue-devtools';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { proxy } from './src/config/proxy';
-import { cool } from '@cool-vue/vite-plugin';
+import { cool } from './packages/vite-plugin/src';
 
 function toPath(dir: string) {
 	return fileURLToPath(new URL(dir, import.meta.url));

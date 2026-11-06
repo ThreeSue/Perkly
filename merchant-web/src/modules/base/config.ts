@@ -20,6 +20,7 @@ export default (): ModuleConfig => {
 		},
 		components: Object.values(import.meta.glob('./components/**/*.{vue,tsx}')),
 		views: [
+			{ path: '/my/activities', meta: { label: '活动详情与参与' }, component: () => import('/$/workspace/views/activity-inbox.vue') },
 			{ path: '/my/notices', meta: { label: '站内通知' }, component: () => import('/$/workspace/views/notices.vue') },
 			{ path: '/my/chats', meta: { label: '门店客服' }, component: () => import('/$/workspace/views/chats.vue') },
 			{

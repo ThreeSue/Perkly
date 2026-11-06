@@ -1,7 +1,7 @@
 <template>
 	<ManagementShell
 		:title="isPlatform ? '平台储值账务' : '储值消费账单'"
-		description="金额按人民币元展示；储值支付与模拟充值保留独立流水，不提供退款"
+		description="先开消费账单，可选用券，再由顾客确认普通模拟支付或储值支付"
 	>
 		<el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 		<div class="management-toolbar">
@@ -13,7 +13,7 @@
 				"
 			>
 				<el-radio-button v-if="isPlatform" value="accounts">储值账户</el-radio-button>
-				<el-radio-button v-if="!isPlatform" value="bills">无券消费账单</el-radio-button>
+				<el-radio-button v-if="!isPlatform" value="bills">消费结算账单</el-radio-button>
 				<el-radio-button value="transactions">储值流水</el-radio-button>
 			</el-radio-group>
 			<el-button v-if="!isPlatform && canCreate" type="primary" @click="open"
@@ -76,7 +76,11 @@
 				><template #default="{ row }">{{
 					statuses[row.status] || row.status
 				}}</template></el-table-column
-			><el-table-column
+			><el-table-column label="券优惠" width="110">
+				<template #default="{ row }">{{ money(row.couponDiscount) }}</template>
+			</el-table-column><el-table-column label="实付" width="110">
+				<template #default="{ row }">{{ row.status === 'PAID' ? money(row.paidAmount) : '待付款' }}</template>
+			</el-table-column><el-table-column
 				prop="remark"
 				label="备注"
 				min-width="150"
@@ -129,30 +133,60 @@
 				></el-form
 			></el-dialog
 		>
-		<el-dialog v-model="billVisible" title="顾客储值支付账单" width="min(640px,94vw)"
+		<el-dialog v-model="billVisible" title="消费结算账单" width="min(640px,94vw)"
 			><template v-if="bill"
 				><h3>{{ bill.storeName }}</h3>
 				<p>消费金额：{{ money(bill.amount) }} 元</p>
+				<p>券优惠：{{ money(bill.couponDiscount) }} 元</p>
+				<p>用券后应付：{{ money(bill.remainingAmount ?? bill.amount) }} 元</p>
 				<p>状态：{{ statuses[bill.status] }}</p>
+				<p v-if="bill.status === 'PAID'">实付 {{ money(bill.paidAmount) }} 元 · {{ bill.paymentMode === 'SIMULATED' ? '普通模拟支付' : '储值支付' }}</p>
 				<el-alert
-					title="请顾客在移动端确认门店、原额及活动后应付金额，再进行支付。"
+					title="将账单编号交给顾客确认付款。储值支付先用券，再对剩余金额应用一个最优惠活动。"
 					type="info"
 					:closable="false"
 				/>
 				<p class="bill-code">{{ bill.billNo }}</p>
-				<el-button @click="copyBill">复制支付账单编号</el-button></template
+				<el-button @click="copyBill">复制支付账单编号</el-button>
+				<el-button @click="refreshBill">刷新付款结果</el-button>
+				<el-form v-if="bill.status === 'PENDING' && !bill.consumptionOrderId && canCreate" label-position="top" style="margin-top: 20px">
+					<el-form-item label="选用金额类优惠券（可选）">
+						<el-input v-model="couponCode" placeholder="输入或扫描顾客券码" />
+					</el-form-item>
+					<el-button :loading="saving" @click="applyCoupon">确认用券</el-button>
+				</el-form>
+			</template
 			></el-dialog
 		>
 	</ManagementShell>
 </template>
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { isPlatform } from '/@/workspace';
 import { useBase } from '/$/base';
 import { featureApi } from '../feature-api';
 import ManagementShell from '../components/management-shell.vue';
 const { menu } = useBase();
+const route = useRoute();
+const couponCode = ref('');
+async function refreshBill() {
+	try {
+		bill.value = await featureApi('wallet/bills/info?id=' + bill.value.id);
+		await load();
+	} catch (e: any) { ElMessage.error(e.message); }
+}
+async function applyCoupon() {
+	if (!couponCode.value.trim()) return ElMessage.warning('请输入券码');
+	saving.value = true;
+	try {
+		bill.value = await featureApi('wallet/bills/coupon', { id: bill.value.id, version: bill.value.version ?? 1, code: couponCode.value.trim() });
+		couponCode.value = '';
+		await load();
+	} catch (e: any) { ElMessage.error(e.message); }
+	finally { saving.value = false; }
+}
 const canCreate = computed(() => menu.perms.includes('redeem:use'));
 const types: Record<string, string> = {
 		RECHARGE: '模拟充值',
@@ -227,6 +261,7 @@ async function save() {
 	}
 }
 function show(row: any) {
+	couponCode.value = '';
 	bill.value = row;
 	billVisible.value = true;
 }
@@ -251,7 +286,13 @@ async function cancel(row: any) {
 		ElMessage.error(e.message);
 	}
 }
-onMounted(load);
+onMounted(async () => {
+	await load();
+	if (!isPlatform && route.query.billId) {
+		try { show(await featureApi('wallet/bills/info?id=' + Number(route.query.billId))); }
+		catch (e: any) { ElMessage.error(e.message); }
+	}
+});
 </script>
 <style scoped>
 .el-pagination {

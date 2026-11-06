@@ -1,7 +1,28 @@
 import store from 'store';
 import { identity } from '/@/workspace';
+// 开发时按标签页隔离账号，支持店长、店员同时联调。
+const accountStore = import.meta.env.DEV
+	? {
+		get(key: string) {
+			const value = sessionStorage.getItem(key);
+			return value === null ? undefined : JSON.parse(value);
+		},
+		set(key: string, value: any) {
+			if (value === undefined) sessionStorage.removeItem(key);
+			else sessionStorage.setItem(key, JSON.stringify(value));
+		},
+		remove(key: string) {
+			sessionStorage.removeItem(key);
+		},
+		each(callback: (value: any, key: string) => void) {
+			Object.keys(sessionStorage).filter(key => key.startsWith('perkly.dev:')).forEach(key => {
+				callback(this.get(key), key.slice('perkly.dev:'.length));
+			});
+		}
+	}
+	: store;
 const prefix = identity === 'PLATFORM' ? '' : `workspace:${identity}:`;
-const keyOf = (key: string) => prefix + key;
+const keyOf = (key: string) => (import.meta.env.DEV ? 'perkly.dev:' : '') + prefix + key;
 
 export default {
 	// 后缀标识
@@ -12,7 +33,7 @@ export default {
 	 * @param {string} key 关键字
 	 */
 	get(key: string) {
-		return store.get(keyOf(key));
+		return accountStore.get(keyOf(key));
 	},
 
 	/**
@@ -21,7 +42,7 @@ export default {
 	info() {
 		const data: Record<string, any> = {};
 
-		store.each((value: any, key: any) => {
+		accountStore.each((value: any, key: any) => {
 			if (prefix ? key.startsWith(prefix) : !key.startsWith('workspace:'))
 				data[prefix ? key.slice(prefix.length) : key] = value;
 		});
@@ -36,11 +57,11 @@ export default {
 	 * @param {number} expires 过期时间
 	 */
 	set(key: string, value: any, expires?: number) {
-		store.set(keyOf(key), value);
+		accountStore.set(keyOf(key), value);
 
 		if (expires) {
 			const expirationTime = Date.now() + expires * 1000;
-			store.set(keyOf(`${key}${this.suffix}`), expirationTime);
+			accountStore.set(keyOf(`${key}${this.suffix}`), expirationTime);
 		}
 	},
 
@@ -66,7 +87,7 @@ export default {
 	 * @param {string} key 关键字
 	 */
 	remove(key: string) {
-		store.remove(keyOf(key));
+		accountStore.remove(keyOf(key));
 		this.removeExpiration(key);
 	},
 
@@ -82,6 +103,6 @@ export default {
 	 * 清理
 	 */
 	clearAll() {
-		Object.keys(this.info()).forEach(key => store.remove(keyOf(key)));
+		Object.keys(this.info()).forEach(key => accountStore.remove(keyOf(key)));
 	}
 };

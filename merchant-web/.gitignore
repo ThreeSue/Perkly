@@ -20,10 +20,14 @@ yarn-error.log*
 
 vite.config.ts.timestamp*
 
+# Local development artifacts
 *.log
 .env.*.local
 /output/
-/testing/unification/logs/
+/logs/
 .playwright-cli/
 *.tsbuildinfo
 /docs/screenshots/
+/packages/*/dist/
+/.cursor/
+/build/cool/
