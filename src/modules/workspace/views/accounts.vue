@@ -228,7 +228,7 @@
 						</p>
 					</div>
 				</div>
-<el-form-item label="账号可用功能"><div style="width:100%"><p class="management-caption">勾选即可访问并展示，未勾选不可访问。功能受上级授权范围限制。</p><PermissionPicker v-model="selectedMenuIds" :menus="available" /></div></el-form-item></el-form
+<el-form-item label="账号可用功能"><div style="width:100%"><p class="management-caption">勾选即可访问并展示，未勾选不可访问。功能受上级授权范围限制。</p><PermissionPicker v-model="selectedMenuIds" :menus="available" /><PermissionPreview :menus="available" :selected-ids="selectedMenuIds" :account-name="form.name" /></div></el-form-item></el-form
 			><template #footer
 				><el-button @click="closeForm()">取消</el-button
 				><el-button type="primary" :loading="busy" @click="save"
@@ -252,6 +252,7 @@ import { useRoute } from 'vue-router';
 const route = useRoute();
 import { identity, isPlatform } from '/@/workspace';
 import PermissionPicker from '../components/permission-picker.vue';
+import PermissionPreview from '../components/permission-preview.vue';
 import { useUnsavedForm } from '../composables/unsaved-form';
 const rows = ref<any[]>([]),
 	merchants = ref<any[]>([]),

@@ -129,11 +129,9 @@
 							fit="cover"
 							style="width: 64px; height: 44px; border-radius: 6px"
 						>
-							<template #error
-								><span style="font-size: 12px">图片加载失败</span></template
-							>
+							<template #error><CoverPlaceholder /></template>
 						</el-image>
-						<span v-else>暂无封面</span>
+						<CoverPlaceholder v-else />
 					</template>
 				</cl-table>
 			</cl-row>
@@ -144,6 +142,7 @@
 			</cl-row>
 
 			<cl-upsert ref="Upsert">
+			<template #slot-cover="{ scope }"><CoverField v-model="scope.cover" /></template>
 				<template #slot-location="{ scope }">
 					<div class="store-location-field">
 						<el-input
@@ -211,6 +210,8 @@
 <script lang="ts" setup>
 defineOptions({ name: 'store-manager' });
 
+import CoverPlaceholder from '/$/space/components/cover-placeholder.vue';
+import CoverField from '/$/space/components/cover-field.vue';
 import { ref, computed, onActivated, watch } from 'vue';
 import ManagementShell from '/$/workspace/components/management-shell.vue';
 import { useManagementState, useRequestRevision } from '/$/workspace/composables/management-state';
@@ -429,10 +430,7 @@ const Upsert = useUpsert({
 		{
 			label: t('门店封面'),
 			prop: 'cover',
-			component: {
-				name: 'cl-upload',
-				props: { type: 'image', accept: 'image/*', limit: 1, limitSize: 5 }
-			},
+			component: { name: 'slot-cover' },
 			span: 24
 		},
 		{

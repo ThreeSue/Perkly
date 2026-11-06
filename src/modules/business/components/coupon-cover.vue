@@ -6,7 +6,7 @@
 		@click="visible = true"
 	>
 		<el-image class="cover-image" :src="src" :alt="name" fit="cover">
-			<template #error><span class="missing">暂无图</span></template>
+			<template #error><CoverPlaceholder /></template>
 		</el-image>
 		<span class="cover-badge" :class="{ compact: badge.length > 5 }">{{ badge }}</span>
 	</button>
@@ -19,7 +19,7 @@
 	>
 		<div class="cover-preview">
 			<el-image class="preview-image" :src="src" :alt="name" fit="cover">
-				<template #error><span class="missing">暂无封面</span></template>
+				<template #error><CoverPlaceholder /></template>
 			</el-image>
 			<div class="preview-caption">
 				<div class="preview-headline">
@@ -33,6 +33,7 @@
 </template>
 
 <script setup lang="ts">
+import CoverPlaceholder from '/$/space/components/cover-placeholder.vue';
 import { ref } from 'vue';
 withDefaults(
 	defineProps<{

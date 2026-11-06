@@ -7,7 +7,17 @@
 					<div class="cl-upload-space-inner__header">
 						<el-button @click="refresh({ page: 1 })">{{ $t('刷新') }}</el-button>
 
-						<div :style="{ margin: '0px 10px' }">
+						<el-input
+							v-model="keyword"
+							placeholder="搜索当前分类文件名"
+							clearable
+							style="max-width: 220px"
+							@keyup.enter="search"
+							@clear="search"
+						/>
+						<el-button @click="search">搜索</el-button>
+
+						<div v-if="!selectable" :style="{ margin: '0px 10px' }">
 							<cl-upload
 								:ref="setRefs('upload')"
 								menu="space"
@@ -49,7 +59,7 @@
 									class="cl-upload-space-inner__file-item"
 									@click="select(item)"
 								>
-									<upload-item :item="item" :list="list" @remove="remove" />
+									<upload-item :item="item" :list="list" :disabled="selectable" @remove="remove" />
 
 									<!-- 已选序号 -->
 									<div
@@ -67,7 +77,7 @@
 							<el-icon class="el-icon--upload">
 								<upload-filled />
 							</el-icon>
-							<p>{{ $t('将文件拖到此处，或点击按钮上传') }}</p>
+							<p>{{ loadError || (activeKeyword || selectable ? '暂无匹配文件' : $t('将文件拖到此处，或点击按钮上传')) }}</p>
 						</div>
 					</el-scrollbar>
 
@@ -199,35 +209,49 @@ function onUpload(data: any) {
 	list.value.unshift(data);
 }
 
-// 请求参数
-const reqParams = {
-	page: 1
-};
-
-// 刷新列表
-async function refresh(params?: any) {
-	// 合并参数
-	assign(reqParams, {
-		type: props.accept?.split('/')[0].replace('*', '') || undefined,
-		...pagination,
-		...params
-	});
-
-	// 加载中
-	if (reqParams.page == 1) {
-		loading.value = true;
+const keyword = ref('');
+const activeKeyword = ref('');
+const loadError = ref('');
+let requestVersion = 0;
+let classifyId: number | undefined;
+function search() {
+	activeKeyword.value = keyword.value.trim().toLowerCase();
+	void refresh({ page: 1 });
+}
+async function refresh(params?: { classifyId?: number; page?: number }) {
+	if (params && 'classifyId' in params) classifyId = params.classifyId;
+	const page = params?.page ?? pagination.page;
+	const size = pagination.size;
+	const term = activeKeyword.value;
+	const query = { classifyId, size, type: props.accept?.split('/')[0].replace('*', '') || undefined };
+	const version = ++requestVersion;
+	loading.value = true;
+	loadError.value = '';
+	try {
+		const result = await service.space.info.page({ ...query, page: term ? 1 : page });
+		if (version !== requestVersion) return;
+		if (term) {
+			const matches = result.list.filter(item => item.name?.toLowerCase().includes(term));
+			for (let index = 2; (index - 1) * size < result.pagination.total; index++) {
+				const next = await service.space.info.page({ ...query, page: index });
+				if (version !== requestVersion) return;
+				matches.push(...next.list.filter(item => item.name?.toLowerCase().includes(term)));
+			}
+			const current = Math.min(page, Math.max(1, Math.ceil(matches.length / size)));
+			list.value = matches.slice((current - 1) * size, current * size);
+			assign(pagination, { page: current, size, total: matches.length });
+		} else {
+			assign(pagination, result.pagination);
+			list.value = result.list;
+		}
+	} catch (cause: any) {
+		if (version !== requestVersion) return;
+		list.value = [];
+		pagination.total = 0;
+		loadError.value = cause?.message || '文件加载失败，请重试';
+	} finally {
+		if (version === requestVersion) loading.value = false;
 	}
-
-	await service.space.info.page(reqParams).then(res => {
-		// 设置分页
-		assign(pagination, res.pagination);
-
-		// 设置列表
-		list.value = res.list as Eps.SpaceInfoEntity[];
-	});
-
-	// 加载完成
-	loading.value = false;
 }
 
 // 选择
@@ -256,6 +280,7 @@ function onIndex(id?: number) {
 
 // 删除选中
 function remove(item?: Eps.SpaceInfoEntity) {
+	if (props.selectable) return;
 	// 已选文件 id
 	const ids = item ? [item.id] : selection.value.map(e => e.id);
 
@@ -294,7 +319,7 @@ function onDragover(e: DragEvent) {
 function onDrop(e: DragEvent) {
 	e.preventDefault();
 
-	if (e.dataTransfer) {
+	if (!props.selectable && e.dataTransfer) {
 		// @ts-expect-error
 		e.dataTransfer.files.forEach((file: File, index: number) => {
 			setTimeout(() => {

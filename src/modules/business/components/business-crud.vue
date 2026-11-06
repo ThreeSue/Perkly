@@ -16,11 +16,11 @@
 				><cl-refresh-btn /><cl-add-btn
 					v-if="
 						kind !== 'order' &&
-						can(kind === 'store' ? 'store:edit' : 'coupon:edit') &&
+						can(kind === 'store' ? 'store:edit' : 'coupon:create') &&
 						(kind !== 'store' || owner)
 					" /><cl-multi-delete-btn
 					v-if="
-						kind !== 'order' && can(kind === 'store' ? 'store:delete' : 'coupon:edit')
+						kind !== 'order' && can(kind === 'store' ? 'store:delete' : 'coupon:delete')
 					" /><cl-flex1
 			/></cl-row>
 			<cl-row v-if="kind !== 'order'"><cl-search ref="Search" reset-btn /></cl-row>
@@ -42,8 +42,8 @@
 							preview-teleported
 							fit="cover"
 							style="width: 64px; height: 44px; border-radius: 6px"
-							><template #error>图片加载失败</template></el-image
-						><span v-else>暂无封面</span>
+							><template #error><CoverPlaceholder /></template></el-image
+						><CoverPlaceholder v-else />
 					</template>
 					<template #column-type="{ scope }"
 						><el-tag
@@ -53,46 +53,46 @@
 							>{{ typeNames[scope.row.type] || '未知类型' }}</el-tag
 						></template
 					>
-					<template #column-publicationActions="{ scope }"
-						><template v-if="can('coupon:edit')">
-							<el-button
-								v-if="
-									scope.row.publication?.auditStatus !== 1 &&
-									scope.row.publication?.publishStatus !== 1
-								"
-								link
-								type="primary"
-								:disabled="publicationBusy"
-								@click="publication(scope.row, 'submitAudit')"
-								>提交审核</el-button
-							>
-							<el-button
-								v-if="scope.row.publication?.auditStatus === 1"
-								link
-								:disabled="publicationBusy"
-								@click="publication(scope.row, 'withdrawAudit')"
-								>撤回</el-button
-							>
-							<el-button
-								v-if="
-									scope.row.publication?.auditStatus === 2 &&
-									scope.row.publication?.publishStatus !== 1
-								"
-								link
-								type="success"
-								:disabled="publicationBusy"
-								@click="publication(scope.row, 'publish')"
-								>上架</el-button
-							>
-							<el-button
-								v-if="scope.row.publication?.publishStatus === 1"
-								link
-								type="danger"
-								:disabled="publicationBusy"
-								@click="publication(scope.row, 'unpublish')"
-								>下架</el-button
-							></template
+					<template #column-publicationActions="{ scope }">
+						<el-button
+							v-if="
+								can('coupon:submitAudit') &&
+								scope.row.publication?.auditStatus !== 1 &&
+								scope.row.publication?.publishStatus !== 1
+							"
+							link
+							type="primary"
+							:disabled="publicationBusy"
+							@click="publication(scope.row, 'submitAudit')"
+							>提交审核</el-button
 						>
+						<el-button
+							v-if="can('coupon:withdrawAudit') && scope.row.publication?.auditStatus === 1"
+							link
+							:disabled="publicationBusy"
+							@click="publication(scope.row, 'withdrawAudit')"
+							>撤回</el-button
+						>
+						<el-button
+							v-if="
+								can('coupon:publish') &&
+								scope.row.publication?.auditStatus === 2 &&
+								scope.row.publication?.publishStatus !== 1
+							"
+							link
+							type="success"
+							:disabled="publicationBusy"
+							@click="publication(scope.row, 'publish')"
+							>上架</el-button
+						>
+						<el-button
+							v-if="can('coupon:unpublish') && scope.row.publication?.publishStatus === 1"
+							link
+							type="danger"
+							:disabled="publicationBusy"
+							@click="publication(scope.row, 'unpublish')"
+							>下架</el-button
+					>
 					</template>
 				</cl-table>
 			</cl-row>
@@ -102,6 +102,9 @@
 					><MerchantImageUpload
 						:key="uploadEpoch"
 						v-model="scope.cover"
+						v-model:material-id="scope.coverMaterialId"
+						:can-browse="can('material:view')"
+						:can-manage="can('material:manage')"
 						@busy-change="uploadBusy = $event"
 				/></template>
 				<template #slot-location="{ scope }"
@@ -246,6 +249,7 @@
 </template>
 
 <script setup lang="ts">
+import CoverPlaceholder from '/$/space/components/cover-placeholder.vue';
 import { ref } from 'vue';
 import { useBase } from '/$/base';
 import { useRouter } from 'vue-router';
@@ -380,8 +384,8 @@ const opColumn: any =
 				type: 'op',
 				width: kind === 'store' ? 350 : 140,
 				buttons: [
-					...(can(kind === 'store' ? 'store:edit' : 'coupon:edit') ? ['edit'] : []),
-					...(can(kind === 'store' ? 'store:delete' : 'coupon:edit') ? ['delete'] : []),
+					...(can(kind === 'store' ? 'store:edit' : 'coupon:update') ? ['edit'] : []),
+					...(can(kind === 'store' ? 'store:delete' : 'coupon:delete') ? ['delete'] : []),
 					...(kind === 'store'
 						? [
 								...(can('store:edit')
@@ -558,6 +562,7 @@ const storeItems: any[] = [
 	),
 	field('门店位置', '_locationPicker', { name: 'slot-location' }, { span: 24 }),
 	field('门店封面', 'cover', { name: 'slot-cover' }, { span: 24 }),
+	{ prop: 'coverMaterialId', hidden: true },
 	field(
 		'营业时间',
 		'businessHours',
@@ -584,6 +589,7 @@ const couponItems: any[] = [
 		{ required: true }
 	),
 	field('优惠券封面', 'cover', { name: 'slot-cover' }, { span: 24 }),
+	{ prop: 'coverMaterialId', hidden: true },
 	field(
 		'使用说明',
 		'description',

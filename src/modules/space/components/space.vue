@@ -65,6 +65,7 @@ const props = defineProps({
 	},
 	// 类型
 	accept: String,
+	selectable: Boolean,
 	// 显示按钮
 	showBtn: {
 		type: Boolean,
@@ -149,9 +150,7 @@ onMounted(() => {
 	watch(
 		() => props.modelValue,
 		val => {
-			if (val) {
-				urls.value = isString(val) ? [val] : val;
-			}
+			urls.value = val ? (isString(val) ? [val] : val) : [];
 		},
 		{
 			immediate: true

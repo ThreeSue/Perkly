@@ -5,20 +5,10 @@
 				<h3>审批流程</h3>
 				<p>提交来源、审核结果与下一步处理</p>
 			</div>
-			<el-tag
-				:type="
-					detail.item.status === 3
-						? 'danger'
-						: detail.item.status === 1
-							? 'warning'
-							: 'info'
-				"
-			>
-				{{ detail.nextStep }}
-			</el-tag>
+			<el-tag :type="flow.tagType">{{ flow.nextStep }}</el-tag>
 		</header>
 		<el-alert
-			v-if="detail.historical"
+			v-if="flow.historical"
 			title="历史记录缺少部分操作人和时间，缺失信息已明确标注。"
 			type="warning"
 			:closable="false"
@@ -64,10 +54,29 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import dayjs from 'dayjs';
-import { buildApprovalFlow, type ApprovalDetail } from '../utils/flow';
+import { buildApprovalFlow, type ApprovalDetail, type FlowNode } from '../utils/flow';
 
-const props = defineProps<{ detail: ApprovalDetail; type: 'COUPON' | 'MERCHANT' }>();
-const nodes = computed(() => buildApprovalFlow(props.detail, props.type));
+type FlowPresentation = {
+	nodes: FlowNode[];
+	nextStep: string;
+	tagType: 'danger' | 'warning' | 'info' | 'success';
+	historical?: boolean;
+};
+const props = defineProps<
+	| { detail: ApprovalDetail; type: 'COUPON' | 'MERCHANT'; presentation?: never }
+	| { presentation: FlowPresentation; detail?: never; type?: never }
+>();
+const flow = computed<FlowPresentation>(() => {
+	if (props.presentation) return props.presentation;
+	const { detail, type } = props;
+	return {
+		nodes: buildApprovalFlow(detail, type),
+		nextStep: detail.nextStep,
+		tagType: detail.item.status === 3 ? 'danger' : detail.item.status === 1 ? 'warning' : 'info',
+		historical: detail.historical
+	};
+});
+const nodes = computed(() => flow.value.nodes);
 const formatTime = (value: string) =>
 	dayjs(value).isValid() ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '时间未记录';
 </script>

@@ -9,7 +9,14 @@
 				show-icon
 		/></cl-row>
 		<cl-row
-			><cl-refresh-btn /><cl-add-btn /><cl-multi-delete-btn /><cl-flex1 /><el-button
+			><cl-refresh-btn /><cl-add-btn /><cl-multi-delete-btn />
+			<OrderManager
+				:service="bannerOrderService"
+				field="sort"
+				button-text="调整排序"
+				save-blocked-reason="当前可以预览排序。批量保存接口接通后才能提交调整。"
+			/>
+			<cl-flex1 /><el-button
 				@click="openPreview"
 				>预览展示中的广告</el-button
 			></cl-row
@@ -165,6 +172,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useCrud, useTable, useUpsert, useSearch } from '@cool-vue/crud';
 import { useBase, checkPerm } from '/$/base';
+import OrderManager from '/#/crud/components/order-manager.vue';
 import { config } from '/@/config';
 import {
 	bannerApi,
@@ -196,6 +204,30 @@ const crudService = {
 	add: (data: Banner) => bannerApi.save(data),
 	update: (data: Banner) => bannerApi.save(data),
 	delete: ({ ids }: { ids: number[] }) => bannerApi.delete(ids)
+};
+const bannerOrderService = {
+	_permission: {
+		get list() { return allowed('page'); },
+		get update() { return allowed('update'); }
+	},
+	async list() {
+		const size = 100;
+		const first = await bannerApi.page({ page: 1, size });
+		const { total } = first.pagination;
+		const rows = [...first.list];
+		for (let page = 2; (page - 1) * size < total; page++) {
+			const result = await bannerApi.page({ page, size });
+			if (result.pagination.total !== total) {
+				throw new Error('广告列表已变化，请重新加载排序');
+			}
+			rows.push(...result.list);
+		}
+		if (rows.length !== total || rows.some(row => row.id == null) ||
+			new Set(rows.map(row => String(row.id))).size !== total) {
+			throw new Error('未取得完整广告列表，请重新加载排序');
+		}
+		return rows.map(row => ({ id: row.id!, name: row.title, sort: row.sort }));
+	}
 };
 const options = ref<TargetOption[]>([]),
 	targetsLoading = ref(false),
@@ -333,13 +365,6 @@ const Upsert = useUpsert({
 			component: { name: 'slot-target' },
 			hidden: ({ scope }) => scope.jumpType === 'NONE',
 			span: 24
-		},
-		{
-			label: '排序（越小越靠前）',
-			prop: 'sort',
-			required: true,
-			component: { name: 'el-input-number', props: { min: 0, max: 999999, precision: 0 } },
-			span: 12
 		},
 		{
 			label: '启停状态',

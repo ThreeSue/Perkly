@@ -40,6 +40,7 @@ async function syncPermissions() {
  syncing = true;
  try {
   const result = await workspaceApi('permmenu');
+  menu.setPerms(result.perms || []);
   if (JSON.stringify(result.menus) !== JSON.stringify(menu.all)) {
    const previous = menu.routes.some(m => m.path === route.path);
    await menu.get();
@@ -52,6 +53,7 @@ async function syncPermissions() {
  finally { syncing = false; }
 }
 onMounted(() => {
+ void syncPermissions();
  permissionTimer = setInterval(syncPermissions, 15000);
  window.addEventListener('focus', syncPermissions);
 });

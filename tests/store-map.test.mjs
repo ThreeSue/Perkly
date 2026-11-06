@@ -20,6 +20,8 @@ function picker(persist=false,overrides={}){
 		if(name==='vue')return {...Vue,onBeforeUnmount:cb=>cleanup.push(cb)};
 		if(name==='element-plus')return {ElMessage:{success(){}}};
 		if(name.endsWith('tencent-map.vue'))return {};
+		if(name.endsWith('coordinate-entry.vue'))return {};
+		if(name==='/@/cool')return {service:{request:async()=>{throw new Error('未配置坐标转换测试请求');}}};
 		if(name.endsWith('/model'))return model;
 		if(name.endsWith('/api'))return {storeMapApi:api};
 		if(name.endsWith('/permission'))return {mapPermission:()=>true};

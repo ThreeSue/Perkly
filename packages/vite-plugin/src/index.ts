@@ -4,7 +4,8 @@ import { demo } from "./demo";
 import { getProxyTarget } from "./proxy";
 import type { Config } from "../types";
 import { virtual } from "./virtual";
-import { assign, merge } from "lodash";
+import lodash from "lodash";
+const { assign, merge } = lodash;
 import { uniappX } from "./uniapp-x";
 
 export function cool(options: Config.Options) {
