@@ -1,4 +1,5 @@
 <template>
+	<CatalogWorkbench title="请求日志" description="查询后台请求并管理日志保留期限。">
 	<cl-crud ref="Crud">
 		<cl-row>
 			<cl-refresh-btn />
@@ -34,9 +35,11 @@
 			<cl-pagination />
 		</cl-row>
 	</cl-crud>
+	</CatalogWorkbench>
 </template>
 
 <script lang="ts" setup>
+import CatalogWorkbench from '/@/modules/workspace/components/catalog-workbench.vue';
 defineOptions({
 	name: 'sys-log'
 });

@@ -25,6 +25,9 @@
 
 		<div class="app-slider__container">
 			<el-scrollbar>
+				<el-button class="app-slider__assistant" text @click="$router.push('/my/assistant')" aria-label="打开AI助手">
+					<cl-svg name="icon-ai" /><span v-if="!app.isFold || browser.isMini">AI 助手</span>
+				</el-button>
 				<b-menu :keyWord="keyWord" />
 			</el-scrollbar>
 		</div>
@@ -49,8 +52,9 @@ const keyWord = ref('');
 
 <style lang="scss">
 .app-slider {
+	&__assistant { width: calc(100% - 20px); margin: 0 10px 8px; justify-content: flex-start; gap: 12px; height: 44px; color: #e5eaf3 !important; }
 	$slider-menu-height: 50px;
-	--slider-bg-color: #2c3147;
+	--slider-bg-color: var(--workspace-rail, #18233c);
 	--slider-text-color: #e5eaf3;
 
 	height: 100%;
@@ -174,7 +178,7 @@ const keyWord = ref('');
 					}
 
 					&.is-active {
-						background-color: var(--el-color-primary);
+						background-color: var(--workspace-accent, var(--el-color-primary));
 					}
 				}
 			}

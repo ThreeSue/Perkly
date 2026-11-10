@@ -1,5 +1,5 @@
 <template>
-	<div class="management-shell" :class="{ 'has-sidebar': sidebar }">
+	<div class="management-shell" :class="{ 'has-sidebar': sidebar, 'is-register': register }">
 		<aside v-if="sidebar" class="management-sidebar" :aria-label="scopeLabel + '筛选'">
 			<div class="scope-heading">
 				<strong>{{ scopeLabel }}</strong
@@ -14,12 +14,13 @@
 			<button
 				class="scope-option scope-all"
 				:class="{ active: scopeId == null }"
+				:aria-pressed="scopeId == null"
 				@click="emit('scope-change', undefined)"
 			>
 				<span class="scope-avatar">全</span
 				><span class="scope-copy"
 					><strong>{{ allLabel || '全部' + scopeLabel }}</strong
-					><small>{{ allHint }}</small></span
+					><small :title="allHint">{{ allHint }}</small></span
 				>
 			</button>
 			<div class="scope-list">
@@ -28,13 +29,14 @@
 					:key="item.id"
 					class="scope-option"
 					:class="{ active: String(scopeId) === String(item.id) }"
+					:aria-pressed="String(scopeId) === String(item.id)"
 					@click="emit('scope-change', item.id)"
 				>
-					<span class="scope-avatar">{{ item.name?.slice(0, 1) || '商' }}</span>
+					<span class="scope-avatar">{{ Array.from(item.name || scopeLabel)[0] }}</span>
 					<span class="scope-copy"
 						><strong :title="item.name">{{ item.name }}</strong
 						><small>{{
-							item.contactPhone || (item.status === 0 ? '已停用' : '点击查看')
+							item.hint ?? (item.contactPhone || (item.status === 0 ? '已停用' : '点击查看'))
 						}}</small></span
 					>
 				</button>
@@ -57,7 +59,7 @@
 							>当前范围：{{ scopeName }}</span
 						>
 					</div>
-					<p>{{ description }}</p>
+					<p v-if="description">{{ description }}</p>
 				</div>
 				<div v-if="metrics.length" class="management-metrics">
 					<div v-for="metric in metrics" :key="metric.label" class="management-metric">
@@ -80,11 +82,12 @@ const props = withDefaults(
 		eyebrow?: string;
 		scopeName?: string;
 		sidebar?: boolean;
+		register?: boolean;
 		scopeId?: number;
 		scopeLabel?: string;
 		allLabel?: string;
 		allHint?: string;
-		items?: Array<{ id: number; name: string; status?: number; contactPhone?: string }>;
+		items?: Array<{ id: number; name: string; status?: number; contactPhone?: string; hint?: string }>;
 		metrics?: Array<{ label: string; value?: number | string; hint?: string }>;
 	}>(),
 	{
@@ -477,6 +480,115 @@ const filteredScopes = computed(() => {
 	}
 	.heading-copy h2 {
 		font-size: 18px;
+	}
+}
+
+/* Dense work lists use the store directory's canvas and a separate table surface. */
+.is-register {
+	background: transparent;
+}
+.is-register > .management-main > .management-heading {
+	padding: 12px 16px;
+	border-color: transparent;
+	background: var(--workspace-neutral);
+}
+.is-register .heading-copy h2 {
+	color: var(--workspace-ink);
+	font-size: 22px;
+	font-weight: 700;
+}
+.is-register .heading-title-line {
+	flex-wrap: wrap;
+	gap: 4px 10px;
+}
+.is-register .heading-scope {
+	max-width: min(38ch, 100%);
+	box-sizing: border-box;
+}
+.is-register .management-metrics {
+	gap: 0;
+}
+.is-register .management-metric {
+	border: 0;
+	border-radius: 0;
+	border-inline-start: 1px solid var(--el-border-color-light);
+	background: transparent;
+	padding: 3px 14px;
+}
+.is-register .management-metric strong {
+	color: var(--workspace-ink);
+}
+.is-register > .management-main > .management-body {
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+	padding: 0 4px 4px;
+}
+.is-register > .management-main > .management-body > .management-toolbar {
+	padding: 6px 8px;
+	margin-bottom: 6px;
+}
+.is-register .management-toolbar .el-radio-group {
+	flex-wrap: wrap;
+}
+.is-register :where(.management-table) {
+	--el-table-header-bg-color: var(--workspace-neutral);
+	--el-table-header-text-color: var(--workspace-ink);
+	--el-table-row-hover-bg-color: var(--workspace-selected);
+	border-radius: 8px;
+}
+.is-register :where(.management-table) .el-table__cell {
+	padding-block: var(--workspace-table-cell-padding);
+}
+.is-register :where(.management-table) .cell-main {
+	color: var(--workspace-ink);
+}
+.is-register :where(.management-table) .cell-sub {
+	margin-top: 2px;
+}
+.is-register > .management-main > .management-body > .el-alert {
+	margin-bottom: 8px;
+}
+.is-register .scope-option {
+	padding: 6px 8px;
+	border-radius: 6px;
+}
+.is-register .scope-avatar {
+	border-radius: 5px;
+	background: var(--el-fill-color);
+	color: var(--el-text-color-regular);
+}
+.is-register .scope-option.active .scope-avatar {
+	background: var(--workspace-accent);
+	color: white;
+}
+.is-register .scope-copy small {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.is-register .scope-copy {
+	gap: 2px;
+}
+@media (min-width: 851px) {
+	.is-register > .management-main > .management-body:has(> .management-table) {
+		display: flex;
+		flex-direction: column;
+	}
+	.is-register > .management-main > .management-body > .management-table {
+		flex: 1 1 0;
+		min-height: 160px;
+	}
+	.is-register > .management-main > .management-body > :where(:not(.management-table)) {
+		flex: none;
+	}
+}
+@media (max-width: 850px) {
+	.is-register .management-metric {
+		min-width: min(72px, 25%);
+	}
+	.is-register .management-toolbar .toolbar-spacer {
+		display: none;
 	}
 }
 </style>

@@ -50,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @Date: 2026-11-02
  * @Time: 01:50:51
  */
-@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.MOCK,properties={"sms-auth.access-key-id=features-test-unused","sms-auth.access-key-secret=features-test-unused"})
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.MOCK,properties={"sms-auth.access-key-id=features-test-unused","sms-auth.access-key-secret=features-test-unused","perkly.support.ai-dispatch-enabled=false"})
 @ActiveProfiles("local") @Transactional
 class FeatureModulesIntegrationTest {
     @Autowired UserInfoMapper customers;
@@ -67,6 +67,11 @@ class FeatureModulesIntegrationTest {
     @Autowired SupportImageMapper imageRows;
     @Autowired UserFeedbackService feedback;
     @Autowired StoreChatService chats;
+    @Autowired com.cool.modules.support.chat.StoreChatReception reception;
+    @Autowired com.cool.modules.support.chat.StoreChatSettingsService chatSettings;
+    @Autowired com.cool.modules.support.chat.StoreChatAiWorker chatWorker;
+    @Autowired StoreChatAiJobMapper chatJobs;
+    @org.springframework.boot.test.mock.mockito.MockBean com.cool.modules.support.chat.StoreChatAiModel chatModel;
     @Autowired PlatformWalletService wallet;
     @Autowired WalletActivityService activity;
     @Autowired WalletActivityMapper activityRows;
@@ -422,24 +427,216 @@ class FeatureModulesIntegrationTest {
         mvc.perform(get("/app/support/feedback/page")).andExpect(status().isUnauthorized());
         mvc.perform(get("/admin/support/feedback/page").header("Authorization",app)).andExpect(status().isForbidden());
     }
+
+
+    @Autowired SupportOwnedCouponMapper ownedChatCoupons;
+    @Autowired com.cool.modules.support.chat.StoreChatCards chatCards;
+    @Autowired com.cool.modules.support.chat.StoreChatAccess chatAccess;
+    @Test void chatOwnedCouponOwnershipScopeAndNoRedemptionCredentials() throws Exception {
+        String secret=settlementCode();
+        var coupon=ownedChatCoupons.selectOneByQuery(QueryWrapper.create().eq(SupportOwnedCouponEntity::getCustomerId,customer));
+        Long id=chats.open(customer,store);
+        var ref=new com.cool.modules.support.chat.StoreChatModels.CardRef(com.cool.modules.support.chat.StoreChatModels.CardType.CUSTOMER_COUPON,coupon.getId());
+        var input=new StoreChatService.Send(id,"owned_card_0001","这张券可以使用吗",List.of(),ref);
+        chats.send("APP",customer,input);
+        var view=chats.messageViews("APP",customer,id,null,null,50).get(0);
+        String serialized=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(view);
+        assertFalse(serialized.contains(secret));assertFalse(serialized.contains("qrCode"));assertTrue(view.card().applicable());
+        Long other=chats.open(otherCustomer,store);
+        assertThrows(CoolException.class,()->chats.send("APP",otherCustomer,new StoreChatService.Send(other,"owned_other_001","",List.of(),ref)));
+        coupon.setStatus(1);ownedChatCoupons.update(coupon);
+        view=chats.messageViews("APP",customer,id,null,null,50).get(0);
+        assertEquals("待使用",view.card().snapshot().status());assertEquals("已核销",view.card().current().status());
+        var tree=new com.fasterxml.jackson.databind.ObjectMapper().readTree(coupon.getRuleSnapshot());
+        ((com.fasterxml.jackson.databind.node.ObjectNode)tree).put("scopeType",1).putArray("storeIds").add(otherStore);
+        coupon.setRuleSnapshot(tree.toString());ownedChatCoupons.update(coupon);
+        var chat=chatAccess.own("APP",customer,id,"chat:view",false);
+        assertEquals(0,chatCards.coupons(chat,"APP",null,false,1,20).total());
+        var all=chatCards.coupons(chat,"APP",null,true,1,20);
+        assertEquals(1,all.total());assertFalse(all.list().get(0).applicable());
+        assertTrue(all.list().get(0).current().facts().stream().noneMatch(f->"售价".equals(f.label())));
+    }
+    @Test void chatSuggestionNeverSendsAndRejectsRevokedReception() {
+        chatPermissions();Long id=chats.open(customer,store);
+        reception.transition("WORKSPACE",staff,"TAKEOVER",new com.cool.modules.support.chat.StoreChatModels.Transition(id,"suggest_take_001",0L));
+        org.mockito.Mockito.when(chatModel.reply(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(true)))
+            .thenReturn(new com.cool.modules.support.chat.StoreChatModels.ModelReply("您好，请描述需要咨询的问题。",List.of(),false));
+        var advice=chatWorker.suggest(staff,new com.cool.modules.support.chat.StoreChatModels.Suggest(id,"帮我润色",null),chatAccess);
+        assertFalse(advice.content().isBlank());assertEquals(1,chats.messages("APP",customer,id,null,null,50).size());
+        org.mockito.Mockito.when(chatModel.reply(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(true))).thenAnswer(invocation->{
+            reception.transition("WORKSPACE",staff,"CLOSE",new com.cool.modules.support.chat.StoreChatModels.Transition(id,"suggest_close_01",1L));
+            return new com.cool.modules.support.chat.StoreChatModels.ModelReply("不能发送",List.of(),false);
+        });
+        assertThrows(CoolException.class,()->chatWorker.suggest(staff,new com.cool.modules.support.chat.StoreChatModels.Suggest(id,"回复",null),chatAccess));
+        assertEquals(2,chats.messages("APP",customer,id,null,null,50).size());
+    }
+    @Test void chatHandoffAndNewQuestionInvalidateOldJobs() {
+        enableChatAi();Long id=chats.open(customer,store);
+        Long first=chats.send("APP",customer,new StoreChatService.Send(id,"old_question_01","你好",List.of()));
+        Long next=chats.send("APP",customer,new StoreChatService.Send(id,"new_question_01","转人工",List.of()));
+        chatWorker.process(chatJob(first));
+        assertEquals("CANCELLED",chatJobs.selectOneById(chatJob(first)).getState());
+        var request=new com.cool.modules.support.chat.StoreChatModels.Transition(id,"handoff_user_01",2L);
+        assertEquals("WAITING",reception.transition("APP",customer,"HANDOFF",request).state());
+        reception.transition("APP",customer,"HANDOFF",request);
+        chatWorker.process(chatJob(next));
+        assertEquals("CANCELLED",chatJobs.selectOneById(chatJob(next)).getState());
+        assertEquals(3,chats.messages("APP",customer,id,null,null,50).size());
+        org.mockito.Mockito.verifyNoInteractions(chatModel);
+    }
+
+    void chatPermissions() {
+        for(String permission:List.of("chat:view","chat:reply","chat:manage"))activityPermission(staff,permission);
+    }
+    @Autowired com.cool.modules.support.chat.StoreChatKnowledge chatKnowledge;
+    @Autowired com.cool.modules.ai.config.AiProperties chatProperties;
+    @Test void chatLiveModelGroundedStoreReplyOptIn() {
+        org.junit.jupiter.api.Assumptions.assumeTrue("true".equals(System.getenv("STORE_CHAT_LIVE_TEST")));
+        assertTrue(chatProperties.configured());enableChatAi();
+        var s=stores.selectOneById(store);s.setBusinessHours("每天10:00至20:00");stores.update(s);
+        Long id=chats.open(customer,store);
+        var real=new com.cool.modules.support.chat.StoreChatAiModel(chatProperties,new com.fasterxml.jackson.databind.ObjectMapper());
+        org.mockito.Mockito.when(chatModel.reply(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(false))).thenAnswer(invocation->real.reply(invocation.getArgument(0),false));
+        Long question=chats.send("APP",customer,new StoreChatService.Send(id,"real_model_0001","你们今天几点营业？请引用门店资料，不要替我办理任何交易。",List.of()));
+        chatWorker.process(chatJob(question));
+        var replies=chats.messageViews("APP",customer,id,null,null,50);
+        assertEquals(2,replies.size());assertEquals("AI",replies.get(1).senderKind());
+        assertTrue(replies.get(1).content().contains("10") && replies.get(1).content().contains("20"));
+        assertTrue(replies.get(1).references().contains(new com.cool.modules.support.chat.StoreChatModels.CardRef(com.cool.modules.support.chat.StoreChatModels.CardType.STORE,store)));
+    }
+    void enableChatAi() {
+        chatPermissions();
+        chatSettings.save(staff,new com.cool.modules.support.chat.StoreChatModels.SettingsInput(0,true,List.of()));
+    }
+    Long chatJob(Long message) {
+        return chatJobs.selectOneByQuery(QueryWrapper.create().eq(StoreChatAiJobEntity::getMessageId,message)).getId();
+    }
+    @Test void chatPermissionSeparationAndTakeoverReplay() {
+        Long id=chats.open(customer,store);
+        assertThrows(CoolException.class,()->reception.detail("WORKSPACE",staff,id));
+        activityPermission(staff,"chat:view");
+        assertFalse(reception.detail("WORKSPACE",staff,id).canTakeover());
+        var command=new com.cool.modules.support.chat.StoreChatModels.Transition(id,"takeover_perm_01",0L);
+        assertThrows(CoolException.class,()->reception.transition("WORKSPACE",staff,"TAKEOVER",command));
+        activityPermission(staff,"chat:reply");
+        assertEquals("HUMAN",reception.transition("WORKSPACE",staff,"TAKEOVER",command).state());
+        assertEquals(1L,reception.transition("WORKSPACE",staff,"TAKEOVER",command).version());
+        assertThrows(CoolException.class,()->chatSettings.get(staff));
+        assertThrows(CoolException.class,()->reception.detail("WORKSPACE",owner,id));
+        Long colleague=account("colleague","STAFF",store);
+        activityPermission(colleague,"chat:view");activityPermission(colleague,"chat:reply");
+        assertThrows(CoolException.class,()->reception.transition("WORKSPACE",colleague,"TAKEOVER",
+            new com.cool.modules.support.chat.StoreChatModels.Transition(id,"takeover_second",1L)));
+    }
+    @Test void chatAiReplyOnceAndFailureHandoff() {
+        enableChatAi();Long id=chats.open(customer,store);
+        org.mockito.Mockito.when(chatModel.reply(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(false)))
+            .thenReturn(new com.cool.modules.support.chat.StoreChatModels.ModelReply("您好，需要咨询什么？",List.of(),false));
+        Long question=chats.send("APP",customer,new StoreChatService.Send(id,"question_ai_001","你好",List.of()));
+        Long job=chatJob(question);chatWorker.process(job);chatWorker.process(job);
+        assertEquals(2,chats.messages("APP",customer,id,null,null,50).size());
+        assertEquals("AI",chats.messages("APP",customer,id,null,null,50).get(1).getSenderKind());
+        org.mockito.Mockito.when(chatModel.reply(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(false)))
+            .thenThrow(new CoolException("provider unavailable",503));
+        question=chats.send("APP",customer,new StoreChatService.Send(id,"question_ai_002","怎么用券",List.of()));
+        chatWorker.process(chatJob(question));
+        assertEquals("WAITING",reception.detail("APP",customer,id).state());
+        assertEquals("SYSTEM",chats.messages("APP",customer,id,null,null,50).get(3).getSenderKind());
+    }
+    @Test void chatLateAiSuppressedAfterTakeoverAndClosedRoundReopens() {
+        enableChatAi();Long id=chats.open(customer,store);
+        Long question=chats.send("APP",customer,new StoreChatService.Send(id,"question_late_01","咨询",List.of()));
+        org.mockito.Mockito.when(chatModel.reply(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(false))).thenAnswer(invocation->{
+            reception.transition("WORKSPACE",staff,"TAKEOVER",new com.cool.modules.support.chat.StoreChatModels.Transition(id,"takeover_late_01",1L));
+            return new com.cool.modules.support.chat.StoreChatModels.ModelReply("迟到的回复",List.of(),false);
+        });
+        chatWorker.process(chatJob(question));
+        assertEquals("CANCELLED",chatJobs.selectOneById(chatJob(question)).getState());
+        assertEquals(2,chats.messages("APP",customer,id,null,null,50).size());
+        reception.transition("WORKSPACE",staff,"CLOSE",new com.cool.modules.support.chat.StoreChatModels.Transition(id,"close_round_001",2L));
+        chats.send("APP",customer,new StoreChatService.Send(id,"new_round_0001","新的咨询",List.of()));
+        var detail=reception.detail("APP",customer,id);
+        assertEquals("AI",detail.state());assertEquals(2,detail.round());assertNull(detail.assigneeId());
+    }
+    @Test void chatSettingsDisableDuringGenerationAndOptimisticVersion() {
+        enableChatAi();Long id=chats.open(customer,store);
+        assertThrows(CoolException.class,()->chatSettings.save(staff,new com.cool.modules.support.chat.StoreChatModels.SettingsInput(0,true,List.of())));
+        org.mockito.Mockito.when(chatModel.reply(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(false))).thenAnswer(invocation->{
+            chatSettings.save(staff,new com.cool.modules.support.chat.StoreChatModels.SettingsInput(1,false,List.of()));
+            return new com.cool.modules.support.chat.StoreChatModels.ModelReply("不能发送",List.of(),false);
+        });
+        Long question=chats.send("APP",customer,new StoreChatService.Send(id,"disable_ai_0001","咨询",List.of()));
+        chatWorker.process(chatJob(question));
+        assertEquals("WAITING",reception.detail("APP",customer,id).state());
+        assertEquals("SYSTEM",chats.messages("APP",customer,id,null,null,50).get(1).getSenderKind());
+    }
+    @Test void chatChangedReferencedFactsNeverPublishOldAnswer() {
+        enableChatAi();Long id=chats.open(customer,store);
+        org.mockito.Mockito.when(chatModel.reply(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(false))).thenAnswer(invocation->{
+            var row=stores.selectOneById(store);row.setAddress("生成期间变更的新地址");stores.update(row);
+            return new com.cool.modules.support.chat.StoreChatModels.ModelReply("旧地址答案",List.of(new com.cool.modules.support.chat.StoreChatModels.CardRef(com.cool.modules.support.chat.StoreChatModels.CardType.STORE,store)),false);
+        });
+        Long question=chats.send("APP",customer,new StoreChatService.Send(id,"changed_fact_001","在哪",List.of()));
+        chatWorker.process(chatJob(question));
+        var last=chats.messageViews("APP",customer,id,null,null,50).get(1);
+        assertEquals("SYSTEM",last.senderKind());assertFalse(last.content().contains("旧地址答案"));
+        assertEquals("WAITING",reception.detail("APP",customer,id).state());
+    }
+    @Test void chatStoreCardSnapshotCurrentAndCrossStoreRejection() {
+        Long id=chats.open(customer,store);
+        var card=new com.cool.modules.support.chat.StoreChatModels.CardRef(com.cool.modules.support.chat.StoreChatModels.CardType.STORE,store);
+        var input=new StoreChatService.Send(id,"store_card_0001","",List.of(),card);
+        Long message=chats.send("APP",customer,input);
+        var s=stores.selectOneById(store);String oldName=s.getName();s.setName("改名后的测试门店");stores.update(s);
+        assertEquals(message,chats.send("APP",customer,input));
+        var result=chats.messageViews("APP",customer,id,null,null,50).get(0);
+        assertEquals(oldName,result.card().snapshot().title());assertEquals(s.getName(),result.card().current().title());
+        assertThrows(CoolException.class,()->chats.send("APP",customer,new StoreChatService.Send(id,"other_card_0001","",List.of(),
+            new com.cool.modules.support.chat.StoreChatModels.CardRef(com.cool.modules.support.chat.StoreChatModels.CardType.STORE,otherStore))));
+        stores.deleteById(store);
+        assertFalse(chats.messageViews("APP",customer,id,null,null,50).get(0).card().available());
+    }
+
     @Test void chatAllStaffReplyAndCrossStoreAndCustomerRejected(){
+        activityPermission(staff,"chat:view");activityPermission(staff,"chat:reply");
         Long id=chats.open(customer,store);assertEquals(id,chats.open(customer,store));
         Long a=chats.send("APP",customer,new StoreChatService.Send(id,"message_123","你好",List.of()));
         assertEquals(a,chats.send("APP",customer,new StoreChatService.Send(id,"message_123","你好",List.of())));
         String url=image("WORKSPACE",staff);
+        reception.transition("WORKSPACE",staff,"TAKEOVER",new com.cool.modules.support.chat.StoreChatModels.Transition(id,"takeover_123",1L));
         chats.send("WORKSPACE",staff,new StoreChatService.Send(id,"message_234","您好",List.of(url)));
-        assertEquals(2,chats.messages("APP",customer,id,null,null,50).size());
-        assertEquals(1,chats.messages("APP",customer,id,a,null,50).size());
+        assertEquals(3,chats.messages("APP",customer,id,null,null,50).size());
+        assertEquals(2,chats.messages("APP",customer,id,a,null,50).size());
         assertThrows(CoolException.class,()->chats.messages("APP",otherCustomer,id,null,null,50));
         assertThrows(CoolException.class,()->chats.send("WORKSPACE",otherStaff,new StoreChatService.Send(id,"message_bad","越店",List.of())));
         assertThrows(CoolException.class,()->chats.send("APP",customer,new StoreChatService.Send(id,"message_123","冲突",List.of())));
     }
     @Test void chatStaffTokenAndAppTokenReachCorrectRoutes() throws Exception {
+        activityPermission(staff,"chat:view");activityPermission(staff,"chat:reply");
         Long id=chats.open(customer,store);String staffToken=token(staff,UserTypeEnum.MERCHANT);
+        reception.transition("WORKSPACE",staff,"TAKEOVER",new com.cool.modules.support.chat.StoreChatModels.Transition(id,"takeover_http",0L));
         mvc.perform(post("/merchant/governance/chats/send").header("Authorization",staffToken).contentType("application/json").content("{\"chatId\":"+id+",\"requestId\":\"chat_http_123\",\"content\":\"回复\"}")).andExpect(jsonPath("$.code").value(1000));
         String app=token(customer,UserTypeEnum.APP);
-        mvc.perform(get("/app/support/chats/messages?chatId="+id).header("Authorization",app)).andExpect(jsonPath("$.data[0].content").value("回复"));
+        mvc.perform(get("/app/support/chats/messages?chatId="+id).header("Authorization",app)).andExpect(jsonPath("$.data[1].content").value("回复"));
         mvc.perform(get("/merchant/governance/chats/page").header("Authorization",app)).andExpect(status().isUnauthorized());
+    }
+    @Test void chatReceptionAndSettingsHttpContract() throws Exception {
+        chatPermissions();String employee=token(staff,UserTypeEnum.MERCHANT);
+        mvc.perform(post("/merchant/governance/chats/settings").header("Authorization",employee).contentType("application/json")
+            .content("{\"version\":0,\"aiEnabled\":true,\"faqs\":[]}"))
+            .andExpect(jsonPath("$.code").value(1000)).andExpect(jsonPath("$.data.version").value(1));
+        Long id=chats.open(customer,store);String app=token(customer,UserTypeEnum.APP);
+        mvc.perform(get("/app/support/chats/detail?chatId="+id).header("Authorization",app))
+            .andExpect(jsonPath("$.data.state").value("AI")).andExpect(jsonPath("$.data.canReply").value(false));
+        mvc.perform(get("/app/support/chats/coupon-options?chatId="+id).header("Authorization",app))
+            .andExpect(jsonPath("$.data.list").isArray()).andExpect(jsonPath("$.data.total").value(0));
+        mvc.perform(post("/app/support/chats/handoff").header("Authorization",app).contentType("application/json")
+            .content("{\"chatId\":"+id+",\"requestId\":\"http_handoff_001\",\"version\":0}"))
+            .andExpect(jsonPath("$.data.state").value("WAITING"));
+        mvc.perform(post("/merchant/governance/chats/takeover").header("Authorization",employee).contentType("application/json")
+            .content("{\"chatId\":"+id+",\"requestId\":\"http_takeover_01\",\"version\":1}"))
+            .andExpect(jsonPath("$.data.state").value("HUMAN")).andExpect(jsonPath("$.data.canReply").value(true));
+        mvc.perform(get("/app/support/chats/settings").header("Authorization",app)).andExpect(jsonPath("$.code").value(403));
     }
     @Test void rechargeFailureIdempotencyAndDirectDiscountLedger(){
         wallet.recharge(customer,new PlatformWalletService.Recharge("recharge_failed",10000L,"FAILED"));assertEquals(0,wallet.balance(customer));

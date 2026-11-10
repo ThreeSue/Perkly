@@ -1,4 +1,5 @@
 <template>
+	<CatalogWorkbench title="回收站" description="查找已删除的数据和原始记录。">
 	<cl-crud ref="Crud">
 		<cl-row>
 			<!-- 刷新按钮 -->
@@ -28,9 +29,11 @@
 			<cl-pagination />
 		</cl-row>
 	</cl-crud>
+	</CatalogWorkbench>
 </template>
 
 <script lang="ts" setup>
+import CatalogWorkbench from '/@/modules/workspace/components/catalog-workbench.vue';
 defineOptions({
 	name: 'recycle-data'
 });

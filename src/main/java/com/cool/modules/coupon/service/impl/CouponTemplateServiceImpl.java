@@ -39,6 +39,31 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
     private final MerchantMaterialService materials;
 
     @Override
+    @Transactional(readOnly = true)
+    public void validatePreview(CouponTemplateEntity input) {
+        validateInput(input, input.getId() == null ? List.of() : storeIds(input.getId()));
+    }
+
+    @Override
+    public boolean requiresPublicationRelease(CouponTemplateEntity input) {
+        if (input.getId() == null || relations.activePublications(input.getId()) == 0) return false;
+        var old = mapper.selectOneById(input.getId());
+        if (old == null) throw new CoolException("优惠券不存在");
+        var previousStores = storeIds(input.getId());
+        old.setStoreIds(previousStores);
+        return !Integer.valueOf(1).equals(input.getStatus()) || !ruleFields(old).equals(ruleFields(input))
+            || !new HashSet<>(previousStores).equals(new HashSet<>(input.getStoreIds() == null ? previousStores : input.getStoreIds()))
+            || !contentItems(input.getId()).equals(input.getContentItems() == null ? contentItems(input.getId()) : input.getContentItems());
+    }
+
+    private void validateInput(CouponTemplateEntity input, List<Long> previousStores) {
+        CouponTemplateRules.validate(input);
+        validateMerchant(input);
+        validateStores(input, previousStores);
+        validateContents(input);
+    }
+
+    @Override
     public List<Map<String, Object>> productOptions(Long merchantId) {
         if (merchantId == null || merchants.selectOneById(merchantId) == null) throw new CoolException("请选择存在的商家");
         return relations.products(merchantId);
@@ -67,10 +92,7 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         e.setIssuedCount(0L);
         e.setRuleVersion(1);
         e.setCover(materials.resolveCover(e.getMerchantId(), e.getCoverMaterialId(), e.getCover()));
-        CouponTemplateRules.validate(e);
-        validateMerchant(e);
-        validateStores(e, List.of());
-        validateContents(e);
+        validateInput(e, List.of());
         Long id = super.add(e);
         saveStores(e);
         relations.replaceContents(e.getMerchantId(), id, e.getContentItems());
@@ -96,10 +118,7 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         e.setIssuedCount(old.getIssuedCount());
         e.setCreateTime(old.getCreateTime());
         e.setCover(materials.resolveCover(e.getMerchantId(), e.getCoverMaterialId(), e.getCover()));
-        CouponTemplateRules.validate(e);
-        validateMerchant(e);
-        validateStores(e, oldStores);
-        validateContents(e);
+        validateInput(e, oldStores);
         old.setStoreIds(oldStores);
         boolean changed = !ruleFields(old).equals(ruleFields(e)) || !new HashSet<>(oldStores).equals(new HashSet<>(e.getStoreIds()))
                 || !oldContents.equals(e.getContentItems());

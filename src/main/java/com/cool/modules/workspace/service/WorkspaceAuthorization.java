@@ -147,6 +147,13 @@ public class WorkspaceAuthorization {
         return new PermMenu(result,permissions(id).stream().sorted().toList());
     }
     public void checkRoute(Long id,String route){
+        if(Set.of("/merchant/reports/redemptions/query","/merchant/reports/redemptions/operators").contains(route)){context(id);require(id,"bill:view");return;}
+        // 门店助手仅复用只读账单入口权限；服务层继续校验门店类型、数据范围及具体业务权限。
+        if(Set.of("/merchant/ai/assistant/chat","/merchant/ai/assistant/session",
+            "/merchant/ai/assistant/statistics","/merchant/ai/assistant/coupons",
+            "/merchant/ai/assistant/inspect","/merchant/ai/assistant/order","/merchant/ai/assistant/records").contains(route)){
+            context(id);require(id,"bill:view");return;
+        }
         if(Set.of("/merchant/auth/logout","/merchant/auth/changePassword","/merchant/staff/me","/merchant/workspace/me",
             "/merchant/governance/me","/merchant/governance/permmenu").contains(route)){context(id);return;}
         String permission=null;

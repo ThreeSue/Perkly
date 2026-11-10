@@ -22,6 +22,7 @@ public class WorkspaceNoticeEntity extends BaseEntity<WorkspaceNoticeEntity> {
     @ColumnDefine(comment="请求幂等标识", length=64, notNull=true) private String requestId;
     @ColumnDefine(comment="通知标题", length=100, notNull=true) private String title;
     @ColumnDefine(comment="通知正文", type="text", notNull=true) private String content;
+    @ColumnDefine(comment="通知类型 LIGHT轻通知 STRONG强提醒", length=16, defaultValue="LIGHT") private String noticeType;
     @ColumnDefine(comment="业务来源") private String businessType;
     @ColumnDefine(comment="业务ID") private Long businessId;
     @ColumnDefine(comment="业务版本") private Integer businessVersion;

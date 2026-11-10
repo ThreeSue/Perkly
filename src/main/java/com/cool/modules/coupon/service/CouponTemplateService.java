@@ -15,5 +15,7 @@ import com.cool.modules.coupon.entity.CouponTemplateEntity;
 public interface CouponTemplateService extends BaseService<CouponTemplateEntity> {
     java.util.List<java.util.Map<String, Object>> productOptions(Long merchantId);
     CouponTemplateEntity validateForPublication(Long id, Integer version);
+    void validatePreview(CouponTemplateEntity input);
+    boolean requiresPublicationRelease(CouponTemplateEntity input);
 }
 

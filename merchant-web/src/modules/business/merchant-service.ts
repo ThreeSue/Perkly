@@ -1,6 +1,6 @@
 import { merchantRequest } from '/@/merchant-api';
 
-export type MerchantResource = 'store' | 'coupon' | 'order';
+export type MerchantResource = 'store' | 'coupon';
 
 // 仅适配商家接口，表格、分页及表单交给框架CRUD组件。
 export function createMerchantCrudService(kind: MerchantResource) {

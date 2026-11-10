@@ -74,9 +74,8 @@ public class AiAccessService {
             || d.type()==null || !Set.of("CASH","DISCOUNT","FULL_REDUCTION","PACKAGE","EXPERIENCE","EXCHANGE").contains(d.type()))
             throw new CoolException("请先填写券名称和券类型");
         if(d.description()!=null && d.description().length()>2000)throw new CoolException("使用说明过长");
-        boolean content=Set.of("PACKAGE","EXPERIENCE","EXCHANGE").contains(d.type());
         var items=d.contentItems()==null?List.<Content>of():d.contentItems();
-        if(items.size()>100 || content && items.isEmpty() || items.stream().anyMatch(i->i==null || i.name()==null || i.name().isBlank()
+        if(items.size()>100 || items.stream().anyMatch(i->i==null || i.name()==null || i.name().isBlank()
             || i.name().length()>100 || i.quantity()==null || i.quantity()<1 || i.itemDescription()!=null && i.itemDescription().length()>500))
             throw new CoolException("请补全实际商品或服务名称及数量，AI不会猜测未填写的内容");
         var query=QueryWrapper.create().eq(MerchantStoreEntity::getMerchantId,d.merchantId()).eq(MerchantStoreEntity::getStatus,1);

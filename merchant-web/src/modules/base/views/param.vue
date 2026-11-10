@@ -1,4 +1,5 @@
 <template>
+	<CatalogWorkbench title="参数列表" description="搜索与维护平台业务参数。">
 	<cl-crud ref="Crud">
 		<cl-row>
 			<cl-refresh-btn />
@@ -25,9 +26,11 @@
 
 		<cl-upsert ref="Upsert" />
 	</cl-crud>
+	</CatalogWorkbench>
 </template>
 
 <script lang="ts" setup>
+import CatalogWorkbench from '/@/modules/workspace/components/catalog-workbench.vue';
 defineOptions({
 	name: 'sys-param'
 });

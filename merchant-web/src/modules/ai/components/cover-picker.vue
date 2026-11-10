@@ -1,7 +1,58 @@
 <template>
-	<el-button v-if="allowed" :disabled="disabled" @click="open"><cl-svg name="icon-ai" />AI生成封面</el-button>
+	<div v-if="compact" class="cover-layout">
+	<section class="compact-cover">
+		<div class="cover-stage">
+			<div v-if="working" class="generating-cover" role="status">
+				<div><cl-svg name="icon-ai" aria-hidden="true" />正在生成封面…</div>
+			</div>
+			<img v-else-if="candidate" :src="candidate.url" alt="AI 生成的候选封面" />
+			<el-image v-else-if="cover" :src="cover" :preview-src-list="[cover]"
+				preview-teleported fit="cover" alt="当前优惠券封面">
+				<template #error><span>封面加载失败</span></template>
+			</el-image>
+			<span v-else>暂无封面</span>
+		</div>
+		<div class="cover-controls">
+		<div class="cover-ai-heading">
+			<span class="cover-ai-mark"><cl-svg name="icon-ai" aria-hidden="true" /></span>
+			<div>
+				<strong>AI 封面设计</strong>
+				<p class="cover-note">根据当前优惠券内容生成封面。</p>
+			</div>
+		</div>
+		<div class="cover-primary">
+		<el-button type="primary" :plain="!!candidate" :disabled="!allowed || !draftReady || disabled || working || !!pending"
+			:loading="preparing" @click="generateCover">
+			{{ working ? '生成中' : candidate ? '重新生成' : 'AI 生成封面' }}
+		</el-button>
+		<el-button v-if="candidate && !working" type="primary" :disabled="disabled" @click="select(candidate)">选用封面</el-button>
+		</div>
+		<p v-if="candidate && !working" class="cover-note">选用后更新左侧券面预览。</p>
+		<el-button v-if="allowed" link :disabled="disabled || preparing" @click="open()">生成设置与历史</el-button>
+		<small v-if="!allowed">当前账号没有 AI 封面生成权限</small>
+		<small v-else-if="!draftReady">请先填写券名称、券类型及适用范围。</small>
+		<el-button v-if="pending" :loading="submitting" @click="resolvePending">核对上次提交</el-button>
+		<details v-if="allowed">
+			<summary @click="loadDescription">调整生成描述</summary>
+			<el-input v-model="prompt" type="textarea" :rows="3" maxlength="4000" :disabled="working" />
+			<el-button link :loading="preparing" @click="prepare">按当前券内容恢复描述</el-button>
+		</details>
+		<p v-if="error || (!working && activeTask?.errorMessage)" class="failure" role="alert">{{ error || activeTask?.errorMessage }}</p>
+		<el-button v-if="activeTask?.status === 'STORAGE_FAILED'" link :loading="submitting"
+			@click="retryStorage(activeTask)">重试保存已有图片</el-button>
+		<el-button v-if="activeTask && isProcessing(activeTask.status) && error" link @click="refresh()">重新查询进度</el-button>
+		<div class="cover-manual">
+			<span>手动选图</span>
+			<slot />
+		</div>
+		</div>
+	</section>
+	</div>
+	<template v-else>
+	<el-button v-if="allowed" :disabled="disabled || !draftReady" @click="open()"><cl-svg name="icon-ai" />AI生成封面</el-button>
 	<el-button v-else disabled title="需独立AI图片权限及本次优惠券编辑权限"><cl-svg name="icon-ai" />AI生成封面</el-button>
-	<el-dialog v-model="visible" title="AI优惠券封面" width="min(1000px, 96vw)" append-to-body :close-on-click-modal="false" @closed="stopPolling">
+	</template>
+	<el-dialog v-model="visible" title="AI优惠券封面" width="min(1000px, 96vw)" append-to-body :close-on-click-modal="false">
 		<el-alert title="一次生成一张正方形图片，所有成功图片自动存入本商家素材库。只有点击“选用封面”才回填，保存优惠券后生效。" type="info" :closable="false" />
 		<el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
 		<div v-if="quota" class="quota">{{ merchantName || '当前商家' }} · {{ quota.day }}：已受理 {{ quota.used }} / {{ quota.limit }} 次，剩余 {{ quota.remaining }} 次。失败或结果未知的已受理请求也计入额度。</div>
@@ -11,11 +62,13 @@
 		</el-alert>
 		<el-form label-position="top" class="prompt-form" @submit.prevent>
 			<el-form-item label="图片提示词（可编辑）">
-				<el-input v-model="prompt" type="textarea" :rows="4" maxlength="4000" show-word-limit placeholder="先填写券名称、类型及实际商品内容，再读取当前表单" />
+				<el-input v-model="prompt" type="textarea" :rows="4" maxlength="4000" show-word-limit placeholder="根据当前券表单自动填写，可按需调整" />
 			</el-form-item>
 			<div class="actions">
 				<el-button :loading="preparing" :disabled="submitting" @click="prepare">重新读取当前表单</el-button>
-				<el-select v-model="model" aria-label="图片模型" style="width: 200px"><el-option v-for="item in quota?.models || []" :key="item" :label="item" :value="item" /></el-select>
+				<el-select v-model="model" aria-label="图片模型" style="width: 260px">
+					<el-option v-for="item in quota?.models || []" :key="item" :label="item === 'qwen-image-2.1-turbo' ? '快速 · ' + item : item" :value="item" />
+				</el-select>
 				<el-button type="primary" :disabled="!canGenerate" :loading="submitting" @click="generate('GENERATE')">{{ parent ? '按提示词重新生成' : '生成一张' }}</el-button>
 				<el-button v-if="parent" type="success" :disabled="!canGenerate" @click="generate('EDIT')">基于所选图完善</el-button>
 				<el-tag v-if="parent" closable @close="parent = undefined">已选参考图 · {{ parent.createTime }}</el-tag>
@@ -54,11 +107,15 @@ import { useBase } from '/$/base';
 import { isPlatform, identity } from '/@/workspace';
 import { coverDraft, imageApi, isProcessing, statusNames, type ImageCreate, type ImageTask, type ImageQuota } from '../api';
 
-const props = defineProps<{ draft: Record<string, any>; disabled?: boolean }>();
+const props = defineProps<{ draft: Record<string, any>; disabled?: boolean; compact?: boolean; cover?: string | null }>();
 const emit = defineEmits<{ select: [value: { id: number; url: string; name: string }] }>();
 const { user, menu } = useBase();
 const draft = () => coverDraft(props.draft, (user.info as any)?.merchantId);
 const merchantId = computed(() => draft().merchantId);
+const draftReady = computed(() => {
+	const value = draft();
+	return !!(value.merchantId && value.name.trim() && value.type && (value.scopeType !== 1 || value.storeIds.length));
+});
 const allowed = computed(() => {
 	const has = (p: string) => isPlatform && user.info?.username === 'admin' || menu.perms.includes(p);
 	return has('ai:image:generate') && (isPlatform ? has(props.draft.id ? 'coupon:template:update' : 'coupon:template:add') : has(props.draft.id ? 'coupon:update' : 'coupon:create') && has('material:view'));
@@ -68,6 +125,33 @@ const prompt = ref(''), model = ref(''), error = ref(''), merchantName = ref('')
 const rows = ref<ImageTask[]>([]), quota = ref<ImageQuota>(), parent = ref<ImageTask>();
 const pending = ref<ImageCreate>(), page = ref(1), total = ref(0), activeId = ref<number>();
 const activeTask = computed(() => rows.value.find(t => t.id === activeId.value));
+const working = computed(() => submitting.value || isProcessing(activeTask.value?.status || ''));
+const candidate = computed(() => {
+	const task = activeTask.value;
+	return task?.status === 'STORED' && task.url && task.url !== props.cover ? task : undefined;
+});
+function loadDescription() {
+	if (!prompt.value && !preparing.value && !working.value) void prepare();
+}
+async function generateCover() {
+	if (working.value || preparing.value || props.disabled || !allowed.value) return;
+	error.value = '';
+	if (!visible.value) {
+		const description = prompt.value;
+		await open(false);
+		if (description) prompt.value = description;
+	} else {
+		await refresh(true);
+	}
+	if (!error.value && canGenerate.value) await generate('GENERATE');
+	else if (!error.value && !pending.value) {
+		if (quota.value && !quota.value.enabled) error.value = 'AI 生成已暂停';
+		else if (quota.value && !quota.value.keyConfigured) error.value = '生成服务未配置，请联系运营';
+		else if (quota.value?.remaining === 0) error.value = '今日生成额度已用完';
+		else if (prompt.value.trim().length < 5) error.value = '生成描述未就绪，请重试';
+		else error.value = '暂时无法生成，请稍后重试';
+	}
+}
 const canGenerate = computed(() => allowed.value && !!quota.value?.enabled && !!quota.value?.keyConfigured && quota.value.remaining > 0 && !!model.value && prompt.value.trim().length >= 5 && !submitting.value && !preparing.value && !pending.value && !isProcessing(activeTask.value?.status || ''));
 const pendingKey = () => `ai-cover-pending:${identity}:${user.info?.id}:${merchantId.value}`;
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -78,16 +162,16 @@ function remember(input?: ImageCreate) {
 	if (input) sessionStorage.setItem(pendingKey(), JSON.stringify(input));
 	else sessionStorage.removeItem(pendingKey());
 }
-async function open() {
+async function open(showDialog = true) {
 	if (!allowed.value || props.disabled) return;
-	visible.value = true; prompt.value = ''; parent.value = undefined; error.value = ''; page.value = 1;
+	visible.value = showDialog; parent.value = undefined; error.value = ''; page.value = 1;
 	try { pending.value = JSON.parse(sessionStorage.getItem(pendingKey()) || 'null') || undefined; } catch { pending.value = undefined; }
-	await Promise.all([prepare(), refresh()]);
+	await Promise.all([prompt.value ? Promise.resolve() : prepare(), refresh()]);
 }
 async function prepare() {
 	preparing.value = true;
 	try { const value = await imageApi.prompt(draft()); prompt.value = value.prompt; merchantName.value = value.merchantName; error.value = ''; }
-	catch (cause: any) { error.value = cause?.message || '请补全表单中的实际商品信息'; }
+	catch (cause: any) { error.value = cause?.message || '无法读取当前券表单，请重试'; }
 	finally { preparing.value = false; }
 }
 async function refresh(background = false) {
@@ -109,7 +193,7 @@ async function refresh(background = false) {
 	finally {
 		if (version === revision) {
 			loading.value = false;
-			if (visible.value && loaded && (pending.value || rows.value.some(t => isProcessing(t.status))))
+			if ((visible.value || props.compact) && loaded && (pending.value || (props.compact ? isProcessing(activeTask.value?.status || '') : rows.value.some(t => isProcessing(t.status)))))
 				timer = setTimeout(() => refresh(true), 3000);
 		}
 	}
@@ -140,7 +224,9 @@ async function select(item: ImageTask) {
 	try {
 		const selected = await imageApi.select(item.merchantId, draft().couponId, item.id);
 		if (!selected.url || !selected.materialId || selected.merchantId !== merchantId.value) throw new Error('选用结果无效，请刷新历史');
-		emit('select', { id: selected.materialId, url: selected.url, name: 'AI优惠券封面' }); visible.value = false;
+		emit('select', { id: selected.materialId, url: selected.url, name: 'AI优惠券封面' });
+		if (props.compact) activeId.value = undefined;
+		visible.value = false;
 	} catch (cause: any) { error.value = cause?.message || '选用失败，原封面已保留'; }
 	finally { submitting.value = false; }
 }
@@ -151,11 +237,64 @@ async function retryStorage(item: ImageTask) {
 	catch (cause: any) { error.value = cause?.message || '素材保存失败，请稍后重试'; }
 	finally { submitting.value = false; }
 }
-watch(merchantId, () => { visible.value = false; rows.value = []; quota.value = undefined; parent.value = undefined; activeId.value = undefined; stopPolling(); });
-watch(visible, value => { if (!value) { stopPolling(); loading.value = false; } });
+watch(merchantId, () => { visible.value = false; prompt.value = ''; rows.value = []; quota.value = undefined; parent.value = undefined; activeId.value = undefined; stopPolling(); });
+watch(visible, value => { if (!value && !props.compact) { stopPolling(); loading.value = false; } });
 onBeforeUnmount(stopPolling);
 </script>
 <style scoped>
+.cover-layout { container: coupon-cover / inline-size; width: 100%; min-width: 0; }
+.compact-cover {
+	width: 100%;
+	display: grid;
+	grid-template-columns: minmax(120px, 192px) minmax(0, 1fr);
+	align-items: start;
+	gap: 20px;
+	padding: 14px;
+	box-sizing: border-box;
+	border: 1px solid var(--el-border-color-lighter);
+	border-radius: 14px;
+}
+.cover-stage { aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 12px; background: var(--el-fill-color-light); color: var(--el-text-color-secondary); }
+.cover-stage > :is(img, .el-image, .generating-cover) { width: 100%; height: 100%; object-fit: cover; }
+.cover-controls { display: grid; gap: 10px; justify-items: start; min-width: 0; line-height: 1.5; }
+.cover-ai-heading { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--el-text-color-primary); }
+.cover-ai-heading > div { min-width: 0; overflow-wrap: anywhere; }
+.cover-ai-mark {
+	display: grid;
+	place-items: center;
+	flex: 0 0 36px;
+	height: 36px;
+	border-radius: 9px;
+	background: var(--el-color-primary-light-9);
+	color: var(--el-color-primary);
+}
+.cover-ai-mark :deep(svg) { width: 20px; height: 20px; }
+.cover-manual { width: 100%; display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--el-border-color-lighter); }
+.cover-manual > span { font-size: 12px; color: var(--el-text-color-regular); }
+.generating-cover > div { display: grid; justify-items: center; gap: 8px; }
+.generating-cover :deep(svg) { width: 24px; height: 24px; color: var(--el-color-primary); }
+.cover-primary { display: flex; flex-wrap: wrap; gap: 8px; }
+.cover-primary .el-button + .el-button { margin-left: 0; }
+.cover-note { margin: 0; font-size: 12px; color: var(--el-text-color-secondary); }
+@container coupon-cover (max-width: 480px) {
+	.compact-cover { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+	.cover-stage { width: min(100%, 160px); justify-self: center; }
+	.cover-controls { width: 100%; justify-items: stretch; overflow-wrap: anywhere; }
+	.cover-primary { display: grid; grid-template-columns: minmax(0, 1fr); }
+	.cover-controls :deep(.el-button) { max-width: 100%; height: auto; min-height: 32px; white-space: normal; }
+	.cover-controls :deep(.el-button > span) { white-space: normal; overflow-wrap: anywhere; }
+}
+.compact-cover details { width: 100%; }
+.compact-cover summary { cursor: pointer; color: var(--el-text-color-secondary); margin-bottom: 8px; }
+.generating-cover {
+	display: grid; place-items: center;
+	background: linear-gradient(110deg, var(--el-fill-color-light) 24%, var(--el-fill-color-dark) 48%, var(--el-fill-color-light) 72%);
+	background-size: 240% 100%;
+	animation: cover-sweep 1.8s linear infinite;
+}
+@keyframes cover-sweep { to { background-position: -240% 0; } }
+@media (prefers-reduced-motion: reduce) { .generating-cover { animation: none; } }
+
 .el-alert + .el-alert { margin-top: 10px; }
 .quota { margin: 12px 0; color: var(--el-text-color-secondary); line-height: 1.6; }
 .prompt-form { margin: 16px 0 24px; }

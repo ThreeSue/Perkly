@@ -1,187 +1,208 @@
 <template>
-	<div class="approval-center">
-		<el-alert
-			:title="
-				type === 'COUPON'
-					? '优惠券审核通过后，仍需商家自行上架。'
-					: '商家入驻申请审核通过后，将开通商家经营账号。'
-			"
-			type="info"
-			:closable="false"
-			show-icon
-		/>
-		<div class="toolbar">
-			<el-select v-model="status" aria-label="审批状态" style="width: 160px"
-				><el-option label="全部状态" :value="-1" /><el-option
-					label="待我审批"
-					:value="1" /><el-option label="已通过" :value="2" /><el-option
-					label="已驳回"
-					:value="3"
-			/></el-select>
-			<el-input
-				v-model="keyword"
-				clearable
-				maxlength="100"
-				:placeholder="type === 'COUPON' ? '搜索券名称或商家名称' : '搜索申请商家名称'"
-				style="width: 260px"
-				@keyup.enter="search"
-			/>
-			<el-button type="primary" @click="search">搜索</el-button
-			><el-button @click="reset">重置</el-button><el-button @click="load">刷新</el-button>
-		</div>
-		<el-alert v-if="error" :title="error" type="error" :closable="false" />
-		<el-table
-			v-loading="loading"
-			:data="rows"
-			border
-			stripe
-			class="approval-table"
-			:show-overflow-tooltip="true"
-		>
-			<el-table-column
-				prop="title"
-				:label="type === 'COUPON' ? '券名称' : '申请商家'"
-				min-width="200"
-			/>
-			<el-table-column
-				v-if="type === 'COUPON'"
-				prop="merchantName"
-				label="所属商家"
-				min-width="160"
-			/>
-			<el-table-column prop="submittedBy" label="提交人" min-width="130" />
-			<el-table-column label="提交时间" min-width="170"
-				><template #default="{ row }">{{
-					date(row.submittedAt)
-				}}</template></el-table-column
+	<WorkbenchLayout :title="copy.title" :context="copy.context" class="approval-workbench">
+		<template #actions>
+			<el-button class="workbench-refresh" :loading="loading" @click="load"
+				>刷新队列</el-button
 			>
-			<el-table-column label="审批状态" width="110"
-				><template #default="{ row }"
-					><el-tag :type="tagType(row.status)">{{
-						statusNames[row.status] || '未提交'
-					}}</el-tag></template
-				></el-table-column
-			>
-			<el-table-column v-if="type === 'COUPON'" label="上架状态" width="110"
-				><template #default="{ row }">{{
-					['未上架', '已上架', '已下架'][row.publishStatus ?? 0]
-				}}</template></el-table-column
-			>
-			<el-table-column label="操作" fixed="right" width="120"
-				><template #default="{ row }"
-					><el-button link type="primary" @click="open(row)"
-						>审批详情</el-button
-					></template
-				></el-table-column
-			>
-		</el-table>
-		<el-pagination
-			v-model:current-page="page"
-			:page-size="20"
-			:total="total"
-			layout="total, prev, pager, next"
-			@current-change="load"
-		/>
+		</template>
+
+		<section class="workbench-panel approval-queue" aria-label="审批队列">
+			<header class="queue-controls">
+				<div class="queue-filters" role="group" aria-label="审批状态">
+					<button
+						v-for="filter in filters"
+						:key="filter.value"
+						type="button"
+						:aria-pressed="status === filter.value"
+						@click="filterBy(filter.value)"
+					>
+						{{ filter.label }}
+					</button>
+				</div>
+				<form class="queue-search" @submit.prevent="search">
+					<el-input
+						v-model="keyword"
+						clearable
+						maxlength="100"
+						:aria-label="copy.search"
+						:placeholder="copy.search"
+						@clear="search"
+					/>
+					<el-button type="primary" native-type="submit">搜索</el-button>
+					<el-button :disabled="!hasFilters && !keyword" @click="reset">重置</el-button>
+				</form>
+			</header>
+			<div class="queue-results" v-loading="loading" :aria-busy="loading">
+				<ManagementState
+					v-if="error"
+					kind="error"
+					title="审批队列加载失败"
+					:description="error"
+					@retry="load"
+				/>
+				<el-table v-else :data="rows" height="100%" class="approval-table">
+					<el-table-column :label="copy.identity" min-width="220">
+						<template #default="{ row }">
+							<button type="button" class="queue-title" @click="open(row)">
+								{{ row.title || '未命名申请' }}
+							</button>
+							<span v-if="type === 'COUPON'" class="queue-secondary">{{
+								row.merchantName || '历史商家未记录'
+							}}</span>
+						</template>
+					</el-table-column>
+					<el-table-column label="审批状态" width="104">
+						<template #default="{ row }"
+							><el-tag round effect="light" :type="tagType(row.status)">{{
+								statusNames[row.status] || '未提交'
+							}}</el-tag></template
+						>
+					</el-table-column>
+					<el-table-column v-if="type === 'COUPON'" label="上架状态" width="96">
+						<template #default="{ row }">{{
+							publishNames[row.publishStatus ?? 0] || '—'
+						}}</template>
+					</el-table-column>
+					<el-table-column label="提交信息" min-width="170">
+						<template #default="{ row }">
+							<span>{{ row.submittedBy || '历史未记录' }}</span>
+							<span class="queue-secondary">{{ date(row.submittedAt) }}</span>
+						</template>
+					</el-table-column>
+					<el-table-column label="操作" fixed="right" width="96" align="right">
+						<template #default="{ row }"
+							><el-button link type="primary" @click="open(row)"
+								>查看详情</el-button
+							></template
+						>
+					</el-table-column>
+					<template #empty>
+						<ManagementState
+							v-if="!loading"
+							:title="hasFilters ? '没有匹配的申请' : '暂无审批申请'"
+							:description="
+								hasFilters
+									? '可以更换关键词或状态后再查找。'
+									: '收到提交的申请后，将在此处显示。'
+							"
+						>
+							<el-button v-if="hasFilters" @click="reset">清除筛选</el-button>
+						</ManagementState>
+					</template>
+				</el-table>
+			</div>
+			<footer v-if="!error" class="queue-footer">
+				<el-pagination
+					:current-page="page"
+					:page-size="20"
+					:total="total"
+					:disabled="loading"
+					layout="total, prev, pager, next"
+					@current-change="changePage"
+				/>
+			</footer>
+		</section>
+
 		<el-drawer
 			v-model="visible"
-			title="审批详情与流转记录"
-			size="min(860px, 100vw)"
-			direction="rtl"
+			:title="copy.drawer"
+			size="min(760px, 100vw)"
 			:close-on-click-modal="!reviewing"
 			:close-on-press-escape="!reviewing"
 			:show-close="!reviewing"
 			destroy-on-close
-			@closed="detailRevision++"
+			@close="detailRevision++"
 		>
-			<div v-loading="detailLoading" class="approval-detail">
-				<el-alert v-if="detailError" :title="detailError" type="error" :closable="false" />
-				<template v-if="detail">
+			<div class="approval-detail" v-loading="detailLoading" :aria-busy="detailLoading">
+				<ManagementState
+					v-if="detailError"
+					kind="error"
+					title="审批详情加载失败"
+					:description="detailError"
+					@retry="loadDetail"
+				/>
+				<template v-else-if="detail">
 					<header class="application-heading">
-						<div>
-							<span class="application-kind">{{
-								type === 'COUPON' ? '优惠券发布申请' : '商家入驻申请'
-							}}</span>
-							<h2>{{ detail.item.title }}</h2>
-						</div>
-						<el-tag :type="tagType(detail.item.status)" size="large">{{
-							statusNames[detail.item.status] || '已撤回'
+						<h2>{{ detail.item.title || '未命名申请' }}</h2>
+						<el-tag round effect="light" :type="tagType(detail.item.status)">{{
+							statusNames[detail.item.status] || '—'
 						}}</el-tag>
+						<dl>
+							<div v-if="type === 'COUPON'">
+								<dt>商家</dt>
+								<dd>{{ detail.item.merchantName || '历史未记录' }}</dd>
+							</div>
+							<div>
+								<dt>提交人</dt>
+								<dd>{{ detail.item.submittedBy || '历史未记录' }}</dd>
+							</div>
+							<div>
+								<dt>提交版本</dt>
+								<dd>第 {{ detail.item.version }} 版／轮</dd>
+							</div>
+							<div>
+								<dt>提交时间</dt>
+								<dd>{{ date(detail.item.submittedAt) }}</dd>
+							</div>
+						</dl>
 					</header>
-					<el-descriptions :column="2" border>
-						<el-descriptions-item label="事项">{{
-							detail.item.title
-						}}</el-descriptions-item
-						><el-descriptions-item label="商家">{{
-							detail.item.merchantName
-						}}</el-descriptions-item>
-						<el-descriptions-item label="提交人">{{
-							detail.item.submittedBy
-						}}</el-descriptions-item
-						><el-descriptions-item label="审批状态">{{
-							statusNames[detail.item.status] || '已撤回'
-						}}</el-descriptions-item>
-						<el-descriptions-item label="提交版本"
-							>第 {{ detail.item.version }} 版／轮</el-descriptions-item
-						><el-descriptions-item label="提交时间">{{
-							date(detail.item.submittedAt)
-						}}</el-descriptions-item>
-					</el-descriptions>
-					<approval-flow :detail="detail" :type="type" />
-					<h3>提交资料快照</h3>
-					<el-descriptions :column="2" border>
-						<el-descriptions-item
-							v-for="field in snapshotFields"
-							:key="field.key"
-							:label="field.label"
-							:span="field.wide ? 2 : 1"
-							>{{ snapshotValue(field.key) }}</el-descriptions-item
-						>
-					</el-descriptions>
-					<el-table
-						v-if="detail.snapshot.contentItems?.length"
-						:data="detail.snapshot.contentItems"
-						size="small"
-						border
-						:show-overflow-tooltip="true"
-						style="margin-top: 12px"
-						><el-table-column prop="name" label="内容项目" /><el-table-column
-							prop="quantity"
-							label="数量"
-							width="80" /><el-table-column prop="itemDescription" label="规格说明"
-					/></el-table>
-					<template v-if="detail.item.status === 1 && detail.canReview">
-						<h3>审批意见</h3>
-						<el-input
-							v-model="reason"
-							type="textarea"
-							:rows="3"
-							maxlength="500"
-							show-word-limit
-							placeholder="通过可选填；驳回必须说明原因，申请人将按意见修改"
-						/>
-					</template>
+					<el-tabs v-model="detailTab" class="approval-tabs">
+						<el-tab-pane label="提交资料" name="snapshot">
+							<dl class="snapshot-grid">
+								<div
+									v-for="field in snapshotFields"
+									:key="field.key"
+									:class="{ 'snapshot-wide': field.wide }"
+								>
+									<dt>{{ field.label }}</dt>
+									<dd>{{ snapshotValue(field.key) }}</dd>
+								</div>
+							</dl>
+							<el-table
+								v-if="detail.snapshot.contentItems?.length"
+								:data="detail.snapshot.contentItems"
+								size="small"
+							>
+								<el-table-column prop="name" label="内容项目" />
+								<el-table-column prop="quantity" label="数量" width="80" />
+								<el-table-column prop="itemDescription" label="规格说明" />
+							</el-table>
+						</el-tab-pane>
+						<el-tab-pane label="流转记录" name="history"
+							><ApprovalFlow :detail="detail" :type="type"
+						/></el-tab-pane>
+					</el-tabs>
 				</template>
 			</div>
-			<template #footer
-				><el-button :disabled="reviewing" @click="visible = false">关闭</el-button
-				><template v-if="detail?.item.status === 1 && detail.canReview"
-					><el-button
-						type="danger"
-						:loading="reviewing"
+			<template #footer>
+				<div v-if="canReview" class="review-note">
+					<label for="approval-reason">审批意见</label>
+					<el-input
+						id="approval-reason"
+						v-model="reason"
+						type="textarea"
+						:rows="2"
+						maxlength="500"
+						show-word-limit
+						resize="none"
 						:disabled="reviewing"
-						@click="review(false)"
-						>驳回</el-button
-					><el-button
-						type="success"
-						:loading="reviewing"
-						:disabled="reviewing"
-						@click="review(true)"
-						>审核通过</el-button
-					></template
-				></template
-			>
+						placeholder="通过可选填，驳回时请说明原因"
+					/>
+				</div>
+				<div class="review-actions">
+					<el-button :disabled="reviewing" @click="visible = false">关闭</el-button>
+					<template v-if="canReview">
+						<el-button type="danger" plain :disabled="reviewing" @click="review(false)"
+							>驳回</el-button
+						>
+						<el-button type="primary" :loading="reviewing" @click="review(true)"
+							>审核通过</el-button
+						>
+					</template>
+				</div>
+			</template>
 		</el-drawer>
-	</div>
+	</WorkbenchLayout>
 </template>
 
 <script setup lang="ts">
@@ -189,6 +210,8 @@ import { computed, onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useCool } from '/@/cool';
 import dayjs from 'dayjs';
+import WorkbenchLayout from '/@/modules/workspace/components/workbench-layout.vue';
+import ManagementState from '/@/modules/workspace/components/management-state.vue';
 import ApprovalFlow from '../components/approval-flow.vue';
 import type { ApprovalItem as Item, ApprovalDetail as Detail } from '../utils/flow';
 defineOptions({ name: 'approval-center' });
@@ -197,7 +220,33 @@ const props = withDefaults(defineProps<{ approvalType?: 'COUPON' | 'MERCHANT' }>
 });
 const { service } = useCool();
 const type = computed(() => props.approvalType);
+const copy = computed(() =>
+	type.value === 'COUPON'
+		? {
+				title: '优惠券发布审核',
+				context: '核对商家提交的券面与使用规则。审核通过后，由商家自行上架。',
+				identity: '优惠券 / 商家',
+				search: '搜索券名称或商家名称',
+				drawer: '优惠券发布申请'
+			}
+		: {
+				title: '商家入驻审核',
+				context: '核对商家资质和经营资料。审核通过后，将开通商家经营账号。',
+				identity: '申请商家',
+				search: '搜索申请商家名称',
+				drawer: '商家入驻申请'
+			}
+);
+const filters = [
+	{ value: -1, label: '全部申请' },
+	{ value: 1, label: '待审核' },
+	{ value: 2, label: '已通过' },
+	{ value: 3, label: '已驳回' }
+];
 const status = ref(-1);
+const appliedKeyword = ref('');
+const hasFilters = computed(() => status.value !== -1 || Boolean(appliedKeyword.value));
+const publishNames = ['未上架', '已上架', '已下架'];
 const keyword = ref('');
 const page = ref(1);
 const total = ref(0);
@@ -206,6 +255,9 @@ const loading = ref(false);
 const error = ref('');
 const visible = ref(false);
 const detail = ref<Detail>();
+const detailTab = ref('snapshot');
+const detailId = ref<number>();
+const canReview = computed(() => detail.value?.item.status === 1 && detail.value.canReview);
 const detailLoading = ref(false);
 const detailError = ref('');
 const reviewing = ref(false);
@@ -235,7 +287,7 @@ async function load() {
 			params: {
 				type: type.value,
 				status: status.value === -1 ? undefined : status.value,
-				keyword: keyword.value.trim(),
+				keyword: appliedKeyword.value,
 				page: page.value,
 				size: 20
 			}
@@ -255,7 +307,19 @@ async function load() {
 	}
 }
 function search() {
+	appliedKeyword.value = keyword.value.trim();
 	page.value = 1;
+	void load();
+}
+function filterBy(value: number) {
+	if (status.value === value) return;
+	status.value = value;
+	page.value = 1;
+	void load();
+}
+function changePage(value: number) {
+	if (page.value === value) return;
+	page.value = value;
 	void load();
 }
 function reset() {
@@ -263,18 +327,25 @@ function reset() {
 	keyword.value = '';
 	search();
 }
-async function open(row: Item) {
-	const current = ++detailRevision;
+function open(row: Item) {
+	detailId.value = row.id;
+	detailTab.value = 'snapshot';
+	reason.value = '';
 	visible.value = true;
+	void loadDetail();
+}
+async function loadDetail() {
+	const id = detailId.value;
+	if (id == null || !visible.value) return;
+	const current = ++detailRevision;
 	detail.value = undefined;
 	detailError.value = '';
-	reason.value = '';
 	detailLoading.value = true;
 	try {
 		const result = await service.request({
 			url: 'admin/approval/center/info',
 			method: 'GET',
-			params: { type: type.value, id: row.id }
+			params: { type: type.value, id }
 		});
 		if (current === detailRevision) detail.value = result;
 	} catch (err) {
@@ -284,7 +355,7 @@ async function open(row: Item) {
 	}
 }
 async function review(approved: boolean) {
-	if (reviewing.value || !detail.value) return;
+	if (reviewing.value || !canReview.value || !detail.value) return;
 	if (!approved && !reason.value.trim()) {
 		ElMessage.warning('请填写驳回原因');
 		return;
@@ -325,7 +396,7 @@ const snapshotFields = computed(() =>
 				{ key: 'categoryName', label: '商家分类' },
 				{ key: 'contactName', label: '联系人' },
 				{ key: 'contactPhone', label: '联系电话' },
-                { key: 'licenseNumber', label: '营业执照号' },
+				{ key: 'licenseNumber', label: '营业执照号' },
 				{ key: 'address', label: '经营地址', wide: true },
 				{ key: 'introduction', label: '商家介绍', wide: true },
 				{ key: 'licenseUrl', label: '资质资料地址', wide: true }
@@ -372,52 +443,171 @@ onMounted(load);
 </script>
 
 <style scoped>
-.approval-center {
-	padding: 18px;
-	background: var(--el-bg-color);
-	height: 100%;
-	box-sizing: border-box;
-	overflow: auto;
-}
-.toolbar {
+.approval-workbench {
 	display: flex;
-	gap: 12px;
+	flex-direction: column;
+	gap: 16px;
+}
+.approval-workbench :deep(.workbench-banner) {
+	flex: none;
+}
+.approval-queue {
+	display: grid;
+	flex: 1;
+	grid-template-rows: auto minmax(0, 1fr) auto;
+	min-height: 330px;
+	overflow: hidden;
+}
+.queue-controls,
+.queue-search,
+.queue-filters,
+.queue-footer {
+	display: flex;
 	align-items: center;
+	gap: 8px;
+}
+.queue-controls {
+	justify-content: space-between;
 	flex-wrap: wrap;
-	margin: 12px 0 18px;
+	padding: 12px 16px;
+	border-block-end: 1px solid var(--el-border-color-lighter);
+}
+.queue-filters {
+	flex-wrap: wrap;
+}
+.queue-filters button,
+.queue-title {
+	appearance: none;
+	border: 0;
+	font: inherit;
+	cursor: pointer;
+}
+.queue-filters button {
+	border-radius: 6px;
+	padding: 7px 10px;
+	background: transparent;
+	color: var(--el-text-color-regular);
+	font-size: 13px;
+}
+.queue-filters button:hover {
+	background: var(--workspace-neutral);
+}
+.queue-filters button[aria-pressed='true'] {
+	background: var(--workspace-accent-soft);
+	color: var(--workspace-accent-text);
+	font-weight: 650;
+}
+.queue-search {
+	flex: 0 1 370px;
+	max-width: 100%;
+}
+.queue-search .el-input {
+	min-width: 90px;
+}
+.queue-search .el-button,
+.review-actions .el-button {
+	margin-inline-start: 0;
+}
+.queue-results {
+	min-height: 0;
 }
 .approval-table {
-	width: 100%;
-	margin: 12px 0 18px;
+	--el-table-header-bg-color: var(--workspace-neutral);
+	--el-table-row-hover-bg-color: var(--workspace-accent-soft);
 }
-.el-pagination {
+.approval-table :deep(th.el-table__cell) {
+	color: var(--el-text-color-regular);
+}
+.queue-title {
+	padding: 0;
+	background: transparent;
+	color: var(--el-text-color-primary);
+	font-weight: 650;
+	line-height: 1.5;
+	text-align: left;
+	overflow-wrap: anywhere;
+}
+.queue-title:hover {
+	color: var(--workspace-accent-text);
+	text-decoration: underline;
+}
+.queue-title:focus-visible,
+.queue-filters button:focus-visible {
+	outline: 2px solid var(--workspace-accent-text);
+	outline-offset: 2px;
+}
+.queue-secondary {
+	display: block;
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--el-text-color-regular);
+}
+.queue-footer {
 	justify-content: flex-end;
-}
-h3 {
-	font-size: 15px;
-	margin: 22px 0 14px;
+	padding: 10px 16px;
+	border-block-start: 1px solid var(--el-border-color-lighter);
 }
 .approval-detail {
 	min-height: 160px;
 }
 .application-heading {
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-start;
-	gap: 16px;
-	margin: 0 0 22px;
-}
-.application-kind {
-	font-size: 12px;
-	color: var(--el-text-color-secondary);
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: start;
+	gap: 12px;
+	padding: 16px 18px;
+	border-radius: 8px;
+	background: var(--workspace-accent-soft);
 }
 .application-heading h2 {
-	margin: 8px 0 0;
-	font-size: 21px;
-	line-height: 1.5;
+	margin: 0;
+	font-size: 22px;
+	line-height: 1.35;
 	overflow-wrap: anywhere;
 }
-.approval-detail :deep(.el-descriptions__content) {
+.application-heading dl,
+.snapshot-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px 16px;
+	margin: 0;
+}
+.application-heading dl {
+	grid-column: 1 / -1;
+}
+.approval-tabs {
+	margin-top: 12px;
+}
+.snapshot-grid {
+	gap: 0 20px;
+}
+.snapshot-grid > div {
+	padding: 10px 0;
+	border-block-end: 1px solid var(--el-border-color-lighter);
+}
+.snapshot-wide {
+	grid-column: 1 / -1;
+}
+.approval-detail dt,
+.review-note label {
+	color: var(--el-text-color-regular);
+	font-size: 12px;
+}
+.approval-detail dd {
+	margin: 3px 0 0;
 	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+}
+.review-note {
+	display: grid;
+	gap: 6px;
+	margin-bottom: 12px;
+	text-align: start;
+}
+.review-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
 }
 </style>

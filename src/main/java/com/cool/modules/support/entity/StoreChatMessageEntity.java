@@ -26,4 +26,14 @@ public class StoreChatMessageEntity extends BaseEntity<StoreChatMessageEntity>{
     @ColumnDefine(type="text",comment="纯文字消息") private String content;
     @ColumnDefine(type="json",comment="图片地址")
     @Column(typeHandler=com.cool.core.mybatis.handler.Fastjson2TypeHandler.class) private List<String> images;
+    @ColumnDefine(defaultValue="1") private Integer round;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ColumnDefine(type="mediumtext") private String cardSnapshot;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ColumnDefine(type="text") private String referenceJson;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ColumnDefine(length=30) private String command;
+    @com.fasterxml.jackson.annotation.JsonIgnore private Long commandVersion;
+    @com.fasterxml.jackson.annotation.JsonIgnore @ColumnDefine(length=30) private String cardType;
+    @com.fasterxml.jackson.annotation.JsonIgnore private Long cardRefId;
 }

@@ -69,6 +69,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useCool } from '/@/cool';
+import { merchantRequest } from '/@/merchant-api';
+import { isPlatform } from '/@/workspace';
 export interface CouponContentItem {
 	productId?: number;
 	name?: string;
@@ -106,11 +108,11 @@ async function load() {
 	loading.value = !!props.merchantId;
 	if (!props.merchantId) return;
 	try {
-		const rows = await service.coupon.template.request({
+		const rows = isPlatform ? await service.coupon.template.request({
 			url: '/productOptions',
 			method: 'GET',
 			params: { merchantId: props.merchantId }
-		});
+		}) : await merchantRequest('workspace/product/options');
 		if (request === revision) options.value = rows;
 	} catch {
 		if (request === revision) loadFailed.value = true;

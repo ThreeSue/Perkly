@@ -13,7 +13,8 @@
 			<el-radio-group
 				:model-value="identity"
 				@change="value => switchIdentity(value as WorkspaceIdentity)"
-				style="margin-bottom: 24px"
+				class="identity-options"
+				aria-label="登录身份"
 			>
 				<el-radio-button value="PLATFORM">平台运营</el-radio-button
 				><el-radio-button value="MERCHANT">商家管理</el-radio-button
@@ -21,12 +22,13 @@
 			</el-radio-group>
 
 			<div class="form">
-				<el-form label-position="top" class="form" :disabled="saving">
+				<el-form label-position="top" :disabled="saving" @submit.prevent="toLogin">
 					<el-form-item :label="$t('用户名')">
 						<el-input
 							v-model="form.username"
 							:placeholder="$t('请输入用户名')"
 							maxlength="64"
+							autocomplete="username"
 						/>
 					</el-form-item>
 
@@ -37,7 +39,7 @@
 							:placeholder="$t('请输入密码')"
 							maxlength="64"
 							show-password
-							autocomplete="new-password"
+							autocomplete="current-password"
 						/>
 					</el-form-item>
 
@@ -46,7 +48,6 @@
 							v-model="form.verifyCode"
 							:placeholder="$t('验证码')"
 							maxlength="4"
-							@keyup.enter="toLogin"
 						>
 							<template #suffix>
 								<pic-captcha
@@ -63,11 +64,11 @@
 					</el-form-item>
 
 					<div class="op">
-						<el-button type="primary" :loading="saving" @click="toLogin">
+						<el-button type="primary" native-type="submit" :loading="saving">
 							{{ $t('登录') }}
 						</el-button>
 					</div>
-					<div v-if="identity === 'MERCHANT'" style="margin-top: 20px">
+					<div v-if="identity === 'MERCHANT'" class="merchant-entry">
 						<el-button link type="primary" @click="activation?.open()"
 							>已有营业码，开通账号</el-button
 						><el-button link @click="guide?.open()">申请入驻指引</el-button>
@@ -135,7 +136,7 @@ async function toLogin() {
 		return ElMessage.error(t('密码不能为空'));
 	}
 
-	if (!form.verifyCode) {
+	if (!form.captchaId || !form.verifyCode) {
 		return ElMessage.error(t('图片验证码不能为空'));
 	}
 
@@ -173,17 +174,16 @@ async function toLogin() {
 </script>
 
 <style lang="scss" scoped>
-$color: #2c3142;
-
 .page-login {
-	display: flex;
-	justify-content: center;
-	align-items: center;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	grid-template-rows: 1fr auto;
 	height: 100%;
 	width: 100%;
 	position: relative;
-	background-color: #fff;
-	color: $color;
+	overflow: auto;
+	background-color: var(--el-bg-color);
+	color: var(--el-text-color-primary);
 
 	.bg {
 		position: absolute;
@@ -201,26 +201,23 @@ $color: #2c3142;
 	}
 
 	.copyright {
-		position: absolute;
-		bottom: 15px;
-		left: 0;
+		grid-column: 1 / -1;
+		z-index: 1;
+		padding: 12px;
 		text-align: center;
-		width: 100%;
 		color: var(--el-color-info);
 		font-size: 14px;
 		user-select: none;
 	}
 
 	.box {
+		grid-column: 2;
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
 		align-items: center;
-		height: 100%;
-		width: 50%;
-		position: absolute;
-		right: 0;
-		top: 0;
+		min-width: 0;
+		padding: 24px 16px;
 		z-index: 9;
 
 		.logo {
@@ -234,7 +231,7 @@ $color: #2c3142;
 				border-radius: 8px;
 				padding: 5px;
 				margin-right: 10px;
-				background-color: $color;
+				background-color: var(--workspace-rail);
 
 				img {
 					height: 36px;
@@ -242,24 +239,23 @@ $color: #2c3142;
 			}
 
 			span {
-				font-size: 38px;
+				font-size: 28px;
 				font-weight: bold;
 				line-height: 1;
-				letter-spacing: 3px;
 			}
 		}
 
 		.desc {
 			font-size: 15px;
 			letter-spacing: 1px;
-			margin-bottom: 50px;
+			margin-bottom: 24px;
 			user-select: none;
 			max-width: 80%;
 			text-align: center;
 		}
 
 		.form {
-			width: 300px;
+			width: min(100%, 328px);
 
 			:deep(.el-form) {
 				.el-form-item {
@@ -276,40 +272,37 @@ $color: #2c3142;
 					box-sizing: border-box;
 					font-size: 15px;
 					border: 0;
-					border-radius: 0;
-					background-color: #f8f8f8;
+					background-color: var(--el-fill-color-light);
 					padding: 0 5px;
 					border-radius: 8px;
 					position: relative;
 
 					&__wrapper {
-						box-shadow: none;
+						box-shadow: 0 0 0 1px var(--el-border-color) inset;
 						background-color: transparent;
+						&.is-focus { box-shadow: 0 0 0 2px var(--workspace-accent-text) inset; }
 					}
 
 					&__inner {
 						height: 45px;
-						color: #333;
+						color: var(--el-text-color-primary);
 					}
 
 					&:-webkit-autofill {
-						-webkit-box-shadow: 0 0 0 1000px #f8f8f8 inset;
-						box-shadow: 0 0 0 1000px #f8f8f8 inset;
+						box-shadow: 0 0 0 1000px var(--el-fill-color-light) inset;
 					}
 				}
 			}
 
 			:deep(.pic-captcha) {
-				position: absolute;
-				right: -5px;
-				top: 0;
+				margin-inline-end: -10px;
 			}
 		}
 
 		.op {
 			display: flex;
 			justify-content: center;
-			margin-top: 40px;
+			margin-top: 24px;
 
 			:deep(.el-button) {
 				height: 45px;
@@ -322,11 +315,20 @@ $color: #2c3142;
 	}
 }
 
+.identity-options { margin-bottom: 24px; }
+.merchant-entry {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 16px;
+	margin-top: 16px;
+	:deep(.el-button + .el-button) { margin-inline-start: 0; }
+}
+
 @media screen and (max-width: 1024px) {
 	.page-login {
-		.box {
-			width: 100%;
-		}
+		grid-template-columns: minmax(0, 1fr);
+		.box { grid-column: 1; }
+		.bg { display: none; }
 	}
 }
 </style>

@@ -6,7 +6,7 @@ import cn.hutool.core.util.StrUtil;
 
 import java.io.*;
 import java.lang.reflect.Field;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -241,7 +241,7 @@ public class ConvertUtil {
             return fieldValue;
         }
 
-        return Collections.singletonList(Convert.toList(fieldType, fieldValue));
+        return new ArrayList<>(Convert.toList(fieldType, fieldValue));
     }
     /**
      * 获取指定类中指定字段的类型

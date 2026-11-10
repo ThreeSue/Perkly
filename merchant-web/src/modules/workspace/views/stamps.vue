@@ -1,5 +1,5 @@
 <template>
-	<ManagementShell
+	<ManagementShell register
 		title="跨商家消费集章"
 		description="顾客在指定的不同商家完成到店消费，每商家一章；集齐后自动发放奖励券"
 	>
@@ -10,27 +10,17 @@
 			>
 			<el-button :loading="busy" @click="load">刷新</el-button>
 		</div>
-		<el-row :gutter="16" class="rule-cards">
-			<el-col :sm="8"
-				><el-card shadow="never"
-					><strong>按不同商家集章</strong>
-					<p>同一商家多个门店仅一章</p></el-card
-				></el-col
-			>
-			<el-col :sm="8"
-				><el-card shadow="never"
-					><strong>只认已完成到店消费</strong>
-					<p>内容券零补款核销也计入，购券不计入</p></el-card
-				></el-col
-			>
-			<el-col :sm="8"
-				><el-card shadow="never"
-					><strong>每人每活动奖励一次</strong>
-					<p>库存不足保留进度，补库后可重试</p></el-card
-				></el-col
-			>
-		</el-row>
-		<el-table
+		<details class="stamp-rules">
+			<summary>查看集章与发奖规则</summary>
+			<ul>
+				<li>同一商家多个门店合计一章。</li>
+				<li>已完成的到店消费计入集章，含零补款核销。购买优惠券不计入。</li>
+				<li>每人每活动领取一次奖励。库存不足时保留进度，补库后可重试。</li>
+			</ul>
+		</details>
+		<ManagementState v-if="error" kind="error" title="活动列表加载失败" :description="error" @retry="load" />
+		<el-table v-else
+			class="management-table" :height="registerHeight"
 			v-loading="busy"
 			:data="rows"
 			empty-text="暂无集章活动，点击新建配置商家目标和奖励"
@@ -56,47 +46,38 @@
 					row.rewardStock - row.grantedCount
 				}}</template></el-table-column
 			>
-			<el-table-column label="操作" min-width="290"
-				><template #default="{ row }">
-					<el-button link type="primary" @click="edit(row)">{{
-						row.status === 'DRAFT' ? '编辑' : '详情'
-					}}</el-button>
-					<el-button
-						v-if="row.status === 'DRAFT'"
-						link
-						type="primary"
-						:disabled="saving"
-						@click="publish(row)"
-						>发布</el-button
-					>
-					<el-button v-if="row.status === 'PUBLISHED'" link @click="openSchedule(row)"
-						>启停与时间</el-button
-					>
-					<el-button link @click="showProgress(row)">进度与奖励</el-button>
-					<el-button link @click="stock(row)">补库存</el-button>
-					<el-button v-if="row.status !== 'DRAFT'" link @click="noticeId = row.id"
-						>通知回执</el-button
-					>
-					<el-button
-						v-if="row.status === 'PUBLISHED'"
-						link
-						type="danger"
-						:disabled="saving"
-						@click="closeCampaign(row)"
-						>下架</el-button
-					>
-				</template></el-table-column
-			>
+			<el-table-column label="操作" width="145" fixed="right" align="right">
+				<template #default="{ row }">
+					<el-button link type="primary" @click="edit(row)">{{ row.status === 'DRAFT' ? '编辑' : '详情' }}</el-button>
+					<el-dropdown trigger="click" class="stamp-more">
+						<el-button link>更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+						<template #dropdown>
+							<el-dropdown-menu>
+								<el-dropdown-item v-if="row.status === 'DRAFT'" :disabled="saving" @click="publish(row)">发布</el-dropdown-item>
+								<el-dropdown-item v-if="row.status === 'PUBLISHED'" @click="openSchedule(row)">启停与时间</el-dropdown-item>
+								<el-dropdown-item @click="showProgress(row)">进度与奖励</el-dropdown-item>
+								<el-dropdown-item @click="stock(row)">补库存</el-dropdown-item>
+								<el-dropdown-item v-if="row.status !== 'DRAFT'" @click="noticeId = row.id">通知回执</el-dropdown-item>
+								<el-dropdown-item v-if="row.status === 'PUBLISHED'" :disabled="saving" divided class="stamp-danger" @click="closeCampaign(row)">下架</el-dropdown-item>
+							</el-dropdown-menu>
+						</template>
+					</el-dropdown>
+				</template>
+			</el-table-column>
 		</el-table>
-		<el-pagination
-			v-model:current-page="page"
-			:page-size="20"
-			:total="total"
-			layout="total, prev, pager, next"
-			@current-change="load"
-		/>
+		<div v-if="!error && total" class="management-pagination">
+			<el-pagination
+				v-model:current-page="page"
+				:page-size="20"
+				:total="total"
+				layout="total, prev, pager, next"
+				@current-change="load"
+			/>
+		</div>
 		<el-drawer
 			v-model="visible"
+			append-to-body
+			class="workspace-editor"
 			:title="readonly ? '集章活动详情' : form.id ? '编辑集章草稿' : '新建集章活动'"
 			size="min(860px,100vw)"
 			:close-on-click-modal="false"
@@ -365,14 +346,18 @@
 	</ManagementShell>
 </template>
 <script setup lang="ts">
+import { ArrowDown } from '@element-plus/icons-vue';
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useBase } from '/$/base';
 import { featureApi } from '../feature-api';
+import ManagementState from '../components/management-state.vue';
 import ManagementShell from '../components/management-shell.vue';
 import ActivityNoticeReceipts from '../components/activity-notice-receipts.vue';
 import StampRewardEditor from '../components/stamp-reward-editor.vue';
 import { useUnsavedForm } from '../composables/unsaved-form';
+import { useRegisterHeight } from '../composables/register-height';
+const registerHeight = useRegisterHeight();
 const { menu, user } = useBase();
 const canMakeReward = computed(
 	() =>
@@ -740,14 +725,6 @@ onMounted(() => {
 });
 </script>
 <style scoped>
-.rule-cards {
-	margin: 16px 0;
-}
-.rule-cards p {
-	color: var(--el-text-color-secondary);
-	font-size: 13px;
-	line-height: 1.6;
-}
 .goal-card {
 	margin: 14px 0;
 }
@@ -760,5 +737,16 @@ onMounted(() => {
 .reward-tag {
 	margin-left: 12px;
 }
-</style>
 
+.stamp-rules {
+	margin: 0 8px 12px;
+	padding: 8px 12px;
+	border-block: 1px solid var(--el-border-color-lighter);
+	color: var(--el-text-color-regular);
+	font-size: 13px;
+}
+.stamp-rules summary { width: fit-content; cursor: pointer; }
+.stamp-rules ul { margin: 8px 0 2px; padding-inline-start: 20px; line-height: 1.7; }
+.stamp-more { margin-inline-start: 8px; vertical-align: middle; }
+.stamp-danger { color: var(--el-color-danger); }
+</style>

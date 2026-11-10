@@ -48,7 +48,15 @@ public class ApprovalCenterServiceImpl implements ApprovalCenterService {
     @Transactional(readOnly=true)
     @Override
     public ApprovalPageResp page(String type,Integer status,String keyword,int page,int size) {
+        return page(type,status,null,keyword,page,size);
+    }
+
+    @Transactional(readOnly=true)
+    @Override
+    public ApprovalPageResp page(String type,Integer status,Integer publishStatus,String keyword,int page,int size) {
         checkType(type);
+        if (publishStatus!=null && (!"COUPON".equals(type) || !Set.of(0,1,2).contains(publishStatus)))
+            throw new CoolException("上架状态仅适用于优惠券，且必须为0未上架、1已上架或2已下架");
         if (page<1 || size<1 || size>100 || page>100000) throw new CoolException("分页参数不正确");
         if (status!=null && !Set.of(0,1,2,3).contains(status)) throw new CoolException("审批状态不正确");
         String word=keyword==null ? "" : keyword.trim();
@@ -64,7 +72,8 @@ public class ApprovalCenterServiceImpl implements ApprovalCenterService {
         } else {
             QueryWrapper q=QueryWrapper.create().eq(CouponPublicationEntity::getChannel,"PLATFORM")
                     .isNotNull(CouponPublicationEntity::getSubmittedAt)
-                    .eq(CouponPublicationEntity::getAuditStatus,status,status!=null);
+                    .eq(CouponPublicationEntity::getAuditStatus,status,status!=null)
+                    .eq(CouponPublicationEntity::getPublishStatus,publishStatus,publishStatus!=null);
             if (!word.isEmpty()) {
                 List<Long> ids=coupons.selectListByQuery(QueryWrapper.create().like(CouponTemplateEntity::getName,word))
                         .stream().map(CouponTemplateEntity::getId).collect(Collectors.toCollection(ArrayList::new));

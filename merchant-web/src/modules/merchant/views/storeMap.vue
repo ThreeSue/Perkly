@@ -1,8 +1,7 @@
 <template>
 	<el-empty v-if="!canView" description="当前账号无门店分布地图权限" />
-	<div v-else class="store-map-page">
-		<div class="filter-panel">
-			<h3>门店分布地图</h3>
+	<WorkbenchLayout v-else title="门店分布地图" context="在地图或门店列表中查看位置，筛选待补录门店。" class="store-map-page">
+		<div class="workbench-panel filter-panel">
 			<el-form inline @submit.prevent="search">
 				<el-form-item label="关键词"
 					><el-input
@@ -54,7 +53,7 @@
 			><el-button text @click="load">重新加载门店</el-button></el-alert
 		>
 		<div v-loading="loading" class="distribution">
-			<aside class="store-list">
+			<aside class="workbench-panel store-list">
 				<el-tabs v-model="listState"
 					><el-tab-pane
 						:label="`已定位（${result.locatedCount}）`"
@@ -151,13 +150,14 @@
 			</div>
 		</div>
 		<LocationPicker ref="picker" persist @saved="load" /><StoreDetail ref="detail" />
-	</div>
+	</WorkbenchLayout>
 </template>
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onBeforeUnmount, ref } from 'vue';
 import type { ComponentPublicInstance } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useCool } from '/@/cool';
+import WorkbenchLayout from '/@/modules/workspace/components/workbench-layout.vue';
 import MerchantSelect from '../components/merchant-select.vue';
 import TencentMap from '../components/tencent-map.vue';
 import LocationPicker from '../components/location-picker.vue';
@@ -259,7 +259,7 @@ onBeforeUnmount(() => revision++);
 <style scoped>
 .store-map-page {
 	height: 100%;
-	min-height: 620px;
+	min-height: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -269,10 +269,7 @@ onBeforeUnmount(() => revision++);
 	padding: 14px 18px;
 	border-radius: 6px;
 }
-h3 {
-	font-size: 16px;
-	margin: 0 0 14px;
-}
+.store-map-page :deep(.workbench-banner) { flex: none; }
 .filter-panel :deep(.el-form-item) {
 	margin-bottom: 12px;
 	margin-right: 14px;

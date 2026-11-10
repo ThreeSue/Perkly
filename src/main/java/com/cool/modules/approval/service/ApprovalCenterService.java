@@ -11,6 +11,7 @@ import com.cool.modules.approval.entity.resp.*;
  */
 public interface ApprovalCenterService {
     ApprovalPageResp page(String type,Integer status,String keyword,int page,int size);
+    ApprovalPageResp page(String type,Integer status,Integer publishStatus,String keyword,int page,int size);
     ApprovalDetailResp info(String type,Long id);
     void review(String type,Long id,Integer version,Boolean approved,String reason);
 }

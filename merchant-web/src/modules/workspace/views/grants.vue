@@ -1,5 +1,5 @@
 <template>
-	<ManagementShell
+	<ManagementShell register
 		:title="isPlatform ? '商家功能授权' : '门店功能授权'"
 		eyebrow="逐级功能授权"
 		description="选择授权对象后配置可开放功能，原下级设置在上级恢复授权后继续生效"
@@ -13,45 +13,40 @@
 		:metrics="metrics"
 		@scope-change="selectSubject"
 	>
-		<el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
-		<el-empty v-if="!subjectId" description="请先在左侧选择一个授权对象" :image-size="100" />
-		<template v-else>
-			<div class="management-toolbar">
-				<el-button :loading="busy" @click="refresh">刷新授权</el-button
-				><el-tag v-if="dirty" type="warning">有未保存的调整</el-tag
-				><span class="toolbar-spacer" /><el-button
-					v-if="loaded"
-					type="primary"
-					:disabled="!dirty"
-					:loading="saving"
-					@click="save"
-					>保存授权</el-button
-				>
-			</div>
-			<p class="management-caption">
-				这里决定该{{
-					isPlatform ? '商家' : '门店'
-				}}最多能使用和向下分配哪些功能；员工最终权限还取决于岗位、个人设置和数据范围。
-			</p>
-			<div v-loading="busy" style="min-height: 160px">
-				<PermissionPicker
-					v-if="loaded"
-					v-model="menuIds"
-					:menus="menus"
-					:disabled="saving"
-				/>
-			</div>
-			<div v-if="loaded" class="grant-footer">
-				<span
-					>已选 {{ menuIds.length }} 项功能<span v-if="retained"
-						>，含 {{ retained }} 项暂未开放的原配置</span
-					></span
-				><el-button :disabled="!dirty || saving" @click="restore">撤销本次调整</el-button
-				><el-button type="primary" :disabled="!dirty" :loading="saving" @click="save"
-					>保存授权</el-button
-				>
-			</div>
-		</template>
+		<el-skeleton v-if="loadingSubjects || busy" :rows="7" animated aria-label="正在加载授权" />
+		<ManagementState
+			v-else-if="error"
+			kind="error"
+			title="授权信息加载失败"
+			:description="error"
+			@retry="subjectsReady ? load() : loadSubjects()"
+		/>
+		<ManagementState
+			v-else-if="!subjectId"
+			:title="subjects.length ? '请选择授权对象' : '暂无可授权的对象'"
+			:description="subjects.length ? '从商家或门店列表中选择一项，查看和调整该对象的授权范围。' : undefined"
+		/>
+		<section v-else-if="loaded" class="grant-workbench">
+			<header class="grant-heading">
+				<div>
+					<h3>可开放功能</h3>
+					<p>这里设置可用功能的上限。员工实际能使用哪些功能，还取决于岗位、个人设置和数据范围。</p>
+				</div>
+				<el-button :disabled="saving" @click="refresh">刷新授权</el-button>
+			</header>
+			<PermissionPicker v-model="menuIds" :menus="menus" :disabled="saving" />
+			<footer class="grant-footer">
+				<div class="grant-selection" aria-live="polite">
+					<strong>已选 {{ menuIds.length }} 项功能</strong>
+					<span v-if="retained">含 {{ retained }} 项暂未开放的原配置</span>
+					<el-tag v-if="dirty" type="warning">有未保存的调整</el-tag>
+				</div>
+				<div class="grant-actions">
+					<el-button :disabled="!dirty || saving" @click="restore">撤销本次调整</el-button>
+					<el-button type="primary" :disabled="!dirty" :loading="saving" @click="save">保存授权</el-button>
+				</div>
+			</footer>
+		</section>
 	</ManagementShell>
 </template>
 <script setup lang="ts">
@@ -60,6 +55,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router';
 import { isPlatform } from '/@/workspace';
 import { workspaceApi } from '../api';
+import ManagementState from '../components/management-state.vue';
 import ManagementShell from '../components/management-shell.vue';
 import PermissionPicker from '../components/permission-picker.vue';
 import {
@@ -75,7 +71,9 @@ const storeId = ref<number>(),
 	menus = ref<any[]>([]),
 	menuIds = ref<number[]>([]),
 	original = ref<number[]>([]);
-const busy = ref(false),
+const loadingSubjects = ref(false),
+	subjectsReady = ref(false),
+	busy = ref(false),
 	saving = ref(false),
 	loaded = ref(false),
 	error = ref(''),
@@ -184,28 +182,69 @@ onBeforeRouteUpdate(async (to, from) => {
 	if (to.query.merchantId !== from.query.merchantId) return await mayDiscard();
 	return true;
 });
-onMounted(async () => {
+async function loadSubjects() {
+	loadingSubjects.value = true;
+	error.value = '';
 	try {
 		subjects.value = await workspaceApi(isPlatform ? 'merchants' : 'stores');
+		subjectsReady.value = true;
 		await load();
 	} catch (e: any) {
 		error.value = e.message;
+	} finally {
+		loadingSubjects.value = false;
 	}
-});
+}
+onMounted(loadSubjects);
 </script>
 <style scoped>
+.grant-workbench {
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+	padding: 0 12px;
+}
+.grant-heading,
 .grant-footer {
 	display: flex;
 	align-items: center;
-	gap: 12px;
+	justify-content: space-between;
 	flex-wrap: wrap;
-	margin-top: 20px;
-	padding: 14px 0 0;
-	border-top: 1px solid var(--el-border-color-lighter);
+	gap: 12px;
+	padding-block: 12px;
 }
-.grant-footer > span {
-	flex: 1;
+.grant-heading h3 {
+	margin: 0;
+	font-size: 16px;
+	color: var(--workspace-ink);
+}
+.grant-heading p {
+	margin: 4px 0 0;
 	color: var(--el-text-color-secondary);
 	font-size: 13px;
+	line-height: 1.55;
+}
+.grant-footer {
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
+	margin-top: auto;
+	border-top: 1px solid var(--el-border-color-lighter);
+	background: var(--el-bg-color);
+	padding-inline: 12px;
+}
+.grant-selection,
+.grant-actions {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	font-size: 13px;
+}
+.grant-selection span {
+	color: var(--el-text-color-secondary);
+}
+.grant-actions .el-button {
+	margin: 0;
 }
 </style>

@@ -62,15 +62,18 @@ public class AiSettingsService {
     }
     public SettingsView view(){
         access.platform("ai:manage");var row=current();
-        return new SettingsView(Boolean.TRUE.equals(row.getEnabled()),models(row),List.of(properties.getImageModel()),
+        return new SettingsView(Boolean.TRUE.equals(row.getEnabled()),models(row),supportedModels(),
             row.getDefaultDailyLimit(),row.getEstimatedUnitPrice(),properties.configured(),properties.getTextModel());
+    }
+    private List<String> supportedModels() {
+        return java.util.stream.Stream.of(properties.getImageModel(), "qwen-image-2.1-turbo").distinct().toList();
     }
     @Transactional(rollbackFor=Exception.class)
     public void update(SettingsInput input){
         access.platform("ai:manage");
         if(input==null || input.enabled()==null || input.defaultDailyLimit()==null || input.defaultDailyLimit()<0
             || input.defaultDailyLimit()>10000 || input.allowedModels()==null || input.allowedModels().size()>10
-            || input.allowedModels().stream().anyMatch(m->!properties.getImageModel().equals(m))
+            || !supportedModels().containsAll(input.allowedModels())
             || input.enabled() && input.allowedModels().isEmpty()
             || input.estimatedUnitPrice()!=null && (input.estimatedUnitPrice().signum()<0 || input.estimatedUnitPrice().compareTo(new BigDecimal("10000"))>0
                 || input.estimatedUnitPrice().scale()>6))throw new CoolException("请填写有效的模型白名单、额度和估算单价");

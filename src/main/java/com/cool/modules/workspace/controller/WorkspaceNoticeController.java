@@ -78,4 +78,15 @@ public class WorkspaceNoticeController {
     public R<?> unread() {
         return R.ok(service.unread(actor()));
     }
+
+    @GetMapping("/pending")
+    public R<?> pending(@RequestParam(defaultValue="1") int pageNumber,@RequestParam(defaultValue="20") int pageSize) {
+        return R.ok(service.pending(actor(),pageNumber,pageSize));
+    }
+
+    @PostMapping("/confirm")
+    public R<?> confirm(@RequestBody IdInput p) {
+        if(p.id()==null)throw new CoolException("缺少通知ID");
+        return R.ok(service.confirm(actor(),p.id()));
+    }
 }

@@ -8,7 +8,6 @@
 		<el-image class="cover-image" :src="src" :alt="name" fit="cover">
 			<template #error><CoverPlaceholder /></template>
 		</el-image>
-		<span class="cover-badge" :class="{ compact: badge.length > 5 }">{{ badge }}</span>
 	</button>
 	<el-dialog
 		v-model="visible"
@@ -68,25 +67,6 @@ const visible = ref(false);
 .cover-image {
 	width: 100%;
 	height: 100%;
-}
-.cover-badge {
-	position: absolute;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	height: 17px;
-	line-height: 17px;
-	background: rgba(255, 255, 255, 0.95);
-	color: #174d46;
-	font-size: 12px;
-	font-weight: 750;
-	text-align: center;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-.cover-badge.compact {
-	font-size: 10px;
 }
 .cover-preview {
 	position: relative;

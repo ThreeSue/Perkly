@@ -19,4 +19,10 @@ public class StoreChatEntity extends BaseEntity<StoreChatEntity>{
     @ColumnDefine(notNull=true,comment="顾客") private Long customerId;
     @ColumnDefine(notNull=true,comment="门店") private Long storeId;
     @ColumnDefine(notNull=true,comment="商家") private Long merchantId;
+    @ColumnDefine(length=16,defaultValue="WAITING",comment="AI WAITING HUMAN CLOSED") private String state;
+    @ColumnDefine(defaultValue="1") private Integer round;
+    @ColumnDefine(defaultValue="0") private Long version;
+    private Long assigneeId;
+    private Long latestQuestionId;
+    @ColumnDefine(type="text") private String summary;
 }

@@ -86,6 +86,18 @@ class AiImageIntegrationTest extends FeatureModulesIntegrationTest {
         assertThrows(CoolException.class,()->ai.create(owner,false,new AiTaskService.Create("ai_bad_model","GENERATE","unapproved",null,null,draft())));
         verifyNoInteractions(cloud);
     }
+    @Test void aiTurboIsSelectableOnlyAfterOperatorEnablesIt() {
+        String turbo = "qwen-image-2.1-turbo";
+        var request = new AiTaskService.Create("ai_turbo_select", "GENERATE", turbo, null, null, draft());
+        assertTrue(aiSettings.view().supportedModels().contains(turbo));
+        assertFalse(ai.quota(owner, false, merchant).models().contains(turbo));
+        assertThrows(CoolException.class, () -> ai.create(owner, false, request));
+        var models = List.of("qwen-image-3.0", turbo);
+        aiSettings.update(new AiSettingsService.SettingsInput(true, models, 5, null));
+        assertEquals(models, ai.quota(owner, false, merchant).models());
+        assertEquals(turbo, ai.create(owner, false, request).model());
+        assertEquals(1, ai.quota(owner, false, merchant).used());
+    }
     @Test void aiIdempotencyFlagsLimitsAndSelectDoNotWriteCoupon() {
         var first=ai.create(owner,false,create("ai_same_request"));
         assertEquals(first.id(),ai.create(owner,false,create("ai_same_request")).id());

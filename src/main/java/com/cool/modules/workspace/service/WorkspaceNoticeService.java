@@ -27,13 +27,21 @@ public class WorkspaceNoticeService {
     private final WorkspaceNoticeMapper notices;
     private final WorkspaceNoticeRecipientMapper recipients;
 
-    public record SendInput(String requestId, String title, String content, List<Long> recipientIds) {}
+    public record SendInput(String requestId, String title, String content, List<Long> recipientIds, String noticeType) {
+        public SendInput(String requestId, String title, String content, List<Long> recipientIds) { this(requestId,title,content,recipientIds,null); }
+    }
     public record RecipientOption(Long id, String name, String username, String accountType,
                                   Long merchantId, String merchantName, Long storeId, String storeName, String roleName) {}
     public record NoticeView(Long id, String title, String content, String senderName, Date createTime, Date readAt,
-                             String businessType,Long businessId,Integer businessVersion,String detailPath,String actionPath) {}
+                             String businessType,Long businessId,Integer businessVersion,String detailPath,String actionPath,
+                             String noticeType, Date confirmedAt) {}
     public record PageResult<T>(List<T> list, long total, int pageNumber, int pageSize) {}
-    public record Receipt(Long recipientId, String name, Date readAt) {}
+    public record Receipt(Long recipientId, String name, Date readAt, Date confirmedAt) {}
+    private String noticeType(String value) {
+        if (value == null) return "LIGHT";
+        if (!Set.of("LIGHT", "STRONG").contains(value)) throw new CoolException("通知类型只能为LIGHT或STRONG",400);
+        return value;
+    }
 
     private BaseSysUserEntity current(Long id) {
         var u = id == null ? null : users.selectOneById(id);
@@ -99,6 +107,7 @@ public class WorkspaceNoticeService {
             || input.recipientIds()==null || input.recipientIds().isEmpty() || input.recipientIds().size()>100
             || input.recipientIds().stream().anyMatch(x->x==null || x<=0)) throw new CoolException("通知参数无效：标题100字、正文5000字、接收人1至100人");
         // 锁定发送账号使同账号并发重试串行，数据库唯一索引作最后保障。
+        String type=noticeType(input.noticeType());
         users.selectOneByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getId,id).forUpdate());
         var sender=sender(id);
         var ids=new TreeSet<>(input.recipientIds());
@@ -107,18 +116,18 @@ public class WorkspaceNoticeService {
         if(existing!=null) {
             var previous=recipients.selectListByQuery(QueryWrapper.create().eq(WorkspaceNoticeRecipientEntity::getNoticeId,existing.getId()))
                 .stream().map(WorkspaceNoticeRecipientEntity::getRecipientId).collect(java.util.stream.Collectors.toSet());
-            if(!existing.getTitle().equals(input.title().trim()) || !existing.getContent().equals(input.content().trim()) || !previous.equals(ids))
+            if(!existing.getTitle().equals(input.title().trim()) || !existing.getContent().equals(input.content().trim()) || !previous.equals(ids) || !noticeType(existing.getNoticeType()).equals(type))
                 throw new CoolException("该请求标识已用于其他通知",409);
             return existing.getId();
         }
         var notice=new WorkspaceNoticeEntity();notice.setSenderId(id);notice.setRequestId(input.requestId());
-        notice.setTitle(input.title().trim());notice.setContent(input.content().trim());notices.insert(notice);
+        notice.setTitle(input.title().trim());notice.setContent(input.content().trim());notice.setNoticeType(type);notices.insert(notice);
         for(Long target:ids){var r=new WorkspaceNoticeRecipientEntity();r.setNoticeId(notice.getId());r.setRecipientId(target);recipients.insert(r);}
         return notice.getId();
     }
     private void bounds(int page,int size){if(page<1 || size<1 || size>100)throw new CoolException("分页参数无效");}
     private String name(Long id){if(Long.valueOf(0).equals(id))return "平台活动通知";var u=users.selectOneById(id);return u==null?"历史账号":Objects.toString(u.getName(),u.getUsername());}
-    private NoticeView view(WorkspaceNoticeEntity n,Date readAt){return new NoticeView(n.getId(),n.getTitle(),n.getContent(),name(n.getSenderId()),n.getCreateTime(),readAt,n.getBusinessType(),n.getBusinessId(),n.getBusinessVersion(),n.getDetailPath(),n.getActionPath());}
+    private NoticeView view(WorkspaceNoticeEntity n,Date readAt,Date confirmedAt){return new NoticeView(n.getId(),n.getTitle(),n.getContent(),name(n.getSenderId()),n.getCreateTime(),readAt,n.getBusinessType(),n.getBusinessId(),n.getBusinessVersion(),n.getDetailPath(),n.getActionPath(),noticeType(n.getNoticeType()),confirmedAt);}
 
     /** 仅由活动持久化投递任务调用；与手动发送的层级授权入口分离。 */
     @Transactional(rollbackFor=Exception.class)
@@ -128,7 +137,7 @@ public class WorkspaceNoticeService {
             .eq(WorkspaceNoticeEntity::getRequestId,key));
         if(existing!=null)return existing.getId();
         var n=new WorkspaceNoticeEntity();
-        n.setSenderId(0L);n.setRequestId(key);n.setTitle(title.length()>100?title.substring(0,100):title);
+        n.setSenderId(0L);n.setRequestId(key);n.setNoticeType("LIGHT");n.setTitle(title.length()>100?title.substring(0,100):title);
         n.setContent(content.length()>5000?content.substring(0,5000):content);
         n.setBusinessType("WALLET_ACTIVITY");n.setBusinessId(activityId);n.setBusinessVersion(version);
         n.setDetailPath("/my/activities?id="+activityId);
@@ -143,21 +152,21 @@ public class WorkspaceNoticeService {
         current(id);bounds(page,size);
         if(sent){
             var result=notices.paginate(page,size,QueryWrapper.create().eq(WorkspaceNoticeEntity::getSenderId,id).orderBy(WorkspaceNoticeEntity::getId,false));
-            return new PageResult<>(result.getRecords().stream().map(n->view(n,null)).toList(),result.getTotalRow(),page,size);
+            return new PageResult<>(result.getRecords().stream().map(n->view(n,null,null)).toList(),result.getTotalRow(),page,size);
         }
         var result=recipients.paginate(page,size,QueryWrapper.create().eq(WorkspaceNoticeRecipientEntity::getRecipientId,id).orderBy(WorkspaceNoticeRecipientEntity::getId,false));
-        return new PageResult<>(result.getRecords().stream().map(r->view(notices.selectOneById(r.getNoticeId()),r.getReadAt())).toList(),result.getTotalRow(),page,size);
+        return new PageResult<>(result.getRecords().stream().map(r->view(notices.selectOneById(r.getNoticeId()),r.getReadAt(),r.getConfirmedAt())).toList(),result.getTotalRow(),page,size);
     }
     public NoticeView detail(Long id,Long noticeId){
         current(id);var r=recipients.selectOneByQuery(QueryWrapper.create().eq(WorkspaceNoticeRecipientEntity::getRecipientId,id).eq(WorkspaceNoticeRecipientEntity::getNoticeId,noticeId));
         if(r==null)throw new CoolException("通知不存在或无权访问",404);
-        return view(notices.selectOneById(noticeId),r.getReadAt());
+        return view(notices.selectOneById(noticeId),r.getReadAt(),r.getConfirmedAt());
     }
     public List<Receipt> receipts(Long id,Long noticeId){
         current(id);var n=notices.selectOneById(noticeId);
         if(n==null || !id.equals(n.getSenderId()))throw new CoolException("通知不存在或无权访问",404);
         return recipients.selectListByQuery(QueryWrapper.create().eq(WorkspaceNoticeRecipientEntity::getNoticeId,noticeId))
-            .stream().map(r->new Receipt(r.getRecipientId(),name(r.getRecipientId()),r.getReadAt())).toList();
+            .stream().map(r->new Receipt(r.getRecipientId(),name(r.getRecipientId()),r.getReadAt(),r.getConfirmedAt())).toList();
     }
     @Transactional(rollbackFor=Exception.class, isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void read(Long id,Long noticeId){
@@ -167,4 +176,26 @@ public class WorkspaceNoticeService {
         if(r.getReadAt()==null){r.setReadAt(new Date());recipients.update(r);}
     }
     public long unread(Long id){current(id);return recipients.selectCountByQuery(QueryWrapper.create().eq(WorkspaceNoticeRecipientEntity::getRecipientId,id).isNull(WorkspaceNoticeRecipientEntity::getReadAt));}
+
+    public PageResult<NoticeView> pending(Long id,int page,int size) {
+        current(id);bounds(page,size);
+        var strong=QueryWrapper.create().select(WorkspaceNoticeEntity::getId).from(WorkspaceNoticeEntity.class)
+            .eq(WorkspaceNoticeEntity::getNoticeType,"STRONG");
+        var result=recipients.paginate(page,size,QueryWrapper.create().eq(WorkspaceNoticeRecipientEntity::getRecipientId,id)
+            .isNull(WorkspaceNoticeRecipientEntity::getConfirmedAt).in(WorkspaceNoticeRecipientEntity::getNoticeId,strong)
+            .orderBy(WorkspaceNoticeRecipientEntity::getNoticeId,true));
+        return new PageResult<>(result.getRecords().stream().map(r->view(notices.selectOneById(r.getNoticeId()),r.getReadAt(),r.getConfirmedAt())).toList(),result.getTotalRow(),page,size);
+    }
+
+    @Transactional(rollbackFor=Exception.class, isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    public NoticeView confirm(Long id,Long noticeId) {
+        current(id);
+        var r=recipients.selectOneByQuery(QueryWrapper.create().eq(WorkspaceNoticeRecipientEntity::getRecipientId,id)
+            .eq(WorkspaceNoticeRecipientEntity::getNoticeId,noticeId).forUpdate());
+        if(r==null)throw new CoolException("通知不存在或无权访问",404);
+        var n=notices.selectOneById(noticeId);
+        if(!"STRONG".equals(noticeType(n.getNoticeType())))throw new CoolException("轻通知无需确认");
+        if(r.getConfirmedAt()==null){r.setConfirmedAt(new Date(System.currentTimeMillis()/1000*1000));if(r.getReadAt()==null)r.setReadAt(r.getConfirmedAt());recipients.update(r);}
+        return view(n,r.getReadAt(),r.getConfirmedAt());
+    }
 }

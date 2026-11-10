@@ -21,4 +21,5 @@ public class WorkspaceNoticeRecipientEntity extends BaseEntity<WorkspaceNoticeRe
     @ColumnDefine(comment="通知ID", notNull=true) private Long noticeId;
     @ColumnDefine(comment="接收账号ID", notNull=true) private Long recipientId;
     @ColumnDefine(comment="已读时间") private java.util.Date readAt;
+    @ColumnDefine(comment="强提醒明确确认时间") private java.util.Date confirmedAt;
 }

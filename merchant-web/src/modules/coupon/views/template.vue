@@ -1,280 +1,565 @@
 <template>
-	<cl-crud ref="Crud">
-		<cl-row>
-			<el-alert
-				title="启用模板后，还需提交审核、审核通过并上架，用户端才会展示该优惠券。"
-				type="info"
-				:closable="false"
-				show-icon
-			/>
-		</cl-row>
-		<cl-row>
-			<!-- 刷新按钮 -->
-			<cl-refresh-btn />
-			<!-- 新增按钮 -->
-			<cl-add-btn />
-			<!-- 删除按钮 -->
-			<cl-multi-delete-btn />
-			<cl-flex1 />
-		</cl-row>
-
-		<cl-row>
-			<cl-search ref="Search" reset-btn>
-				<template #slot-search-merchant="{ scope }">
-					<MerchantSelect v-model="scope.merchantId" style="width: 190px" />
-				</template>
-			</cl-search>
-		</cl-row>
-
-		<cl-row>
-			<!-- 数据表格 -->
-			<cl-table ref="Table">
-				<template #column-type="{ scope }">
-					<el-tag
-						class="coupon-type-tag"
-						effect="dark"
-						:color="typeColors[scope.row.type] || '#64748b'"
-					>
-						{{ typeNames[scope.row.type] || '未知类型' }}
-					</el-tag>
-				</template>
-				<template #column-cover="{ scope }">
-					<CouponCover
-						:src="scope.row.cover"
-						:name="scope.row.name"
-						:badge="coverBadge(scope.row)"
-						:type-name="typeNames[scope.row.type] || '优惠券'"
-						:subtitle="ruleText(scope.row)"
+	<AssistantLayout
+		:open="assistantOpen"
+		:merchant-id="assistantMerchant"
+		:coupon-id="assistantCoupon"
+		:selected-ids="assistantSelection"
+		@close="assistantOpen = false"
+		@saved="Crud?.refresh()"
+		@edit="(coupon, step) => { prepareCouponStep(step); Crud?.rowEdit(coupon); }"
+	>
+		<section class="coupon-workspace">
+			<cl-crud ref="Crud">
+				<StoreDirectoryHeader
+					class="coupon-toolbar"
+					title="优惠券管理"
+					scope-label="券面与发放"
+					scope-name="发布审核"
+				>
+					<template #actions>
+						<div class="coupon-tools">
+							<cl-refresh-btn />
+							<cl-multi-delete-btn />
+							<cl-add-btn class="store-create" />
+							<AssistantEntry :active="assistantOpen" @click="assistantOpen = !assistantOpen" />
+						</div>
+					</template>
+				</StoreDirectoryHeader>
+				<form class="coupon-filters" aria-label="优惠券筛选" @submit.prevent="applyFilters">
+					<el-input
+						v-model="filters.keyWord"
+						aria-label="券名称"
+						placeholder="搜索券名称"
+						clearable
+						class="filter-keyword"
 					/>
-				</template>
-				<template #column-publicationActions="{ scope }">
-					<div v-permission="service.coupon.template.permission.update">
-						<el-button
-							v-if="canSubmit(scope.row)"
-							link
-							type="primary"
-							:disabled="!!publicationBusy"
-							@click="publicationAction(scope.row, 'submitAudit')"
-							>提交审核</el-button
+					<MerchantSelect
+						v-model="filters.merchantId"
+						class="filter-merchant"
+						placeholder="全部商家"
+						aria-label="所属商家"
+					/>
+					<div class="filter-secondary">
+						<el-select
+							v-model="filters.type"
+							aria-label="券类型"
+							placeholder="全部券类型"
+							clearable
+							><el-option
+								v-for="(label, value) in typeNames"
+								:key="value"
+								:label="label"
+								:value="value"
+						/></el-select>
+						<el-select
+							v-model="filters.status"
+							aria-label="模板状态"
+							placeholder="全部模板状态"
+							clearable
+							><el-option
+								v-for="(label, value) in statusNames"
+								:key="value"
+								:label="label"
+								:value="Number(value)"
+						/></el-select>
+					</div>
+					<el-popover trigger="click" width="260" placement="bottom-end">
+						<template #reference
+							><el-button class="filter-more"
+								>更多筛选{{
+									filters.type || filters.status !== undefined ? ' · 已设置' : ''
+								}}</el-button
+							></template
 						>
-						<template v-if="scope.row.publication?.auditStatus === 1">
-							<el-button
+						<div class="filter-popover">
+							<label>券类型</label
+							><el-select v-model="filters.type" placeholder="全部券类型" clearable
+								><el-option
+									v-for="(label, value) in typeNames"
+									:key="value"
+									:label="label"
+									:value="value" /></el-select
+							><label>模板状态</label
+							><el-select
+								v-model="filters.status"
+								placeholder="全部模板状态"
+								clearable
+								><el-option
+									v-for="(label, value) in statusNames"
+									:key="value"
+									:label="label"
+									:value="Number(value)"
+							/></el-select>
+						</div>
+					</el-popover>
+					<el-button @click="resetFilters">重置</el-button
+					><el-button type="primary" native-type="submit">搜索</el-button>
+				</form>
+
+				<cl-row class="coupon-table-row">
+					<!-- 数据表格 -->
+					<cl-table :border="false" ref="Table" @selection-change="setAssistantSelection">
+						<template #column-name="{ scope }">
+							<div class="coupon-identity">
+								<CouponCover
+									:src="scope.row.cover"
+									:name="scope.row.name"
+									:badge="coverBadge(scope.row)"
+									:type-name="typeNames[scope.row.type]"
+									:subtitle="ruleText(scope.row)"
+								/>
+								<div class="coupon-identity-copy">
+									<button class="coupon-name" @click="openDetails(scope.row)">
+										{{ scope.row.name }}
+									</button>
+									<div class="coupon-meta">
+										<span>{{ typeNames[scope.row.type] || '优惠券' }}</span
+										><span v-if="scope.row.status !== 1">{{
+											statusNames[String(scope.row.status)]
+										}}</span>
+									</div>
+								</div>
+							</div>
+						</template>
+						<template #column-publication="{ scope }"
+							><div class="coupon-status">
+								<el-tag
+									size="small"
+									:type="
+										scope.row.publication?.publishStatus === 1
+											? 'success'
+											: 'info'
+									"
+									>{{
+										['未上架', '已上架', '已下架'][
+											scope.row.publication?.publishStatus ?? 0
+										]
+									}}</el-tag
+								><span>{{ auditText(scope.row) }}</span>
+							</div></template
+						>
+						<template #column-salePrice="{ scope }"
+							><strong class="coupon-price">{{
+								scope.row.salePrice == null
+									? '—'
+									: Number(scope.row.salePrice) === 0
+										? '免费领取'
+										: '¥' + numberText(scope.row.salePrice, true)
+							}}</strong></template
+						>
+						<template #column-rules="{ scope }"
+							><div class="coupon-rule">{{ ruleText(scope.row) }}</div>
+							<div class="coupon-secondary">{{ scopeText(scope.row) }}</div></template
+						>
+						<template #column-stock="{ scope }"
+							><div>
+								{{
+									scope.row.issueLimit == null
+										? '不限量'
+										: Math.max(
+												0,
+												Number(scope.row.issueLimit) -
+													Number(scope.row.issuedCount || 0)
+											) + ' 张'
+								}}
+							</div>
+							<div class="coupon-secondary">
+								已发放 {{ numberText(scope.row.issuedCount) }} 张
+							</div></template
+						>
+						<template #slot-coupon-actions="{ scope }">
+							<div class="coupon-row-actions">
+								<el-tooltip content="编辑优惠券"
+									><el-button
+										v-permission="service.coupon.template.permission.update"
+										:icon="Edit"
+										circle
+										plain
+										size="small"
+										type="primary"
+										aria-label="编辑优惠券"
+										@click="Crud?.rowEdit(scope.row)" /></el-tooltip
+								><el-tooltip content="删除优惠券"
+									><el-button
+										v-permission="service.coupon.template.permission.delete"
+										:icon="Delete"
+										circle
+										plain
+										size="small"
+										type="danger"
+										aria-label="删除优惠券"
+										@click="Crud?.rowDelete(scope.row)"
+								/></el-tooltip>
+							</div>
+						</template>
+						<template #column-publicationActions="{ scope }">
+							<div
+								class="publication-actions"
+								v-permission="service.coupon.template.permission.update"
+							>
+								<el-button
+									v-if="canSubmit(scope.row)"
+									link
+									type="primary"
+									:disabled="!!publicationBusy"
+									@click="publicationAction(scope.row, 'submitAudit')"
+									>提交审核</el-button
+								>
+								<template v-if="scope.row.publication?.auditStatus === 1">
+									<el-button
+										link
+										type="primary"
+										:disabled="!!publicationBusy"
+										@click="openReview(scope.row)"
+										>审核</el-button
+									>
+									<el-button
+										link
+										:disabled="!!publicationBusy"
+										@click="publicationAction(scope.row, 'withdrawAudit')"
+										>撤回审核</el-button
+									>
+								</template>
+								<el-button
+									v-if="canPublish(scope.row)"
+									link
+									type="success"
+									:disabled="!!publicationBusy"
+									@click="publicationAction(scope.row, 'publish')"
+									>上架</el-button
+								>
+								<el-button
+									v-if="scope.row.publication?.publishStatus === 1"
+									link
+									type="danger"
+									:disabled="!!publicationBusy"
+									@click="publicationAction(scope.row, 'unpublish')"
+									>下架</el-button
+								>
+							</div>
+						</template>
+					</cl-table>
+				</cl-row>
+
+				<cl-row>
+					<cl-flex1 />
+					<!-- 分页控件 -->
+					<cl-pagination />
+				</cl-row>
+
+				<el-drawer
+					v-model="detailVisible"
+					title="优惠券资料"
+					size="min(640px, 100vw)"
+					append-to-body
+					@closed="
+						detailRequest++;
+						detailLoading = false;
+					"
+				>
+					<el-skeleton v-if="detailLoading" :rows="8" animated />
+					<el-result
+						v-else-if="detailError"
+						icon="warning"
+						title="暂时无法加载"
+						:sub-title="detailError"
+						><template #extra
+							><el-button @click="detailTarget && openDetails(detailTarget)"
+								>重新加载</el-button
+							></template
+						></el-result
+					>
+					<template v-else-if="detailCoupon">
+						<h2 class="detail-title">{{ detailCoupon.name }}</h2>
+						<el-descriptions :column="1" border>
+							<el-descriptions-item label="所属商家">{{
+								detailCoupon.merchantName || '—'
+							}}</el-descriptions-item>
+							<el-descriptions-item label="券类型">{{
+								typeNames[detailCoupon.type || '']
+							}}</el-descriptions-item>
+							<el-descriptions-item label="模板状态">{{
+								statusNames[String(detailCoupon.status)]
+							}}</el-descriptions-item>
+							<el-descriptions-item label="平台审核">{{
+								auditText(detailCoupon)
+							}}</el-descriptions-item>
+							<el-descriptions-item label="优惠规则">{{
+								ruleText(detailCoupon)
+							}}</el-descriptions-item>
+							<el-descriptions-item label="适用门店">{{
+								scopeText(detailCoupon)
+							}}</el-descriptions-item>
+							<el-descriptions-item label="有效期">{{
+								validityText(detailCoupon)
+							}}</el-descriptions-item>
+							<el-descriptions-item label="发行总量">{{
+								detailCoupon.issueLimit == null
+									? '不限量'
+									: numberText(detailCoupon.issueLimit) + ' 张'
+							}}</el-descriptions-item>
+							<el-descriptions-item label="已发放">{{
+								numberText(detailCoupon.issuedCount) + ' 张'
+							}}</el-descriptions-item>
+							<el-descriptions-item label="每人限领">{{
+								detailCoupon.perCustomerLimit + ' 张'
+							}}</el-descriptions-item>
+							<el-descriptions-item label="同享优惠">{{
+								detailCoupon.allowCombine === 1 ? '允许' : '不允许'
+							}}</el-descriptions-item>
+							<el-descriptions-item label="领取开始">{{
+								detailCoupon.saleStartTime
+									? dateText(detailCoupon.saleStartTime)
+									: '不限'
+							}}</el-descriptions-item>
+							<el-descriptions-item label="领取结束">{{
+								detailCoupon.saleEndTime
+									? dateText(detailCoupon.saleEndTime)
+									: '不限'
+							}}</el-descriptions-item>
+							<el-descriptions-item label="使用说明">{{
+								detailCoupon.description || '—'
+							}}</el-descriptions-item>
+							<el-descriptions-item label="创建时间">{{
+								dateText(detailCoupon.createTime)
+							}}</el-descriptions-item>
+							<el-descriptions-item label="更新时间">{{
+								dateText(detailCoupon.updateTime)
+							}}</el-descriptions-item>
+						</el-descriptions>
+						<el-table
+							v-if="detailCoupon.contentItems?.length"
+							:data="detailCoupon.contentItems"
+							><el-table-column prop="name" label="套餐／服务内容" /><el-table-column
+								prop="quantity"
+								label="数量"
+								width="80" /><el-table-column
+								prop="itemDescription"
+								label="项目说明"
+						/></el-table>
+					</template>
+					<template #footer
+						><el-button @click="detailVisible = false">关闭</el-button></template
+					>
+				</el-drawer>
+				<!-- 新增、编辑 -->
+				<cl-upsert ref="Upsert">
+                    <template #prepend="{ scope }">
+                        <CouponEditorHeading :draft="scope" :type-name="typeNames[scope.type]" :step="couponStep" @update:step="goToCouponStep" />
+                    </template>
+                    <template #append>
+                        <CouponEditorNavigation :step="couponStep" @update:step="goToCouponStep" />
+                    </template>
+					<template #slot-cover="{ scope }"
+						><CoverField
+							v-model="scope.cover"
+							v-model:material-id="scope.coverMaterialId"
+							:ai-draft="scope"
+					/></template>
+					<template #slot-edit-merchant="{ scope }">
+						<el-input v-if="scope.id" :model-value="scope.merchantName" readonly />
+						<MerchantSelect
+							v-else
+							v-model="scope.merchantId"
+							@selected="merchant => scope.merchantName = merchant?.name"
+							style="width: 100%"
+							@change="
+								id => {
+									scope.storeIds = [];
+									scope.contentItems = [];
+									loadStores(id);
+								}
+							"
+						/>
+					</template>
+					<template #slot-stores="{ scope }">
+						<el-select
+							v-model="scope.storeIds"
+							multiple
+							filterable
+							:loading="storesLoading"
+							:disabled="!scope.merchantId || storesFailed"
+							placeholder="选择该商家的适用门店"
+							style="width: 100%"
+						>
+							<el-option
+								v-for="store in storeOptions"
+								:key="store.id"
+								:value="store.id!"
+								:label="`${store.name}${Number(store.status) === 1 ? '' : '（停用）'}`"
+								:disabled="
+									Number(store.status) !== 1 &&
+									!originalStoreIds.includes(store.id!)
+								"
+							/>
+						</el-select>
+						<div v-if="storesFailed" class="form-hint">
+							门店加载失败，请<el-button
 								link
 								type="primary"
-								:disabled="!!publicationBusy"
-								@click="openReview(scope.row)"
-								>审核</el-button
+								@click="loadStores(scope.merchantId)"
+								>重试</el-button
 							>
-							<el-button
-								link
-								:disabled="!!publicationBusy"
-								@click="publicationAction(scope.row, 'withdrawAudit')"
-								>撤回</el-button
+						</div>
+					</template>
+					<template #slot-issue-limit="{ scope }">
+						<el-switch
+							:model-value="scope.issueLimit == null"
+							active-text="不限量"
+							@update:model-value="
+								value =>
+									(scope.issueLimit = value
+										? null
+										: Math.max(Number(scope.issuedCount) || 0, 1))
+							"
+						/>
+						<el-input-number
+							v-if="scope.issueLimit != null"
+							v-model="scope.issueLimit"
+							:min="Math.max(Number(scope.issuedCount) || 0, 1)"
+							:max="2147483647"
+							:precision="0"
+							controls-position="right"
+							style="margin-left: 12px; width: 150px"
+						/>
+					</template>
+					<template #slot-content-items="{ scope }">
+						<CouponContentEditor
+							v-model="scope.contentItems"
+							:merchant-id="scope.merchantId"
+						/>
+					</template>
+				</cl-upsert>
+				<el-dialog
+					v-model="reviewVisible"
+					title="审核平台优惠券"
+					width="720px"
+					:close-on-click-modal="false"
+				>
+					<template v-if="reviewCoupon">
+						<el-descriptions :column="2" border>
+							<el-descriptions-item label="券名称">{{
+								reviewCoupon.name
+							}}</el-descriptions-item>
+							<el-descriptions-item label="所属商家">{{
+								reviewCoupon.merchantName
+							}}</el-descriptions-item>
+							<el-descriptions-item label="类型">{{
+								typeNames[reviewCoupon.type || '']
+							}}</el-descriptions-item>
+							<el-descriptions-item label="售价"
+								>{{
+									numberText(reviewCoupon.salePrice, true)
+								}}
+								元</el-descriptions-item
 							>
-						</template>
-						<el-button
-							v-if="canPublish(scope.row)"
-							link
-							type="success"
-							:disabled="!!publicationBusy"
-							@click="publicationAction(scope.row, 'publish')"
-							>上架</el-button
+							<el-descriptions-item label="优惠规则" :span="2">{{
+								ruleText(reviewCoupon)
+							}}</el-descriptions-item>
+							<el-descriptions-item label="适用门店" :span="2">{{
+								scopeText(reviewCoupon)
+							}}</el-descriptions-item>
+							<el-descriptions-item label="有效期" :span="2">{{
+								validityText(reviewCoupon)
+							}}</el-descriptions-item>
+							<el-descriptions-item label="领取开始">{{
+								reviewCoupon.saleStartTime
+									? dateText(reviewCoupon.saleStartTime)
+									: '不限'
+							}}</el-descriptions-item>
+							<el-descriptions-item label="领取结束">{{
+								reviewCoupon.saleEndTime
+									? dateText(reviewCoupon.saleEndTime)
+									: '不限'
+							}}</el-descriptions-item>
+							<el-descriptions-item label="发行总量">{{
+								reviewCoupon.issueLimit == null
+									? '不限量'
+									: numberText(reviewCoupon.issueLimit)
+							}}</el-descriptions-item>
+							<el-descriptions-item label="每人限领"
+								>{{ reviewCoupon.perCustomerLimit }} 张</el-descriptions-item
+							>
+							<el-descriptions-item label="同享优惠">{{
+								reviewCoupon.allowCombine === 1 ? '允许' : '不允许'
+							}}</el-descriptions-item>
+							<el-descriptions-item label="审核版本"
+								>第
+								{{ reviewCoupon.publication?.submittedVersion }}
+								版</el-descriptions-item
+							>
+							<el-descriptions-item label="使用说明" :span="2">{{
+								reviewCoupon.description || '—'
+							}}</el-descriptions-item>
+							<el-descriptions-item v-if="reviewCoupon.cover" label="封面" :span="2"
+								><el-image
+									:src="reviewCoupon.cover"
+									fit="contain"
+									style="width: 120px; height: 90px"
+							/></el-descriptions-item>
+						</el-descriptions>
+						<el-table
+							v-if="reviewCoupon.contentItems?.length"
+							:data="reviewCoupon.contentItems"
+							style="margin-top: 16px"
 						>
+							<el-table-column prop="name" label="套餐／服务内容" />
+							<el-table-column prop="quantity" label="数量" width="80" />
+							<el-table-column prop="itemDescription" label="项目说明" />
+						</el-table>
+					</template>
+					<template #footer>
+						<el-button @click="reviewVisible = false">取消</el-button>
 						<el-button
-							v-if="scope.row.publication?.publishStatus === 1"
-							link
 							type="danger"
 							:disabled="!!publicationBusy"
-							@click="publicationAction(scope.row, 'unpublish')"
-							>下架</el-button
+							@click="reviewCoupon && publicationAction(reviewCoupon, 'audit', false)"
+							>驳回</el-button
 						>
-					</div>
-				</template>
-			</cl-table>
-		</cl-row>
-
-		<cl-row>
-			<cl-flex1 />
-			<!-- 分页控件 -->
-			<cl-pagination />
-		</cl-row>
-
-		<!-- 新增、编辑 -->
-		<cl-upsert ref="Upsert">
-			<template #slot-cover="{ scope }"><CoverField v-model="scope.cover" v-model:material-id="scope.coverMaterialId" :ai-draft="scope" /></template>
-			<template #slot-edit-merchant="{ scope }">
-				<el-input v-if="scope.id" :model-value="scope.merchantName" readonly />
-				<MerchantSelect
-					v-else
-					v-model="scope.merchantId"
-					style="width: 100%"
-					@change="
-						id => {
-							scope.storeIds = [];
-							scope.contentItems = [];
-							loadStores(id);
-						}
-					"
-				/>
-			</template>
-			<template #slot-stores="{ scope }">
-				<el-select
-					v-model="scope.storeIds"
-					multiple
-					filterable
-					:loading="storesLoading"
-					:disabled="!scope.merchantId || storesFailed"
-					placeholder="选择该商家的适用门店"
-					style="width: 100%"
-				>
-					<el-option
-						v-for="store in storeOptions"
-						:key="store.id"
-						:value="store.id!"
-						:label="`${store.name}${Number(store.status) === 1 ? '' : '（停用）'}`"
-						:disabled="
-							Number(store.status) !== 1 && !originalStoreIds.includes(store.id!)
-						"
-					/>
-				</el-select>
-				<div v-if="storesFailed" class="form-hint">
-					门店加载失败，请<el-button
-						link
-						type="primary"
-						@click="loadStores(scope.merchantId)"
-						>重试</el-button
-					>
-				</div>
-			</template>
-			<template #slot-issue-limit="{ scope }">
-				<el-switch
-					:model-value="scope.issueLimit == null"
-					active-text="不限量"
-					@update:model-value="
-						value =>
-							(scope.issueLimit = value
-								? null
-								: Math.max(Number(scope.issuedCount) || 0, 1))
-					"
-				/>
-				<el-input-number
-					v-if="scope.issueLimit != null"
-					v-model="scope.issueLimit"
-					:min="Math.max(Number(scope.issuedCount) || 0, 1)"
-					:max="2147483647"
-					:precision="0"
-					controls-position="right"
-					style="margin-left: 12px; width: 150px"
-				/>
-			</template>
-			<template #slot-content-items="{ scope }">
-				<CouponContentEditor v-model="scope.contentItems" :merchant-id="scope.merchantId" />
-			</template>
-		</cl-upsert>
-		<el-dialog
-			v-model="reviewVisible"
-			title="审核平台优惠券"
-			width="720px"
-			:close-on-click-modal="false"
-		>
-			<template v-if="reviewCoupon">
-				<el-descriptions :column="2" border>
-					<el-descriptions-item label="券名称">{{
-						reviewCoupon.name
-					}}</el-descriptions-item>
-					<el-descriptions-item label="所属商家">{{
-						reviewCoupon.merchantName
-					}}</el-descriptions-item>
-					<el-descriptions-item label="类型">{{
-						typeNames[reviewCoupon.type || '']
-					}}</el-descriptions-item>
-					<el-descriptions-item label="售价"
-						>{{ numberText(reviewCoupon.salePrice, true) }} 元</el-descriptions-item
-					>
-					<el-descriptions-item label="优惠规则" :span="2">{{
-						ruleText(reviewCoupon)
-					}}</el-descriptions-item>
-					<el-descriptions-item label="适用门店" :span="2">{{
-						scopeText(reviewCoupon)
-					}}</el-descriptions-item>
-					<el-descriptions-item label="有效期" :span="2">{{
-						validityText(reviewCoupon)
-					}}</el-descriptions-item>
-					<el-descriptions-item label="领取开始">{{
-						reviewCoupon.saleStartTime ? dateText(reviewCoupon.saleStartTime) : '不限'
-					}}</el-descriptions-item>
-					<el-descriptions-item label="领取结束">{{
-						reviewCoupon.saleEndTime ? dateText(reviewCoupon.saleEndTime) : '不限'
-					}}</el-descriptions-item>
-					<el-descriptions-item label="发行总量">{{
-						reviewCoupon.issueLimit == null
-							? '不限量'
-							: numberText(reviewCoupon.issueLimit)
-					}}</el-descriptions-item>
-					<el-descriptions-item label="每人限领"
-						>{{ reviewCoupon.perCustomerLimit }} 张</el-descriptions-item
-					>
-					<el-descriptions-item label="同享优惠">{{
-						reviewCoupon.allowCombine === 1 ? '允许' : '不允许'
-					}}</el-descriptions-item>
-					<el-descriptions-item label="审核版本"
-						>第
-						{{ reviewCoupon.publication?.submittedVersion }} 版</el-descriptions-item
-					>
-					<el-descriptions-item label="使用说明" :span="2">{{
-						reviewCoupon.description || '—'
-					}}</el-descriptions-item>
-					<el-descriptions-item v-if="reviewCoupon.cover" label="封面" :span="2"
-						><el-image
-							:src="reviewCoupon.cover"
-							fit="contain"
-							style="width: 120px; height: 90px"
-					/></el-descriptions-item>
-				</el-descriptions>
-				<el-table
-					v-if="reviewCoupon.contentItems?.length"
-					:data="reviewCoupon.contentItems"
-					style="margin-top: 16px"
-				>
-					<el-table-column prop="name" label="套餐／服务内容" />
-					<el-table-column prop="quantity" label="数量" width="80" />
-					<el-table-column prop="itemDescription" label="项目说明" />
-				</el-table>
-			</template>
-			<template #footer>
-				<el-button @click="reviewVisible = false">取消</el-button>
-				<el-button
-					type="danger"
-					:disabled="!!publicationBusy"
-					@click="reviewCoupon && publicationAction(reviewCoupon, 'audit', false)"
-					>驳回</el-button
-				>
-				<el-button
-					type="primary"
-					:disabled="!!publicationBusy"
-					@click="reviewCoupon && publicationAction(reviewCoupon, 'audit', true)"
-					>审核通过</el-button
-				>
-			</template>
-		</el-dialog>
-	</cl-crud>
+						<el-button
+							type="primary"
+							:disabled="!!publicationBusy"
+							@click="reviewCoupon && publicationAction(reviewCoupon, 'audit', true)"
+							>审核通过</el-button
+						>
+					</template>
+				</el-dialog>
+			</cl-crud>
+		</section>
+	</AssistantLayout>
 </template>
 
 <script lang="ts" setup>
+import CouponEditorHeading from '/@/modules/coupon/components/coupon-editor-heading.vue';
+import CouponEditorNavigation from '/@/modules/coupon/components/coupon-editor-navigation.vue';
+import { couponFieldStep, useCouponEditorFlow } from '/@/modules/coupon/components/coupon-editor-flow';
+const { couponStep, goToCouponStep, prepareCouponStep, resetCouponStep } = useCouponEditorFlow();
+import AssistantLayout from '/$/ai/components/assistant-layout.vue';
+import AssistantEntry from '/$/ai/components/assistant-entry.vue';
+const assistantOpen = ref(false);
+const assistantMerchant = ref<number>();
+const assistantCoupon = ref<number>();
+const assistantSelection = ref<number[]>([]);
+function setAssistantSelection(rows: { id: number }[]) {
+	assistantSelection.value = rows.map(row => row.id);
+	assistantCoupon.value = rows.length === 1 ? rows[0].id : undefined;
+}
 defineOptions({
 	name: 'coupon-template'
 });
 
 import CoverField from '/$/space/components/cover-field.vue';
-import { useCrud, useTable, useUpsert, useSearch } from '@cool-vue/crud';
+import { useCrud, useTable, useUpsert } from '@cool-vue/crud';
 import { useCool } from '/@/cool';
 import { useI18n } from 'vue-i18n';
 import dayjs from 'dayjs';
-import { h, ref } from 'vue';
+import { h, ref, reactive } from 'vue';
+import { Edit, Delete } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox, ElTooltip } from 'element-plus';
 import CouponCover from '../components/coupon-cover.vue';
 import CouponContentEditor from '../components/coupon-content-editor.vue';
 import MerchantSelect from '../../merchant/components/merchant-select.vue';
+import StoreDirectoryHeader from '../../merchant/components/store-directory-header.vue';
 
 const { service } = useCool();
 const { t } = useI18n();
@@ -495,9 +780,11 @@ const dateInput = {
 };
 const contentTypes = ['PACKAGE', 'EXPERIENCE', 'EXCHANGE'];
 const Upsert = useUpsert({
-	dialog: { width: '860px', height: '65vh' },
-	props: { labelPosition: 'top' },
+	dialog: { width: 'min(1120px, 96vw)', height: 'min(720px, 76dvh)', controls: ['close'] },
+	props: { labelPosition: 'top', onValidate(prop: string, valid: boolean) { if (!valid) goToCouponStep(couponFieldStep(prop)); } },
 	onOpened(data) {
+		resetCouponStep();
+		assistantOpen.value = false;
 		if (!data.id) {
 			const defaults = {
 				type: 'FULL_REDUCTION',
@@ -601,17 +888,7 @@ const Upsert = useUpsert({
 			delete payload[key];
 		next(payload);
 	},
-	items: [
-		{
-			type: 'tabs' as const,
-			props: {
-				labels: [
-					{ label: '基本信息', value: 'base' },
-					{ label: '优惠与适用规则', value: 'rules' },
-					{ label: '领取设置', value: 'issue' }
-				]
-			}
-		},
+	items: [{ span: 24, props: { class: 'coupon-editor-fields' }, component: { name: 'el-col', props: { span: 24 } }, children: [
 		{
 			label: '所属商家',
 			prop: 'merchantId',
@@ -847,22 +1124,7 @@ const Upsert = useUpsert({
 		}
 	].map(item => ({
 		...item,
-		group:
-			item.type === 'tabs'
-				? undefined
-				: ['merchantId', 'name', 'type', 'status', 'cover', 'description'].includes(
-							item.prop || ''
-					  ) || !item.prop
-					? 'base'
-					: [
-								'issueLimit',
-								'perCustomerLimit',
-								'allowCombine',
-								'saleStartTime',
-								'saleEndTime'
-						  ].includes(item.prop)
-						? 'issue'
-						: 'rules',
+		props: { class: `coupon-fields coupon-fields--${couponFieldStep(item.prop)}` },
 		...(item.tips
 			? {
 					renderLabel: () =>
@@ -873,181 +1135,78 @@ const Upsert = useUpsert({
 						)
 				}
 			: {})
-	}))
+	})) }]
 });
 
-// cl-table：仅转换显示内容，保留原始编码和关联标识供接口使用。
-const Table = useTable({
-	props: { showOverflowTooltip: true },
-	columns: [
-		{ type: 'selection', fixed: 'left' },
-		{
-			label: t('券封面'),
-			prop: 'cover',
-			width: 86,
-			fixed: 'left'
-		},
-		{ label: t('券名称'), prop: 'name', minWidth: 210 },
-		{ label: '平台审核', prop: 'publication', minWidth: 180, formatter: auditText },
-		{
-			label: '平台上架',
-			minWidth: 100,
-			formatter: (row: CouponRow) =>
-				['未上架', '已上架', '已下架'][row.publication?.publishStatus ?? 0] || '未知'
-		},
-		{
-			label: t('所属商家'),
-			prop: 'merchantName',
-			minWidth: 160,
-			formatter: (row: CouponRow) => row.merchantName || '商家资料未加载'
-		},
-		{
-			label: t('券类型'),
-			prop: 'type',
-			minWidth: 100
-		},
-		{ label: t('优惠内容'), minWidth: 230, formatter: ruleText },
-		{
-			label: t('售价'),
-			prop: 'salePrice',
-			minWidth: 110,
-			formatter: (row: CouponRow) =>
-				row.salePrice != null && Number(row.salePrice) === 0
-					? '免费'
-					: row.salePrice == null
-						? '—'
-						: `${numberText(row.salePrice, true)} 元`
-		},
-		{ label: t('适用门店'), prop: 'scopeType', minWidth: 220, formatter: scopeText },
-		{ label: t('有效期'), prop: 'validityType', minWidth: 280, formatter: validityText },
-		{
-			label: t('发行总量'),
-			prop: 'issueLimit',
-			minWidth: 110,
-			formatter: (row: CouponRow) =>
-				row.issueLimit == null ? '不限量' : `${numberText(row.issueLimit)} 张`
-		},
-		{
-			label: t('已发放'),
-			prop: 'issuedCount',
-			minWidth: 100,
-			formatter: (row: CouponRow) => `${numberText(row.issuedCount)} 张`
-		},
-		{
-			label: t('每人限领'),
-			prop: 'perCustomerLimit',
-			minWidth: 100,
-			formatter: (row: CouponRow) => `${numberText(row.perCustomerLimit)} 张`
-		},
-		{
-			label: t('同享其他优惠'),
-			prop: 'allowCombine',
-			minWidth: 120,
-			formatter: (row: CouponRow) =>
-				row.allowCombine == null
-					? '未设置'
-					: { 0: '不允许', 1: '允许' }[Number(row.allowCombine)] || '未知'
-		},
-		{
-			label: t('状态'),
-			prop: 'status',
-			minWidth: 90,
-			formatter: (row: CouponRow) => statusNames[String(row.status)] || '未知状态'
-		},
-		{
-			label: t('使用说明'),
-			prop: 'description',
-			minWidth: 220,
-			formatter: (row: CouponRow) => row.description || '—'
-		},
-		{
-			label: t('领取购买开始'),
-			prop: 'saleStartTime',
-			minWidth: 170,
-			sortable: 'custom',
-			formatter: (row: CouponRow) =>
-				row.saleStartTime ? dateText(row.saleStartTime) : '不限开始时间'
-		},
-		{
-			label: t('领取购买结束'),
-			prop: 'saleEndTime',
-			minWidth: 170,
-			sortable: 'custom',
-			formatter: (row: CouponRow) =>
-				row.saleEndTime ? dateText(row.saleEndTime) : '不限结束时间'
-		},
-		{
-			label: t('创建时间'),
-			prop: 'createTime',
-			minWidth: 170,
-			sortable: 'desc',
-			formatter: (row: CouponRow) => dateText(row.createTime)
-		},
-		{
-			label: t('更新时间'),
-			prop: 'updateTime',
-			minWidth: 170,
-			sortable: 'custom',
-			formatter: (row: CouponRow) => dateText(row.updateTime)
-		},
-		{ label: '发布操作', prop: 'publicationActions', fixed: 'right', width: 180 },
-		{ type: 'op', width: 140, buttons: ['edit', 'delete'] }
-	]
+const filters = reactive<{ keyWord: string; merchantId?: number; type?: string; status?: number }>({
+	keyWord: ''
 });
-
-// cl-search
-const Search = useSearch({
-	items: [
-		{
-			label: t('券名称'),
-			prop: 'keyWord',
-			component: {
-				name: 'el-input',
-				props: { clearable: true, maxlength: 100, placeholder: '输入券名称搜索' },
-				style: { width: '190px' }
-			}
-		},
-		{
-			label: t('所属商家'),
-			prop: 'merchantId',
-			component: { name: 'slot-search-merchant' }
-		},
-		{
-			label: t('券类型'),
-			prop: 'type',
-			component: {
-				name: 'el-select',
-				props: { clearable: true, placeholder: '全部类型' },
-				options: Object.entries(typeNames).map(([value, label]) => ({
-					label: t(label),
-					value
-				})),
-				style: { width: '140px' }
-			}
-		},
-		{
-			label: t('模板状态'),
-			prop: 'status',
-			component: {
-				name: 'el-select',
-				props: { clearable: true, placeholder: '全部状态' },
-				options: Object.entries(statusNames).map(([value, label]) => ({
-					label: t(label),
-					value: Number(value)
-				})),
-				style: { width: '140px' }
-			}
-		}
-	],
-	onSearch(data, { next }) {
-		next({
-			// 空条件不发送给后端，避免框架将显式null解析为字段为空的查询。
-			keyWord: data.keyWord?.trim() || undefined,
-			merchantId: data.merchantId ?? undefined,
-			type: data.type || undefined,
-			status: data.status ?? undefined
-		});
+function applyFilters() {
+	assistantMerchant.value = filters.merchantId ?? undefined;
+	Crud.value?.refresh({
+		page: 1,
+		keyWord: filters.keyWord.trim() || undefined,
+		merchantId: filters.merchantId ?? undefined,
+		type: filters.type || undefined,
+		status: typeof filters.status === 'number' ? filters.status : undefined
+	});
+}
+function resetFilters() {
+	Object.assign(filters, {
+		keyWord: '',
+		merchantId: undefined,
+		type: undefined,
+		status: undefined
+	});
+	applyFilters();
+}
+const detailVisible = ref(false);
+const detailLoading = ref(false);
+const detailError = ref('');
+const detailCoupon = ref<CouponRow>();
+let detailRequest = 0;
+let detailTarget: CouponRow | undefined;
+async function openDetails(row: CouponRow) {
+	detailTarget = row;
+	const request = ++detailRequest;
+	detailVisible.value = true;
+	detailLoading.value = true;
+	detailError.value = '';
+	detailCoupon.value = undefined;
+	try {
+		const data = await service.coupon.template.info({ id: row.id });
+		if (request === detailRequest) detailCoupon.value = data;
+	} catch (error: any) {
+		if (request === detailRequest) detailError.value = error.message || '资料加载失败，请重试';
+	} finally {
+		if (request === detailRequest) detailLoading.value = false;
 	}
+}
+// 聚合相关信息，详细规则保留在只读资料抽屉中。
+const Table = useTable({
+	props: { showOverflowTooltip: true, border: false },
+	columns: [
+		{ type: 'selection', width: 44 },
+		{ label: '优惠券', prop: 'name', minWidth: 250, align: 'left' },
+		{ label: '所属商家', prop: 'merchantName', minWidth: 140, align: 'left' },
+		{ label: '优惠与适用范围', prop: 'rules', minWidth: 210, align: 'left' },
+		{ label: '售价', prop: 'salePrice', minWidth: 100, align: 'right' },
+		{ label: '剩余库存', prop: 'stock', minWidth: 110, align: 'right' },
+		{ label: '发布状态', prop: 'publication', minWidth: 170, align: 'left' },
+		{
+			label: '发布操作',
+			prop: 'publicationActions',
+			fixed: 'right',
+			width: 170,
+			showOverflowTooltip: false
+		},
+		{
+			type: 'op',
+			width: 96,
+			showOverflowTooltip: false,
+			buttons: [{ name: 'slot-coupon-actions' }]
+		}
+	]
 });
 
 // cl-crud
@@ -1062,9 +1221,242 @@ const Crud = useCrud(
 </script>
 
 <style scoped>
-.coupon-type-tag {
-	border: none;
-	color: #fff;
-	white-space: nowrap;
+.coupon-workspace {
+	height: 100%;
+	min-height: 0;
+	padding: 0;
+	box-sizing: border-box;
+	container-type: inline-size;
+	color: var(--el-text-color-primary);
+}
+.coupon-workspace > :deep(.cl-crud) {
+	height: 100%;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	padding: 0 !important;
+	overflow: hidden;
+	background: transparent;
+}
+.coupon-toolbar {
+	flex: none;
+	margin-bottom: 16px;
+}
+.coupon-tools {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+.coupon-tools :deep(.el-button) {
+	margin: 0;
+}
+.coupon-tools :deep(.el-button:not(.store-create):not(.is-disabled)) {
+	--el-button-bg-color: transparent;
+	--el-button-border-color: #ffffff70;
+	--el-button-text-color: #ffffff;
+	--el-button-hover-bg-color: #ffffff20;
+	--el-button-hover-border-color: #ffffffb0;
+	--el-button-hover-text-color: #ffffff;
+}
+.coupon-tools :deep(.el-button[aria-pressed='true']) {
+	--el-button-bg-color: #ffffff26;
+	box-shadow: inset 0 -2px #ffcf55;
+}
+.coupon-filters {
+	display: flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 8px;
+	flex: none;
+	padding: 12px;
+	background: var(--el-bg-color);
+	border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.filter-keyword {
+	flex: 1;
+	min-width: 100px;
+	max-width: 300px;
+}
+.filter-merchant {
+	width: 190px !important;
+	flex: 0 1 190px;
+	min-width: 120px;
+}
+.filter-secondary {
+	display: flex;
+	gap: 8px;
+	flex: 0 1 288px;
+	min-width: 240px;
+}
+.filter-secondary .el-select {
+	min-width: 0;
+	flex: 1;
+}
+.coupon-filters > .el-button {
+	margin: 0;
+	flex-shrink: 0;
+}
+.coupon-filters .filter-more {
+	display: none;
+}
+.filter-popover {
+	display: grid;
+	gap: 8px;
+}
+.filter-popover label {
+	margin-top: 4px;
+	font-size: 13px;
+	color: var(--el-text-color-regular);
+}
+.coupon-table-row {
+	flex: 1 !important;
+	min-height: 0;
+	overflow: hidden;
+	margin: 0 !important;
+}
+.coupon-table-row :deep(.cl-table) {
+	height: 100%;
+}
+.coupon-workspace :deep(.el-table th.el-table__cell) {
+	background: var(--workspace-selected, #eaf0ff);
+	color: var(--el-text-color-primary);
+	font-weight: 600;
+}
+.coupon-workspace :deep(.el-table td.el-table__cell) {
+	padding-block: 8px;
+}
+.coupon-workspace :deep(.cl-row--last) {
+	flex: none;
+	padding: 12px;
+	margin: 0;
+	background: var(--el-bg-color);
+}
+.coupon-identity {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	min-width: 0;
+}
+.coupon-identity :deep(.coupon-cover) {
+	width: 48px;
+	height: 56px;
+	flex: none;
+}
+.coupon-identity :deep(.cover-badge) {
+	display: none;
+}
+.coupon-identity-copy {
+	min-width: 0;
+}
+.coupon-name {
+	border: 0;
+	padding: 0;
+	background: none;
+	text-align: left;
+	font: inherit;
+	font-weight: 650;
+	color: var(--el-text-color-primary);
+	white-space: normal;
+	cursor: pointer;
+}
+.coupon-name:hover {
+	color: var(--el-color-primary);
+}
+.coupon-name:focus-visible {
+	outline: 2px solid var(--el-color-primary);
+	outline-offset: 3px;
+}
+.coupon-meta {
+	display: flex;
+	gap: 8px;
+	font-size: 12px;
+	color: var(--el-text-color-regular);
+	margin-top: 4px;
+}
+.coupon-meta span:first-child {
+	color: var(--el-color-primary);
+}
+.coupon-status {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 5px;
+	white-space: normal;
+	font-size: 12px;
+	line-height: 1.5;
+}
+.coupon-secondary {
+	font-size: 12px;
+	color: var(--el-text-color-regular);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	margin-top: 4px;
+}
+.coupon-price {
+	font-variant-numeric: tabular-nums;
+	font-weight: 650;
+}
+.publication-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+}
+.publication-actions :deep(.el-button) {
+	margin: 0;
+}
+/* 操作单元格不能继承文本省略容器的固定高度。 */
+.coupon-workspace :deep(td .cell:has(.coupon-row-actions)) {
+    height: auto !important;
+    min-height: 28px;
+    overflow: visible;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.coupon-row-actions {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+.coupon-row-actions :deep(.el-button) {
+	margin: 0;
+}
+.detail-title {
+	margin: 0 0 20px;
+	font-size: 22px;
+	overflow-wrap: anywhere;
+}
+@container (max-width: 920px) {
+	.filter-secondary {
+		display: none;
+	}
+	.coupon-filters .filter-more {
+		display: inline-flex;
+	}
+}
+@container (max-width: 600px) {
+	.coupon-tools {
+		gap: 4px;
+	}
+	.coupon-tools :deep(.el-button) {
+		padding-inline: 8px;
+	}
+	.coupon-toolbar :deep(.directory-title) {
+		padding: 16px;
+	}
+	.coupon-toolbar :deep(.directory-title h1) {
+		font-size: 24px;
+	}
+	.coupon-filters {
+		gap: 6px;
+		padding-inline: 8px;
+		overflow-x: auto;
+	}
+	.coupon-filters .el-button {
+		padding-inline: 10px;
+	}
 }
 </style>

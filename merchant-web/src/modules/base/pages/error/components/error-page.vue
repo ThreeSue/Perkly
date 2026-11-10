@@ -1,12 +1,8 @@
 <template>
 	<div class="error-page">
 		<div class="error-page__wrap">
-			<h1 class="error-page__code">
-				<span v-for="c in codes" :key="c">
-					{{ c }}
-				</span>
-			</h1>
-			<p class="error-page__desc">{{ desc }}</p>
+			<p class="error-page__code">{{ code }}</p>
+			<h1 class="error-page__desc">{{ desc }}</h1>
 
 			<template v-if="user.token || isLogout">
 				<div class="error-page__btns">
@@ -21,14 +17,6 @@
 				</div>
 			</template>
 		</div>
-
-		<div class="error-page__bg is-tl">
-			<cl-svg name="bg" />
-		</div>
-
-		<div class="error-page__bg is-br">
-			<cl-svg name="bg" />
-		</div>
 	</div>
 </template>
 
@@ -37,11 +25,11 @@ defineOptions({
 	name: 'error-page'
 });
 
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { useCool } from '/@/cool';
 import { useBase } from '/$/base';
 
-const props = defineProps({
+defineProps({
 	code: Number,
 	desc: String
 });
@@ -50,10 +38,6 @@ const { router } = useCool();
 const { user } = useBase();
 
 const isLogout = ref(false);
-
-const codes = computed(() => {
-	return (props.code || '').toString().split('');
-});
 
 function toLogin() {
 	router.push('/login');
@@ -71,69 +55,46 @@ function home() {
 
 <style lang="scss" scoped>
 .error-page {
-	background-color: #fff;
-	position: relative;
+	background-color: var(--el-bg-color-page);
 	height: 100%;
+	overflow: auto;
+	display: grid;
+	place-items: center;
 
 	&__wrap {
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
 		align-items: center;
-		height: 100%;
-		position: relative;
-		z-index: 9;
-	}
-
-	&__bg {
-		position: absolute;
-		height: 100%;
-		width: 50%;
-		pointer-events: none;
-		transform: rotate(180deg) scaleY(-1);
-
-		.cl-svg {
-			height: 100%;
-			width: 100%;
-			fill: #2c3142;
-		}
-
-		&.is-tl {
-			left: 0;
-			top: 0;
-			transform: rotate(180deg) scaleY(-1);
-		}
-
-		&.is-br {
-			top: 0;
-			right: 0;
-			transform: scaleY(-1);
-		}
+		padding: 24px;
+		text-align: center;
 	}
 
 	&__code {
-		font-size: 120px;
-		font-weight: normal;
-		color: #6c757d;
-		font-family: Consolas;
-		margin-top: -40px;
-		animation: dou 1s infinite linear;
-		position: relative;
+		margin: 0;
+		color: var(--workspace-accent-text);
+		font-size: 64px;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		line-height: 1.15;
 	}
 
 	&__desc {
-		font-size: 16px;
-		font-weight: 400;
-		color: #6c757d;
-		margin-top: 30px;
+		margin: 12px 0 0;
+		font-size: 20px;
+		font-weight: 650;
+		color: var(--el-text-color-primary);
 	}
 
 	&__btns {
 		display: flex;
-		margin-top: 40px;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 8px;
+		margin-top: 24px;
 
 		.el-button {
-			margin: 0 10px;
+			margin: 0;
 		}
 	}
 }

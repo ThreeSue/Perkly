@@ -71,7 +71,13 @@ public class MerchantWorkspaceController {
     @PostMapping("/store/delete") public R<?> deleteStore(@RequestBody IdsInput p) { return R.ok(workspace.storeDelete(user(), p.ids())); }
     @GetMapping("/category/options") public R<?> categories() { return R.ok(workspace.categoryOptions(user())); }
     @PostMapping("/coupon/page") public R<?> coupons(@RequestBody PageInput p) { return R.ok(workspace.couponPage(user(), p.pageNumber(), p.pageSize(), p.keyWord())); }
-    @GetMapping("/coupon/info") public R<?> coupon(@RequestParam Long id) { return R.ok(workspace.couponInfo(user(), id)); }
+    @GetMapping("/coupon/info")
+    public R<?> coupon(@RequestParam Long id, @RequestParam(defaultValue = "false") boolean includeApproval) {
+        if (includeApproval) {
+            return R.ok(java.util.Collections.singletonMap("approval", workspace.couponApproval(user(), id)));
+        }
+        return R.ok(workspace.couponInfo(user(), id));
+    }
     @PostMapping("/coupon/save") public R<?> saveCoupon(@RequestBody CouponTemplateEntity input) { return R.ok(workspace.couponSave(user(), input)); }
     @PostMapping("/coupon/delete") public R<?> deleteCoupon(@RequestBody IdsInput p) { return R.ok(workspace.couponDelete(user(), p.ids())); }
     @PostMapping("/coupon/publication") public R<?> publication(@RequestBody PublicationInput p) { return R.ok(workspace.publication(user(), p.id(), p.version(), p.action())); }

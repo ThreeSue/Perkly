@@ -52,7 +52,9 @@ public class WorkspaceInitializer implements ApplicationRunner {
         var activity=page("支付优惠活动","activities","activity:apply","modules/workspace/views/activities.vue",12,"MERCHANT");
         action(activity,"调整本商家活动参与","activity:participate",1);
         action(activity,"配置活动通知负责人","activity:recipients:manage",2);
-        page("门店客服","chats","chat:view","modules/workspace/views/chats.vue",13,"STORE");
+        var chatPage=page("门店客服","chats","chat:view","modules/workspace/views/chats.vue",13,"STORE");
+        action(chatPage,"客服回复与接管","chat:reply",1);
+        action(chatPage,"客服AI与FAQ配置","chat:manage",2);
         materialPermission("素材库查看与选用", "material:view", 14);
         materialPermission("上传与管理素材", "material:manage", 15);
         var all=menus.selectListByQuery(QueryWrapper.create().in(BaseSysMenuEntity::getAccountType,List.of("SHARED","MERCHANT","STORE")));

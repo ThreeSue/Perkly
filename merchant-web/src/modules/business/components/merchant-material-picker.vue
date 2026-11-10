@@ -10,14 +10,18 @@
 				<el-option label="未分类" :value="0" />
 				<el-option v-for="item in categories" :key="item.id" :label="item.name" :value="item.id" />
 			</el-select>
-			<el-input v-model="keyword" placeholder="搜索素材名称" clearable @keyup.enter="search" @clear="search" />
+			<el-input v-model="keyword" aria-label="素材名称" placeholder="搜索素材名称" clearable @keyup.enter="search" @clear="search" />
 			<el-button @click="search">搜索</el-button>
 			<el-button v-if="canManage" :loading="importing" :disabled="loading || importing" @click="importCovers">导入旧封面</el-button>
 		</div>
 		<el-alert v-if="categoryError" :title="categoryError" type="warning" :closable="false" />
 		<el-alert v-if="error" :title="error" type="error" :closable="false" />
 		<div v-loading="loading" class="materials">
-			<el-empty v-if="!loading && !error && !items.length" description="暂无匹配图片" />
+			<el-empty v-if="!loading && !error && !items.length"
+				:description="appliedKeyword || source !== 'ALL' || category !== 'all' ? '没有符合筛选条件的图片' : '素材库还没有图片'"
+			>
+				<el-button v-if="appliedKeyword || source !== 'ALL' || category !== 'all'" @click="resetFilters">清除筛选</el-button>
+			</el-empty>
 			<el-radio-group v-else v-model="selectedId" aria-label="素材图片">
 				<div v-for="item in items" :key="item.id" class="material">
 					<el-image :src="item.url" :alt="item.name" :preview-src-list="[item.url]" preview-teleported fit="cover">
@@ -109,6 +113,13 @@ async function open() {
 function search() {
 	appliedKeyword.value = keyword.value.trim();
 	void load(1);
+}
+
+function resetFilters() {
+	source.value = 'ALL';
+	category.value = 'all';
+	keyword.value = '';
+	search();
 }
 
 async function load(nextPage: number) {

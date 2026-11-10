@@ -1,5 +1,5 @@
 <template>
-	<ManagementShell
+	<ManagementShell register
 		title="支付优惠活动"
 		:description="
 			isPlatform
@@ -7,15 +7,16 @@
 				: '申请本商家授权门店活动，折扣由平台审核设定'
 		"
 	>
-		<el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
 		<div class="management-toolbar">
 			<el-button v-if="canApply" type="primary" @click="open">
 				{{ isPlatform ? '发布活动' : '申请活动' }}</el-button
 			><el-button :loading="busy" @click="load">刷新</el-button>
 			<el-button v-if="canConfigureContacts" @click="contactsVisible = true">通知负责人</el-button>
 		</div>
-		<el-table v-loading="busy" :data="rows" empty-text="暂无活动"
-			><el-table-column prop="title" label="活动名称" min-width="180" /><el-table-column
+		<ManagementState v-if="error" kind="error" title="活动列表加载失败" :description="error" @retry="load" />
+		<el-table v-else v-loading="busy" :data="rows" class="management-table" :height="registerHeight"
+			:empty-text="isPlatform ? '暂无活动' : canApply ? '暂无活动，可点击「申请活动」提交申请' : '暂无适用于当前商家的活动'"
+			><el-table-column label="活动名称" min-width="180" show-overflow-tooltip><template #default="{ row }"><strong class="cell-main">{{ row.title }}</strong></template></el-table-column><el-table-column
 				label="范围"
 				min-width="180"
 				><template #default="{ row }">{{
@@ -25,44 +26,51 @@
 				><template #default="{ row }">{{
                     row.kind === 'STAMP' ? '跨商家集章' : row.discountRate ? row.discountRate + ' 折' : '待运营设定'
 				}}</template></el-table-column
-			><el-table-column label="状态" width="110"
-				><template #default="{ row }">{{
-					statusText[row.status] || row.status
-				}}</template></el-table-column
-			><el-table-column prop="startAt" label="开始" width="175" /><el-table-column
-				prop="endAt"
-				label="结束（不含）"
-				width="175"
-			/><el-table-column label="操作" width="170"
-				><template #default="{ row }"
-					><el-button
-						v-if="isPlatform && row.status === 'PENDING'"
-						link
-						type="primary"
-						@click="review(row)"
-						>审核</el-button
-					><el-button
-						v-if="['PENDING', 'PUBLISHED'].includes(row.status) && (isPlatform || !row.platformActivity)"
-						link
-						type="danger"
-						@click="offline(row)"
-						>下架</el-button
-					><el-button v-if="isPlatform && row.status === 'PUBLISHED'" link @click="configure(row)">启停与时间</el-button>
-					<el-button v-if="!isPlatform && canParticipate && row.status === 'PUBLISHED'" link @click="participationId = row.id">参与设置</el-button>
-					<el-button v-if="isPlatform" link @click="noticeId = row.id">发送与回执</el-button>
-					<el-button link @click="show(row)">详情</el-button></template
-				></el-table-column
-			></el-table
-		>
-		<el-pagination
-			v-model:current-page="page"
-			:page-size="20"
-			:total="total"
-			layout="total, prev, pager, next"
-			@current-change="load"
-		/>
+			><el-table-column label="状态" width="104">
+				<template #default="{ row }">
+					<el-tag :type="row.status === 'PUBLISHED' ? 'success' : row.status === 'PENDING' ? 'warning' : row.status === 'REJECTED' ? 'danger' : 'info'">
+						{{ statusText[row.status] || row.status }}
+					</el-tag>
+				</template>
+			</el-table-column>
+			<el-table-column label="活动时间" min-width="172">
+				<template #default="{ row }">
+					<div>{{ row.startAt || '—' }}</div>
+					<div class="cell-sub">{{ row.endAt || '—' }}（结束不含）</div>
+				</template>
+			</el-table-column>
+			<el-table-column label="操作" width="145" fixed="right" align="right">
+				<template #default="{ row }">
+					<el-button v-if="isPlatform && row.status === 'PENDING'" link type="primary" @click="review(row)">审核</el-button>
+					<el-button v-else link type="primary" @click="show(row)">详情</el-button>
+					<el-dropdown v-if="isPlatform || canManageActivity(row)" trigger="click" class="activity-more">
+						<el-button link>更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+						<template #dropdown>
+							<el-dropdown-menu>
+								<el-dropdown-item v-if="isPlatform && row.status === 'PENDING'" @click="show(row)">查看详情</el-dropdown-item>
+								<el-dropdown-item v-if="isPlatform && row.status === 'PUBLISHED'" @click="configure(row)">启停与时间</el-dropdown-item>
+								<el-dropdown-item v-if="!isPlatform && canParticipate && row.status === 'PUBLISHED'" @click="participationId = row.id">参与设置</el-dropdown-item>
+								<el-dropdown-item v-if="isPlatform" @click="noticeId = row.id">发送与回执</el-dropdown-item>
+								<el-dropdown-item v-if="canTakeOffline(row)" divided class="activity-danger" @click="offline(row)">下架</el-dropdown-item>
+							</el-dropdown-menu>
+						</template>
+					</el-dropdown>
+				</template>
+			</el-table-column>
+		</el-table>
+		<div v-if="!error && total" class="management-pagination">
+			<el-pagination
+				v-model:current-page="page"
+				:page-size="20"
+				:total="total"
+				layout="total, prev, pager, next"
+				@current-change="load"
+			/>
+		</div>
 		<el-drawer
 			v-model="visible"
+			append-to-body
+			class="workspace-editor"
 			:title="isPlatform ? '发布储值支付折扣' : '申请门店活动'"
 			size="min(660px, 100vw)"
 			:close-on-click-modal="false"
@@ -114,13 +122,16 @@
 						:min="0.01"
 						:max="9.99"
 						:precision="2" /></el-form-item
-				><el-button type="primary" :loading="saving" @click="save"
-					>确认{{ isPlatform ? '发布' : '申请' }}</el-button
-				></el-form
-			></el-drawer
+				></el-form>
+			<template #footer>
+				<el-button :disabled="saving" @click="visible = false">取消</el-button>
+				<el-button type="primary" :loading="saving" @click="save">确认{{ isPlatform ? '发布' : '申请' }}</el-button>
+			</template>
+			</el-drawer
 		>
 		<el-drawer
 			v-model="detailVisible"
+			append-to-body
 			title="审批详情与流转记录"
 			size="min(860px, 100vw)"
 			:close-on-press-escape="!saving"
@@ -129,14 +140,12 @@
 		>
 			<template v-if="detail">
 				<header class="activity-heading">
-					<div>
-                    <span>{{ detail.kind === 'STAMP' ? '跨商家消费集章' : '支付优惠活动' }}</span>
-						<h2>{{ detail.title }}</h2>
-					</div>
+					<h2>{{ detail.title }}</h2>
 					<el-tag :type="activityFlow.tagType" size="large">{{ statusText[detail.status] }}</el-tag>
 				</header>
 				<p class="activity-description">{{ detail.description || '暂无说明' }}</p>
 				<el-descriptions :column="1" border>
+					<el-descriptions-item label="活动类型">{{ detail.kind === 'STAMP' ? '跨商家消费集章' : '支付优惠活动' }}</el-descriptions-item>
 					<el-descriptions-item label="参与门店">{{ storeScope(detail) }}</el-descriptions-item>
 					<el-descriptions-item label="活动时间">{{ detail.startAt }} 至 {{ detail.endAt }}（不含）</el-descriptions-item>
                     <el-descriptions-item label="活动规则">{{ detail.kind === 'STAMP' ? '同一商家只计一章，达标发奖励券' : detail.discountRate ? detail.discountRate + ' 折' : '未设定' }}</el-descriptions-item>
@@ -188,17 +197,21 @@
 	</ManagementShell>
 </template>
 <script setup lang="ts">
+import { ArrowDown } from '@element-plus/icons-vue';
 import { computed, ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { isPlatform } from '/@/workspace';
 import { featureApi } from '../feature-api';
 import ApprovalFlow from '../../approval/components/approval-flow.vue';
 import type { FlowNode } from '../../approval/utils/flow';
+import ManagementState from '../components/management-state.vue';
 import ManagementShell from '../components/management-shell.vue';
 import { useBase } from '/$/base';
 import ActivityParticipation from '../components/activity-participation.vue';
 import ActivityContacts from '../components/activity-contacts.vue';
 import ActivityNoticeReceipts from '../components/activity-notice-receipts.vue';
+import { useRegisterHeight } from '../composables/register-height';
+const registerHeight = useRegisterHeight();
 const { menu } = useBase();
 const canApply = computed(() => isPlatform || menu.perms.includes('activity:apply'));
 const canParticipate = computed(() => menu.perms.includes('activity:participate'));
@@ -372,6 +385,12 @@ async function submitReview() {
 		saving.value = false;
 	}
 }
+function canTakeOffline(row: any) {
+	return ['PENDING', 'PUBLISHED'].includes(row.status) && (isPlatform || !row.platformActivity);
+}
+function canManageActivity(row: any) {
+	return canTakeOffline(row) || (canParticipate.value && row.status === 'PUBLISHED');
+}
 async function offline(row: any) {
 	try {
 		await ElMessageBox.confirm(
@@ -419,4 +438,7 @@ onMounted(load);
 	overflow-wrap: anywhere;
 	line-height: 1.8;
 }
+
+.activity-more { margin-inline-start: 8px; vertical-align: middle; }
+.activity-danger { color: var(--el-color-danger); }
 </style>

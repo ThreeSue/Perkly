@@ -19,5 +19,6 @@ import lombok.Setter;
 public class CustomerCouponEntity {
     @Id private Long id;
     private Long customerId;
+    private Long couponTemplateId;
     private String code;
 }

@@ -1,6 +1,6 @@
 <template>
 	<ManagementShell title="AI图片管理" description="管理优惠券封面的生成开关、商家额度及调用记录；费用为按配置单价计算的估算，不是云端实际账单。">
-		<el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
+		<el-alert v-if="error" :title="error" type="error" :closable="false" show-icon><el-button link type="primary" @click="loadTab">重试</el-button></el-alert>
 		<el-tabs v-model="tab" @tab-change="search">
 			<el-tab-pane label="功能设置" name="settings">
 				<el-form v-if="settings" label-position="top" class="settings" :disabled="saving">
@@ -14,7 +14,7 @@
 				</el-form>
 			</el-tab-pane>
 			<el-tab-pane label="商家额度" name="policies">
-				<div class="toolbar"><el-input v-model="keyword" placeholder="搜索商家名称" clearable style="max-width: 260px" /><el-button @click="loadPolicies">刷新</el-button></div>
+				<div class="toolbar"><el-input v-model="keyword" placeholder="搜索商家名称" clearable style="max-width: 260px" /><el-button @click="loadTab">刷新</el-button></div>
 				<el-table v-loading="loading" :data="filteredPolicies">
 					<el-table-column prop="merchantName" label="商家" min-width="200" />
 					<el-table-column label="允许新请求" width="160"><template #default="{ row }"><el-switch v-model="row.enabled" /></template></el-table-column>
@@ -46,9 +46,9 @@
 			<el-tab-pane label="操作审计" name="audit"><el-button :loading="loading" @click="search">刷新</el-button><el-table v-loading="loading" :data="audits"><el-table-column prop="createTime" label="时间" width="175" /><el-table-column prop="actorName" label="操作人" min-width="120" /><el-table-column prop="merchantName" label="商家" min-width="160" /><el-table-column label="操作" width="130"><template #default="{ row }">{{ actionNames[row.action] || row.action }}</template></el-table-column><el-table-column prop="detail" label="内容" show-overflow-tooltip min-width="300" /></el-table></el-tab-pane>
 		</el-tabs>
 		<el-pagination v-if="['tasks', 'usage', 'audit'].includes(tab)" v-model:current-page="page" :page-size="20" :total="total" layout="total, prev, pager, next" @current-change="loadTab" />
-		<el-dialog :model-value="!!detail" title="生成任务详情" width="min(650px, 94vw)" @update:model-value="detail = undefined">
+		<el-drawer :model-value="!!detail" title="生成任务详情" size="min(650px, 100vw)" @update:model-value="detail = undefined">
 			<template v-if="detail"><p>{{ detail.merchantName }} · {{ detail.actorName }} · {{ statusNames[detail.status] }}</p><p>模型：{{ detail.model }} · 请求编号：{{ detail.requestId }}</p><p v-if="detail.parentTaskId">原图完善版本，原图与当前图均独立保留。</p><p class="saved-prompt">{{ detail.prompt }}</p><el-alert v-if="detail.errorMessage" :title="detail.errorMessage" type="warning" :closable="false" /><el-image v-if="detail.url" :src="detail.url" fit="contain" style="width: 100%; max-height: 360px" /></template>
-		</el-dialog>
+		</el-drawer>
 	</ManagementShell>
 </template>
 <script setup lang="ts">
@@ -66,23 +66,39 @@ const actionNames: Record<string, string> = { SETTINGS: '修改全局设置', PO
 const filteredPolicies = computed(() => policies.value.filter(p => p.merchantName.includes(keyword.value.trim())));
 const api = (path: string, data?: unknown) => featureApi('ai/console/' + path, data);
 async function loadPolicies() { policies.value = await api('policies'); }
+let revision = 0;
 async function loadTab() {
-	loading.value = true; error.value = '';
+	const current = ++revision;
+	const view = tab.value;
+	loading.value = true;
+	error.value = '';
 	try {
-		if (tab.value === 'settings') settings.value = await api('settings');
-		else if (tab.value === 'policies') await loadPolicies();
-		else {
+		if (view === 'settings') {
+			const data = await api('settings');
+			if (current === revision) settings.value = data;
+		} else if (view === 'policies') {
+			const data = await api('policies');
+			if (current === revision) policies.value = data;
+		} else {
 			const params = new URLSearchParams({ pageNumber: String(page.value), pageSize: '20' });
-			if (merchantId.value && tab.value !== 'audit') params.set('merchantId', String(merchantId.value));
-			if (tab.value === 'tasks' && status.value) params.set('status', status.value);
-			if (tab.value === 'usage' && range.value?.length === 2) { params.set('startDay', range.value[0]); params.set('endDay', range.value[1]); }
-			const result = await api(`${tab.value}?${params}`); total.value = result.total;
-			if (tab.value === 'tasks') tasks.value = result.list;
-			else if (tab.value === 'usage') usage.value = result.list;
+			if (merchantId.value && view !== 'audit') params.set('merchantId', String(merchantId.value));
+			if (view === 'tasks' && status.value) params.set('status', status.value);
+			if (view === 'usage' && range.value?.length === 2) {
+				params.set('startDay', range.value[0]);
+				params.set('endDay', range.value[1]);
+			}
+			const result = await api(view + '?' + params);
+			if (current !== revision) return;
+			total.value = result.total;
+			if (view === 'tasks') tasks.value = result.list;
+			else if (view === 'usage') usage.value = result.list;
 			else audits.value = result.list;
 		}
-	} catch (cause: any) { error.value = cause?.message || 'AI管理数据加载失败'; }
-	finally { loading.value = false; }
+	} catch (cause: any) {
+		if (current === revision) error.value = cause?.message || 'AI管理数据加载失败';
+	} finally {
+		if (current === revision) loading.value = false;
+	}
 }
 async function search() { page.value = 1; await loadTab(); }
 async function saveSettings() {

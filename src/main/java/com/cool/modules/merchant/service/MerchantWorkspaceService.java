@@ -2,7 +2,11 @@ package com.cool.modules.merchant.service;
 
 import cn.hutool.json.JSONObject;
 import com.cool.core.exception.CoolException;
+import com.cool.modules.approval.entity.resp.ApprovalDetailResp;
+import com.cool.modules.approval.service.ApprovalCenterService;
+import com.cool.modules.coupon.entity.CouponPublicationEntity;
 import com.cool.modules.coupon.entity.CouponTemplateEntity;
+import com.cool.modules.coupon.mapper.CouponPublicationMapper;
 import com.cool.modules.coupon.service.CouponPublicationService;
 import com.cool.modules.coupon.service.CouponTemplateService;
 import com.cool.modules.merchant.entity.MerchantStoreEntity;
@@ -37,6 +41,8 @@ public class MerchantWorkspaceService {
     private final MerchantInfoMapper merchants;
     private final MerchantWorkspaceMapper workspaceMapper;
     private final MerchantMaterialService materials;
+    private final ApprovalCenterService approvalCenter;
+    private final CouponPublicationMapper couponPublicationMapper;
     @org.springframework.beans.factory.annotation.Autowired
     private com.cool.modules.workspace.service.WorkspaceAuthorization authorization;
     @org.springframework.beans.factory.annotation.Autowired
@@ -115,6 +121,18 @@ public class MerchantWorkspaceService {
     }
 
     public Object couponInfo(Long userId, Long id) { own("coupon_template", id, merchant(userId)); couponAccess(userId,id);return coupons.info(id); }
+
+    public ApprovalDetailResp couponApproval(Long userId, Long id) {
+        Long merchantId = merchant(userId);
+        own("coupon_template", id, merchantId);
+        couponAccess(userId, id);
+        var publication = couponPublicationMapper.selectOneByQuery(
+            QueryWrapper.create()
+                .eq(CouponPublicationEntity::getCouponTemplateId, id)
+                .eq(CouponPublicationEntity::getMerchantId, merchantId)
+                .eq(CouponPublicationEntity::getChannel, "PLATFORM"));
+        return publication == null ? null : approvalCenter.info("COUPON", publication.getId());
+    }
 
     public Object couponSave(Long userId, CouponTemplateEntity input) {
         authorization.require(userId, input.getId() == null ? "coupon:create" : "coupon:update");

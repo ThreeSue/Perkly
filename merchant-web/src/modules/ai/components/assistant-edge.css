@@ -1,0 +1,29 @@
+/* Shared coupon/management assistant light band: border only, never intercepts input. */
+@property --assistant-edge-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.assistant-edge { position: relative; isolation: isolate; box-sizing: border-box; }
+.assistant-edge::after {
+  content: ''; position: absolute; inset: 0; z-index: 2; border-radius: inherit;
+  pointer-events: none; padding: 2px;
+  background: conic-gradient(from var(--assistant-edge-angle),
+    transparent 0deg 90deg,
+    color-mix(in srgb, var(--el-color-primary) 35%, transparent) 120deg,
+    var(--el-color-primary) 148deg, #ffffff 164deg, var(--el-color-primary) 174deg,
+    transparent 180deg 270deg,
+    color-mix(in srgb, var(--el-color-primary) 35%, transparent) 300deg,
+    var(--el-color-primary) 328deg, #ffffff 344deg, var(--el-color-primary) 354deg,
+    transparent 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+.assistant-edge.is-visible::after { animation: assistant-edge-orbit 3s linear infinite; }
+[inert] .assistant-edge::after { animation-play-state: paused; }
+@keyframes assistant-edge-orbit { to { --assistant-edge-angle: 360deg; } }
+@media (prefers-reduced-motion: reduce) {
+  .assistant-edge.is-visible::after { animation: none; background: var(--el-color-primary); opacity: .5; }
+}

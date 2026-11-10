@@ -97,4 +97,36 @@ class WorkspaceNoticeIntegrationTest {
         assertEquals(0,notices.selectCountByQuery(QueryWrapper.create().eq(WorkspaceNoticeEntity::getSenderId,admin.getId())));
         mvc.perform(get("/admin/workspace/notices/unread")).andExpect(status().isUnauthorized());
     }
+
+    @Test void strongRemindersRequireIndependentExplicitConfirmation() throws Exception {
+        var admin=account("senderStrong",null);var first=merchant();var second=account("second",first.getMerchantId());
+        String auth=token(admin,"notice:send");
+        String body="{\"requestId\":\"strong_notice_01\",\"title\":\"强提醒\",\"content\":\"请确认\",\"noticeType\":\"STRONG\",\"recipientIds\":["+first.getId()+","+second.getId()+"]}";
+        mvc.perform(post("/admin/workspace/notices/send").header("Authorization",auth).contentType("application/json").content(body)).andExpect(jsonPath("$.code").value(1000));
+        var n=notices.selectOneByQuery(QueryWrapper.create().eq(WorkspaceNoticeEntity::getSenderId,admin.getId()));
+        assertEquals("STRONG",n.getNoticeType());assertEquals(1,service.pending(first.getId(),1,20).total());
+        assertNull(service.detail(first.getId(),n.getId()).confirmedAt());
+        service.read(first.getId(),n.getId());assertEquals(0,service.unread(first.getId()));
+        assertEquals(1,service.pending(first.getId(),1,20).total());
+        var confirmed=service.confirm(first.getId(),n.getId());assertNotNull(confirmed.confirmedAt());assertNotNull(confirmed.readAt());
+        assertEquals(confirmed.confirmedAt(),service.confirm(first.getId(),n.getId()).confirmedAt());
+        assertEquals(0,service.pending(first.getId(),1,20).total());assertEquals(1,service.pending(second.getId(),1,20).total());
+        assertThrows(com.cool.core.exception.CoolException.class,()->service.confirm(admin.getId(),n.getId()));
+        mvc.perform(get("/admin/workspace/notices/pending").header("Authorization",auth)).andExpect(jsonPath("$.data.total").value(0));
+        mvc.perform(post("/admin/workspace/notices/confirm").header("Authorization",auth).contentType("application/json").content("{\"id\":"+n.getId()+"}")).andExpect(jsonPath("$.code").value(404));
+        mvc.perform(post("/admin/workspace/notices/send").header("Authorization",auth).contentType("application/json").content(body.replace("STRONG","LIGHT"))).andExpect(jsonPath("$.code").value(409));
+        mvc.perform(post("/admin/workspace/notices/send").header("Authorization",auth).contentType("application/json").content(body.replace("STRONG","INVALID"))).andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test void legacyNotificationsRemainLightAndPendingIsOldestFirst() {
+        var target=merchant();
+        for(int i=0;i<3;i++) {
+            var n=new WorkspaceNoticeEntity();n.setSenderId(0L);n.setRequestId(prefix+i);n.setTitle("通知"+i);n.setContent("内容");
+            if(i>0)n.setNoticeType("STRONG");notices.insert(n);
+            var r=new WorkspaceNoticeRecipientEntity();r.setNoticeId(n.getId());r.setRecipientId(target.getId());recipients.insert(r);
+            if(i==0){assertEquals("LIGHT",service.detail(target.getId(),n.getId()).noticeType());assertThrows(com.cool.core.exception.CoolException.class,()->service.confirm(target.getId(),n.getId()));}
+        }
+        var pending=service.pending(target.getId(),1,1);assertEquals(2,pending.total());assertEquals("通知1",pending.list().get(0).title());
+        assertEquals("通知2",service.pending(target.getId(),2,1).list().get(0).title());
+    }
 }

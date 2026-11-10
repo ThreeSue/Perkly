@@ -1,4 +1,5 @@
 <template>
+	<CatalogWorkbench title="商家分类" description="维护分类层级、前台展示和排序，按分类查看商家。">
 	<cl-crud ref="Crud">
 		<cl-row>
 			<!-- 刷新按钮 -->
@@ -26,9 +27,11 @@
 			</template>
 		</cl-upsert>
 	</cl-crud>
+	</CatalogWorkbench>
 </template>
 
 <script lang="ts" setup>
+import CatalogWorkbench from '/@/modules/workspace/components/catalog-workbench.vue';
 defineOptions({
 	name: "merchant-category",
 });
