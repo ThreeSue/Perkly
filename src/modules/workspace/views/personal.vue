@@ -1,87 +1,150 @@
 <template>
-	<div class="personal">
-		<h2>个人中心</h2>
-		<el-descriptions :column="1" border
-			><el-descriptions-item label="姓名">{{ me.name }}</el-descriptions-item
-			><el-descriptions-item label="登录账号">{{ me.username }}</el-descriptions-item
-			><el-descriptions-item label="商家">{{ me.merchantName }}</el-descriptions-item
-			><el-descriptions-item label="门店">{{
-				me.storeName || '按授权范围查看'
-			}}</el-descriptions-item
-			><el-descriptions-item label="岗位">{{
-				me.roleName
-			}}</el-descriptions-item></el-descriptions
-		>
-		<h3>个人资料</h3>
-		<el-form label-position="top"
-			><el-form-item label="姓名"><el-input v-model="name" maxlength="50" /></el-form-item
-			><el-button :loading="busy" @click="saveName">保存姓名</el-button></el-form
-		>
-		<h3>修改登录密码</h3>
-		<el-form label-position="top"
-			><el-form-item label="当前密码"
-				><el-input
-					v-model="oldPassword"
-					type="password"
-					show-password
-					autocomplete="current-password" /></el-form-item
-			><el-form-item label="新密码"
-				><el-input
-					v-model="newPassword"
-					type="password"
-					show-password
-					maxlength="64"
-					autocomplete="new-password" /></el-form-item
-			><el-form-item label="再次输入新密码"
-				><el-input
-					v-model="repeat"
-					type="password"
-					show-password
-					maxlength="64"
-					autocomplete="new-password" /></el-form-item
-			><el-button type="primary" :loading="busy" @click="save"
-				>保存并重新登录</el-button
-			></el-form
-		>
-	</div>
+	<PersonalWorkbench :name="me?.name" :fields="fields">
+		<section v-loading="loading" class="workbench-panel personal-section" :aria-busy="loading">
+			<ManagementState
+				v-if="error"
+				kind="error"
+				title="个人资料加载失败"
+				:description="error"
+				@retry="load"
+			/>
+			<template v-else>
+				<h2>个人资料</h2>
+				<el-form
+					label-position="top"
+					:disabled="loading || Boolean(busy)"
+					@submit.prevent="saveName"
+				>
+					<el-form-item label="姓名">
+						<el-input v-model="name" maxlength="50" autocomplete="name" />
+					</el-form-item>
+					<el-button
+						type="primary"
+						native-type="submit"
+						:loading="busy === 'profile'"
+						:disabled="!canSaveName"
+						>保存姓名</el-button
+					>
+				</el-form>
+			</template>
+		</section>
+		<section class="workbench-panel personal-section">
+			<h2>修改登录密码</h2>
+			<p>保存新密码后需要重新登录。</p>
+			<el-form label-position="top" :disabled="Boolean(busy)" @submit.prevent="savePassword">
+				<el-form-item label="当前密码">
+					<el-input
+						v-model="oldPassword"
+						type="password"
+						show-password
+						autocomplete="current-password"
+					/>
+				</el-form-item>
+				<el-form-item label="新密码">
+					<el-input
+						v-model="newPassword"
+						type="password"
+						show-password
+						maxlength="64"
+						autocomplete="new-password"
+					/>
+				</el-form-item>
+				<el-form-item label="再次输入新密码" :error="passwordError">
+					<el-input
+						v-model="repeat"
+						type="password"
+						show-password
+						maxlength="64"
+						autocomplete="new-password"
+					/>
+				</el-form-item>
+				<el-button
+					type="primary"
+					native-type="submit"
+					:loading="busy === 'password'"
+					:disabled="!canSavePassword"
+				>
+					保存并重新登录
+				</el-button>
+			</el-form>
+		</section>
+	</PersonalWorkbench>
 </template>
+
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { workspaceApi } from '../api';
-import { merchantRequest } from '/@/merchant-api';
 import { useBase } from '/$/base';
+import { merchantRequest } from '/@/merchant-api';
+import { workspaceApi } from '../api';
+import PersonalWorkbench from '../components/personal-workbench.vue';
+import ManagementState from '../components/management-state.vue';
+
+interface AccountProfile {
+	name: string;
+	username: string;
+	merchantName?: string;
+	storeName?: string;
+	roleName?: string;
+}
 const { user } = useBase();
+const me = ref<AccountProfile>();
 const name = ref('');
-async function saveName() {
-	busy.value = true;
+const oldPassword = ref('');
+const newPassword = ref('');
+const repeat = ref('');
+const loading = ref(false);
+const error = ref('');
+const busy = ref<'' | 'profile' | 'password'>('');
+const fields = computed(() =>
+	me.value
+		? [
+				{ label: '登录账号', value: me.value.username },
+				{ label: '商家', value: me.value.merchantName },
+				{ label: '门店', value: me.value.storeName || '按授权范围查看' },
+				{ label: '岗位', value: me.value.roleName }
+			]
+		: []
+);
+const canSaveName = computed(() =>
+	Boolean(me.value && name.value.trim() && name.value.trim() !== me.value.name)
+);
+const passwordError = computed(() =>
+	repeat.value && repeat.value !== newPassword.value ? '两次新密码不一致' : ''
+);
+const canSavePassword = computed(() =>
+	Boolean(oldPassword.value && newPassword.value && repeat.value && !passwordError.value)
+);
+
+async function load() {
+	loading.value = true;
+	error.value = '';
 	try {
-		await workspaceApi('personal', { name: name.value });
-		await user.get();
 		me.value = await workspaceApi('me');
-		ElMessage.success('姓名已保存');
-	} catch (e: any) {
-		ElMessage.error(e.message);
+		name.value = me.value?.name || '';
+	} catch (err: any) {
+		error.value = err?.message || '请稍后重试';
 	} finally {
-		busy.value = false;
+		loading.value = false;
 	}
 }
-const me = ref<any>({}),
-	oldPassword = ref(''),
-	newPassword = ref(''),
-	repeat = ref(''),
-	busy = ref(false);
-onMounted(async () => {
+async function saveName() {
+	if (busy.value || !canSaveName.value) return;
+	busy.value = 'profile';
 	try {
-		me.value = await workspaceApi('me');
-		name.value = me.value.name;
-	} catch (e: any) {
-		ElMessage.error(e.message);
+		await workspaceApi('personal', { name: name.value.trim() });
+		await load();
+		ElMessage.success('姓名已保存');
+		void user.get().catch(() => undefined);
+	} catch (err: any) {
+		ElMessage.error(err?.message || '保存失败，请重试');
+	} finally {
+		busy.value = '';
 	}
-});
-async function save() {
-	if (newPassword.value !== repeat.value) return ElMessage.error('两次新密码不一致');
-	busy.value = true;
+}
+async function savePassword() {
+	if (busy.value || !canSavePassword.value) return;
+	busy.value = 'password';
 	try {
 		await merchantRequest('auth/changePassword', {
 			oldPassword: oldPassword.value,
@@ -89,22 +152,11 @@ async function save() {
 		});
 		ElMessage.success('密码已修改，请重新登录');
 		await user.logout();
-	} catch (e: any) {
-		ElMessage.error(e.message);
+	} catch (err: any) {
+		ElMessage.error(err?.message || '修改失败，请重试');
 	} finally {
-		busy.value = false;
+		busy.value = '';
 	}
 }
+onMounted(load);
 </script>
-<style scoped>
-.personal {
-	padding: 24px;
-	max-width: 760px;
-	box-sizing: border-box;
-	height: 100%;
-	overflow: auto;
-}
-h3 {
-	margin: 28px 0;
-}
-</style>

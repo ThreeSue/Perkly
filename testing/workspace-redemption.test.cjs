@@ -9,7 +9,7 @@ const script = parse(fs.readFileSync('src/modules/workspace/views/redemption.vue
 const code = ts.transpileModule(script, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 function harness(request) {
   const values = new Map();
-  const context = vm.createContext({ ref, onMounted() {}, merchantRequest: request, workspaceApi: async () => ({}), identity: 'STORE', storage: { set: (k, v) => values.set(k, v), get: k => values.get(k), remove: k => values.delete(k) }, ElMessage: { success() {} }, ElMessageBox: { confirm: async () => {} }, crypto: require('node:crypto') });
+  const context = vm.createContext({ ref, onMounted() {}, useRouter: () => ({ push: async () => {} }), merchantRequest: request, workspaceApi: async () => ({}), identity: 'STORE', storage: { set: (k, v) => values.set(k, v), get: k => values.get(k), remove: k => values.delete(k) }, ElMessage: { success() {} }, ElMessageBox: { confirm: async () => {} }, crypto: require('node:crypto') });
   vm.runInContext(code + '\nglobalThis.state={code,storeId,inspection,order,amount,remark,uncertain,requestId,error};', context);
   context.state.inspection.value = { requiresConsumptionAmount: true };
   context.state.code.value = 'coupon';context.state.storeId.value = 1;context.state.amount.value = '100.00';context.state.requestId.value = 'same-request';

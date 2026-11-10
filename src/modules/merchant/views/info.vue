@@ -1,51 +1,34 @@
 <template>
-	<ManagementShell
-		title="商家信息"
-		eyebrow="商家经营管理"
-		description="集中查看商家资料，快速进入门店、账号和授权管理"
-		scope-name="平台商家"
-		:metrics="metrics"
-	>
-		<cl-crud ref="Crud">
-			<cl-row>
-				<!-- 刷新按钮 -->
+	<cl-crud ref="Crud" padding="0" class="merchant-directory-crud">
+		<WorkbenchLayout title="商家信息" context="查找平台商家，查看资料与门店，并进入账号管理。" class="merchant-directory">
+			<template #actions><cl-add-btn class="merchant-add">新增商家</cl-add-btn></template>
+			<template #metrics>
+				<button
+					v-for="item in metrics"
+					:key="item.status"
+					type="button"
+					class="workbench-banner-metric merchant-stat"
+					:aria-pressed="quickStatus === item.status"
+					@click="chooseStatus(item.status)"
+				><span>{{ item.label }}</span><strong>{{ item.value ?? '—' }}</strong></button>
+			</template>
+			<form class="merchant-filters" aria-label="筛选商家" @submit.prevent="applyFilters">
+				<el-input v-model="keyword" :prefix-icon="SearchIcon" maxlength="100" clearable placeholder="商家名称 / 联系电话" aria-label="商家名称或联系电话" />
+				<el-cascader
+					v-model="filterCategory"
+					:options="searchCategoryOptions"
+					:props="{ emitPath: false, checkStrictly: true }"
+					filterable clearable
+					placeholder="全部商家分类"
+					aria-label="商家分类"
+				/>
+				<el-button type="primary" native-type="submit">搜索</el-button>
+				<el-button @click="clearFilters">重置</el-button>
+				<span class="merchant-toolbar-spacer" />
+				<span v-if="summaryError" class="merchant-summary-error" role="status">{{ summaryError }}</span>
 				<cl-refresh-btn />
-				<!-- 新增按钮 -->
-				<cl-add-btn />
-
-				<cl-flex1 />
-			</cl-row>
-			<cl-row
-				><div class="management-toolbar">
-					<span class="filter-label">经营状态</span
-					><el-radio-group v-model="quickStatus" @change="chooseStatus"
-						><el-radio-button value="ALL">全部</el-radio-button
-						><el-radio-button :value="1">启用</el-radio-button
-						><el-radio-button :value="0">停用</el-radio-button></el-radio-group
-					>
-					<p class="management-caption">
-						顶部统计为全平台商家；入驻申请在“审核管理”处理。{{ summaryError }}
-					</p>
-				</div></cl-row
-			>
-			<cl-row>
-				<cl-search ref="Search" reset-btn>
-					<template #slot-search-category="{ scope }">
-						<el-cascader
-							v-model="scope.categoryId"
-							:options="searchCategoryOptions"
-							:props="{ emitPath: false, checkStrictly: true }"
-							filterable
-							clearable
-							placeholder="全部商家分类"
-							style="width: 240px"
-						/>
-					</template>
-				</cl-search>
-			</cl-row>
-
-			<cl-row>
-				<!-- 数据表格 -->
+			</form>
+			<div class="merchant-results">
 				<cl-table ref="Table">
 					<template #column-actions="{ scope }"
 						><div class="merchant-row-actions">
@@ -72,10 +55,17 @@
 					<template #column-name="{ scope }"
 						><div class="merchant-cell">
 							<el-avatar shape="square" :src="scope.row.logo" :size="38">{{
-								scope.row.name?.slice(0, 1)
+								Array.from(scope.row.name || '商')[0]
 							}}</el-avatar>
 							<div style="min-width: 0">
-								<div class="cell-main">{{ scope.row.name }}</div>
+								<button
+									v-if="service.merchant.info._permission.info"
+									type="button"
+									class="merchant-name workbench-link"
+									:title="scope.row.name"
+									@click="Detail?.open(scope.row.id)"
+								>{{ scope.row.name }}</button>
+								<strong v-else class="merchant-name" :title="scope.row.name">{{ scope.row.name }}</strong>
 								<div class="cell-sub">{{ categoryName(scope.row.categoryId) }}</div>
 							</div>
 						</div></template
@@ -88,30 +78,22 @@
 					>
 					<template #column-storeCount="{ scope }"
 						><el-button
+							v-if="service.merchant.info._permission.info && service.merchant.store._permission.page"
 							link
 							type="primary"
 							@click="Detail?.open(scope.row.id, 'stores')"
-							>{{ scope.row.storeCount ?? '—' }} 家门店</el-button
-						></template
+							>{{ scope.row.storeCount ?? '—' }} 家门店</el-button>
+						<span v-else>{{ scope.row.storeCount ?? '—' }} 家门店</span></template
 					>
 					<template #column-status="{ scope }"
 						><el-tag :type="scope.row.status === 1 ? 'success' : 'info'">{{
 							scope.row.status === 1 ? '启用' : '停用'
 						}}</el-tag></template
 					>
-					<template #column-categoryId="{ scope }">
-						{{ categoryName(scope.row.categoryId) }}
-					</template>
+
 				</cl-table>
-			</cl-row>
-
-			<cl-row>
-				<cl-flex1 />
-				<!-- 分页控件 -->
-				<cl-pagination />
-			</cl-row>
-
-			<!-- 新增、编辑 -->
+			</div>
+			<div class="merchant-pagination"><cl-pagination /></div>
 			<cl-upsert ref="Upsert">
 				<template #slot-category="{ scope }">
 					<el-cascader
@@ -125,7 +107,6 @@
 					/>
 				</template>
 			</cl-upsert>
-		</cl-crud>
 		<MerchantDetail
 			ref="Detail"
 			:category-name="categoryName"
@@ -137,7 +118,9 @@
 				}
 			"
 		/>
-	</ManagementShell>
+
+		</WorkbenchLayout>
+	</cl-crud>
 </template>
 
 <script lang="ts" setup>
@@ -145,11 +128,12 @@ defineOptions({
 	name: 'merchant-info'
 });
 
-import { useCrud, useTable, useUpsert, useSearch } from '@cool-vue/crud';
+import { useCrud, useTable, useUpsert } from '@cool-vue/crud';
 import { useCool } from '/@/cool';
 import { useI18n } from 'vue-i18n';
 import { computed, ref, watch } from 'vue';
-import ManagementShell from '/$/workspace/components/management-shell.vue';
+import { Search as SearchIcon } from '@element-plus/icons-vue';
+import WorkbenchLayout from '/$/workspace/components/workbench-layout.vue';
 import { useBase } from '/$/base';
 import { useRequestRevision } from '/$/workspace/composables/management-state';
 import { phoneRule } from '../components/validation';
@@ -165,14 +149,18 @@ const canAccounts = computed(
 const { t } = useI18n();
 const pagePath = route.path;
 let ready = false;
-const quickStatus = ref<string | number>('ALL'),
+type Status = 'ALL' | 0 | 1;
+const quickStatus = ref<Status>('ALL'),
+	keyword = ref(''),
+	filterCategory = ref<number>(),
+
 	summaryRows = ref<any[] | null>(null),
 	summaryError = ref(''),
 	summaryRevision = useRequestRevision();
 const metrics = computed(() => [
-	{ label: '商家总数', value: summaryRows.value?.length },
-	{ label: '启用', value: summaryRows.value?.filter(m => m.status === 1).length },
-	{ label: '停用', value: summaryRows.value?.filter(m => m.status === 0).length }
+	{ status: 'ALL' as const, label: '商家总数', value: summaryRows.value?.length },
+	{ status: 1 as const, label: '启用', value: summaryRows.value?.filter(m => m.status === 1).length },
+	{ status: 0 as const, label: '停用', value: summaryRows.value?.filter(m => m.status === 0).length }
 ]);
 async function loadSummary() {
 	const revision = summaryRevision.next();
@@ -187,12 +175,22 @@ async function loadSummary() {
 		}
 	}
 }
-function chooseStatus() {
-	Search.value?.setForm('status', quickStatus.value === 'ALL' ? undefined : quickStatus.value);
+function chooseStatus(status: Status) {
+	quickStatus.value = status;
+	applyFilters();
+}
+function applyFilters() {
 	Crud.value?.refresh({
 		page: 1,
+		keyWord: keyword.value.trim() || null,
+		categoryId: categoryFilter(filterCategory.value),
 		status: quickStatus.value === 'ALL' ? null : quickStatus.value
 	});
+}
+function clearFilters() {
+	keyword.value = '';
+	filterCategory.value = undefined;
+	chooseStatus('ALL');
 }
 
 interface Category {
@@ -370,11 +368,13 @@ const Upsert = useUpsert({
 
 // cl-table
 const Table = useTable({
+	height: '100%',
+	emptyText: '没有匹配的商家，请调整筛选条件。',
 	props: { showOverflowTooltip: true },
 	columns: [
-		{ label: t('商家'), prop: 'name', minWidth: 220 },
+		{ label: t('商家'), prop: 'name', minWidth: 250, align: 'left', showOverflowTooltip: false },
 
-		{ label: t('联系信息'), prop: 'contactName', minWidth: 170 },
+		{ label: t('联系信息'), prop: 'contactName', minWidth: 165, align: 'left' },
 
 		{
 			label: t('门店数'),
@@ -395,46 +395,8 @@ const Table = useTable({
 			sortable: 'desc',
 			component: { name: 'cl-date-text' }
 		},
-		{ label: '操作', prop: 'actions', width: 185, fixed: 'right' }
+		{ label: '操作', prop: 'actions', width: 125, fixed: 'right', align: 'right' }
 	]
-});
-
-// cl-search
-const Search = useSearch({
-	items: [
-		{
-			label: '名称 / 电话',
-			prop: 'keyWord',
-			component: {
-				name: 'el-input',
-				props: { clearable: true, placeholder: '商家名称 / 联系电话', maxlength: 100 },
-				style: { width: '180px' }
-			}
-		},
-		{ label: t('商家分类'), prop: 'categoryId', component: { name: 'slot-search-category' } },
-		{
-			label: t('状态'),
-			hidden: true,
-			prop: 'status',
-			component: {
-				name: 'el-select',
-				props: { clearable: true, placeholder: '全部状态' },
-				options: [
-					{ label: t('启用'), value: 1 },
-					{ label: t('停用'), value: 0 }
-				],
-				style: { width: '140px' }
-			}
-		}
-	],
-	onSearch(data, { next }) {
-		quickStatus.value = data.status ?? 'ALL';
-		next({
-			keyWord: data.keyWord?.trim() || null,
-			categoryId: categoryFilter(data.categoryId),
-			status: data.status ?? null
-		});
-	}
 });
 
 // Cached menu pages must also receive a newly selected category on re-entry.
@@ -446,11 +408,10 @@ function applyCategoryLink() {
 		ElMessage.warning('该商家分类不存在或已被删除，请重新选择分类');
 		return false;
 	}
-	Search.value?.setForm('keyWord', undefined);
+	keyword.value = '';
 	quickStatus.value = 'ALL';
-	Search.value?.setForm('status', undefined);
-	Search.value?.setForm('categoryId', id);
-	Crud.value?.refresh({ page: 1, keyWord: null, status: null, categoryId: categoryFilter(id) });
+	filterCategory.value = id;
+	applyFilters();
 	return true;
 }
 watch(
@@ -491,23 +452,68 @@ const Crud = useCrud(
 </script>
 
 <style scoped>
-.merchant-row-actions {
+.merchant-directory-crud { background: transparent; }
+.merchant-directory {
 	display: flex;
+	flex-direction: column;
+	min-height: 0;
 	gap: 12px;
-	align-items: center;
-	justify-content: center;
 }
-.merchant-row-actions .el-button {
-	margin: 0;
+.merchant-directory :deep(.workbench-banner) { flex: none; }
+.merchant-stat {
+	border: 0;
+	border-inline-end: 1px solid #ffffff29;
+	background: transparent;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
 }
-.merchant-cell {
-	display: flex;
-	gap: 12px;
-	align-items: center;
+.merchant-stat:hover { background: #ffffff13; }
+.merchant-stat[aria-pressed="true"] { background: #ffffff13; box-shadow: inset 0 -3px #ffcf55; }
+.merchant-stat:focus-visible { outline: 2px solid white; outline-offset: -4px; }
+.merchant-directory :deep(.merchant-add) {
+	--el-button-bg-color: #ffcf55;
+	--el-button-border-color: #ffcf55;
+	--el-button-text-color: #19223a;
+	--el-button-hover-bg-color: #ffe08f;
+	--el-button-hover-border-color: #ffe08f;
+	--el-button-hover-text-color: #19223a;
+	font-weight: 700;
 }
-.merchant-cell .el-avatar {
-	background: var(--el-color-primary-light-9);
-	color: var(--el-color-primary);
-	flex: none;
+.merchant-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.merchant-filters .el-input { width: min(260px, 100%); }
+.merchant-filters .el-cascader { width: min(205px, 100%); }
+.merchant-filters .el-button { margin: 0; }
+.merchant-toolbar-spacer { flex: 1; }
+.merchant-summary-error { color: var(--el-text-color-regular); font-size: 12px; }
+.merchant-results { flex: 1 1 0; min-height: 175px; overflow: hidden; border-radius: 7px; }
+.merchant-results :deep(.cl-table) { height: 100%; }
+.merchant-results :deep(.el-table) { --el-table-header-bg-color: var(--workspace-neutral); --el-table-row-hover-bg-color: var(--workspace-selected); }
+.merchant-pagination { display: flex; justify-content: flex-end; }
+.merchant-pagination :deep(.el-pagination) { flex-wrap: wrap; row-gap: 6px; }
+.merchant-row-actions { display: flex; gap: 9px; align-items: center; justify-content: flex-end; }
+.merchant-row-actions .el-button { margin: 0; }
+.merchant-cell { display: flex; gap: 11px; align-items: center; }
+.merchant-cell .el-avatar { background: var(--workspace-selected); color: var(--workspace-accent-text); flex: none; }
+.merchant-name {
+	display: block;
+	max-width: 100%;
+	overflow: hidden;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	text-align: start;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--workspace-ink);
+	font: inherit;
+	font-weight: 700;
+}
+button.merchant-name { cursor: pointer; }
+button.merchant-name:hover { color: var(--workspace-accent-text); text-decoration: underline; text-underline-offset: 3px; }
+.merchant-cell .cell-sub { margin-top: 3px; }
+@media (max-width: 590px) {
+	.merchant-toolbar-spacer { display: none; }
+	.merchant-results { flex-basis: 330px; }
 }
 </style>

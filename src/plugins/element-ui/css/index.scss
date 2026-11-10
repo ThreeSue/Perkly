@@ -16,6 +16,159 @@ $border-radius: () !default;
 
 @use 'element-plus/theme-chalk/src/index.scss' as *;
 
+// Root scope also reaches teleported dialogs, dropdowns and notifications.
+:root[data-workspace] {
+	--workspace-rail: #18233c;
+	--workspace-ink: #202d45;
+	--workspace-neutral: #f3f5f8;
+	--workspace-table-band: color-mix(in srgb, var(--workspace-accent), var(--workspace-rail) 76%);
+	--workspace-selected: var(--workspace-selection);
+	--workspace-accent-soft: var(--workspace-selected);
+	--workspace-accent-text: var(--workspace-accent);
+	--workspace-control-radius: 6px;
+	--workspace-overlay-radius: 12px;
+	--workspace-table-cell-padding: 7px;
+	--el-color-primary: var(--workspace-accent);
+	--el-color-success: #267044;
+	--el-color-warning: #975A0B;
+	--el-color-danger: #B5343B;
+	--el-color-error: var(--el-color-danger);
+
+	&.dark {
+		--workspace-ink: #e0e8f4;
+		--workspace-neutral: #232936;
+		--workspace-selected: color-mix(in srgb, var(--workspace-accent) 26%, var(--el-bg-color));
+		--workspace-accent-text: color-mix(in srgb, var(--workspace-accent) 45%, white);
+		--el-color-success: #79D599;
+		--el-color-warning: #F1BD63;
+		--el-color-danger: #FF9292;
+	}
+
+	@each $tone in primary, success, warning, danger, error {
+		@each $level in 3, 5, 7, 8, 9 {
+			--el-color-#{$tone}-light-#{$level}: color-mix(in srgb, var(--el-color-#{$tone}), var(--el-bg-color) #{$level * 10%});
+		}
+		--el-color-#{$tone}-dark-2: color-mix(in srgb, var(--el-color-#{$tone}), var(--el-text-color-primary) 20%);
+	}
+	--el-color-primary-light-9: var(--workspace-selected);
+
+	.app-layout {
+		--bg-color: var(--workspace-canvas);
+	}
+
+	&.dark .app-layout {
+		--bg-color: var(--el-bg-color-page);
+	}
+
+	:where(.el-button, .el-input__wrapper, .el-select__wrapper, .el-popper) {
+		--el-border-radius-base: var(--workspace-control-radius);
+	}
+
+	&.dark :is(.el-button--primary.is-link, .el-button--primary.is-text, .el-button--primary.is-plain, .el-link--primary) {
+		--el-button-text-color: var(--workspace-accent-text);
+		--el-button-hover-text-color: var(--el-text-color-primary);
+		--el-link-text-color: var(--workspace-accent-text);
+		--el-link-hover-text-color: var(--el-text-color-primary);
+	}
+
+	.el-button--primary:not(.is-plain, .is-link, .is-text) {
+		--el-button-hover-bg-color: color-mix(in srgb, var(--workspace-accent), black 14%);
+		--el-button-hover-border-color: var(--el-button-hover-bg-color);
+	}
+
+	:where(.el-button, button.cl-comm__icon, .el-dialog__headerbtn, .el-drawer__close-btn, .el-dropdown-menu__item, .el-menu-item):focus-visible {
+		outline: 2px solid var(--workspace-accent-text);
+		outline-offset: -2px;
+	}
+
+	:where(.management-table, .cl-table) .el-table {
+		--el-table-header-text-color: var(--workspace-ink);
+		--el-table-header-bg-color: var(--workspace-neutral);
+		font-variant-numeric: tabular-nums;
+	}
+
+	:where(.management-table, .cl-table) .el-table__cell {
+		padding-block: var(--workspace-table-cell-padding);
+	}
+
+	.el-dialog {
+		border-radius: var(--workspace-overlay-radius);
+	}
+
+	:where(.el-dialog, .el-drawer, .el-message-box) {
+		overflow-wrap: anywhere;
+	}
+
+	.el-drawer__header {
+		margin-bottom: 0;
+		padding-bottom: 14px;
+		border-bottom: 1px solid var(--el-border-color-lighter);
+		background: var(--workspace-neutral);
+	}
+
+	.el-drawer__title {
+		color: var(--el-text-color-primary);
+		font-weight: 650;
+	}
+
+	.el-drawer__footer {
+		border-top: 1px solid var(--el-border-color-lighter);
+	}
+
+	.workspace-editor .el-drawer__body {
+		padding-block: 16px 24px;
+		overscroll-behavior: contain;
+	}
+
+	.workspace-editor-section {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0 16px;
+		margin-bottom: 16px;
+	}
+
+	.workspace-section-heading {
+		grid-column: 1 / -1;
+		margin: 0 0 14px;
+		padding-block: 8px;
+		border-bottom: 1px solid var(--el-border-color-lighter);
+		color: var(--workspace-ink);
+		font-size: 16px;
+		font-weight: 650;
+	}
+
+	.workspace-editor-section > :where(.el-alert, .el-collapse, .management-summary),
+	.workspace-editor-section.is-permissions > * {
+		grid-column: 1 / -1;
+	}
+
+	.workspace-editor-form :where(.el-select, .el-input) {
+		width: 100%;
+	}
+
+	@media (max-width: 560px) {
+		.workspace-editor-section {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+
+	.el-message-box__btns {
+		flex-wrap: wrap;
+		row-gap: 8px;
+	}
+
+	@media (max-width: 768px) {
+		.management-pagination .el-pagination {
+			flex-wrap: wrap;
+			row-gap: 6px;
+		}
+
+		.management-toolbar .el-select {
+			min-width: min(140px, 100%);
+		}
+	}
+}
+
 // Element-plus
 .el-input-number {
 	&__decrease,
@@ -44,7 +197,7 @@ $border-radius: () !default;
 }
 
 .el-message-box {
-	border-radius: 12px;
+	border-radius: var(--workspace-overlay-radius, 12px);
 	padding: 20px;
 
 	&__header {

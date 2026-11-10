@@ -1,31 +1,26 @@
 <template>
-	<div style="height: 100%">
-		<cl-crud ref="Crud">
-			<cl-row v-if="kind !== 'store'"
-				><el-alert
-					:title="
-						kind === 'coupon'
-							? '启用模板后，还需提交审核、审核通过并上架，用户端才会展示该优惠券。'
-							: '此处为模拟购券订单，仅支持查询，不代表实际收款或结算。'
-					"
-					type="info"
-					:closable="false"
-					show-icon
-			/></cl-row>
-			<cl-row
+	<AssistantLayout :open="kind === 'coupon' && assistantOpen" :coupon-id="assistantCoupon" :selected-ids="assistantSelection" @close="assistantOpen = false" @saved="Crud?.refresh()" @edit="(coupon, step) => { prepareCouponStep(step); Crud?.rowEdit(coupon); }">
+	<div style="height: 100%" :class="{ 'coupon-workspace': kind === 'coupon', 'business-stores': kind === 'store' }">
+		<cl-crud ref="Crud" :padding="kind === 'store' ? '0' : undefined">
+			<StoreDirectoryHeader v-if="kind === 'store'" :scope-label="identity === 'STORE' ? '当前门店' : '当前商家'" :scope-name="storeScopeName">
+				<template v-if="can('store:edit') && owner" #actions>
+					<cl-add-btn class="store-create">新增门店</cl-add-btn>
+				</template>
+			</StoreDirectoryHeader>
+			<cl-row class="business-actions"
 				><cl-refresh-btn /><cl-add-btn
 					v-if="
-						kind !== 'order' &&
-						can(kind === 'store' ? 'store:edit' : 'coupon:create') &&
-						(kind !== 'store' || owner)
+						kind === 'coupon' && can('coupon:create')
 					" /><cl-multi-delete-btn
 					v-if="
-						kind !== 'order' && can(kind === 'store' ? 'store:delete' : 'coupon:delete')
-					" /><cl-flex1
-			/></cl-row>
-			<cl-row v-if="kind !== 'order'"><cl-search ref="Search" reset-btn /></cl-row>
-			<cl-row>
-				<cl-table ref="Table">
+						can(kind === 'store' ? 'store:delete' : 'coupon:delete')
+					" /><cl-flex1 />
+				<cl-search v-if="kind === 'coupon'" ref="Search" class="coupon-toolbar-search" reset-btn />
+				<cl-search v-if="kind === 'store'" ref="Search" class="store-toolbar-search" reset-btn />
+				<AssistantEntry v-if="kind === 'coupon'" :active="assistantOpen" @click="assistantOpen = !assistantOpen" />
+			</cl-row>
+			<cl-row class="business-table">
+				<cl-table ref="Table" @selection-change="setAssistantSelection">
 					<template #column-cover="{ scope }">
 						<CouponCover
 							v-if="kind === 'coupon'"
@@ -45,22 +40,105 @@
 							><template #error><CoverPlaceholder /></template></el-image
 						><CoverPlaceholder v-else />
 					</template>
-					<template #column-type="{ scope }"
-						><el-tag
-							class="coupon-type-tag"
-							effect="dark"
-							:color="typeColors[scope.row.type] || '#64748b'"
-							>{{ typeNames[scope.row.type] || '未知类型' }}</el-tag
-						></template
-					>
+					<template #column-name="{ scope }">
+						<div v-if="kind === 'coupon'" class="coupon-identity">
+							<CouponCover :src="scope.row.cover" :name="scope.row.name"
+								:badge="coverBadge(scope.row)" :type-name="typeNames[scope.row.type]" />
+							<div>
+								<strong>{{ scope.row.name }}</strong>
+								<div class="coupon-labels">
+									<small :data-coupon-type="scope.row.type">{{ typeNames[scope.row.type] || '优惠券' }}</small>
+									<small v-if="scope.row.status === 0 || scope.row.status === 2" class="coupon-label-muted">
+										{{ scope.row.status === 0 ? '草稿' : '停用' }}
+									</small>
+								</div>
+							</div>
+						</div>
+						<div v-else class="store-identity">
+							<el-image v-if="scope.row.cover" :src="scope.row.cover" :preview-src-list="[scope.row.cover]" preview-teleported fit="cover" class="store-cover">
+								<template #error><CoverPlaceholder /></template>
+							</el-image>
+							<div>
+								<strong>{{ scope.row.name }}</strong>
+								<small :title="scope.row.address">{{ scope.row.categoryName || '门店' }} · {{ scope.row.address || '未填写地址' }}</small>
+							</div>
+						</div>
+					</template>
+					<template #column-storeStatus="{ scope }">
+						<el-tag size="small" class="store-status" :type="scope.row.status === 1 ? 'success' : scope.row.status === 2 ? 'warning' : scope.row.status === 0 ? 'danger' : 'info'" effect="light" round>
+							<i aria-hidden="true" />
+							{{ ['禁用', '营业', '停业', '关闭'][scope.row.status] || '未知' }}
+						</el-tag>
+					</template>
+					<template #column-storeContact="{ scope }">
+						<div class="store-contact">
+							<span>{{ scope.row.phone || '—' }}</span>
+							<small>{{ scope.row.businessHours || '未填写营业时间' }}</small>
+						</div>
+					</template>
+					<template #column-storeActions="{ scope }">
+						<div class="store-actions">
+							<el-button v-if="can('store:edit')" link type="primary" @click="Crud?.rowEdit(scope.row)">编辑</el-button>
+							<el-dropdown v-if="can('store:edit') || can('account:manage') || can('store:delete')" trigger="click" @command="command => storeAction(command, scope.row)">
+								<el-button link>更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+								<template #dropdown>
+									<el-dropdown-menu>
+										<el-dropdown-item v-if="can('store:edit')" command="location">门店位置</el-dropdown-item>
+										<el-dropdown-item v-if="can('account:manage')" command="accounts">账号管理</el-dropdown-item>
+										<el-dropdown-item v-if="can('store:delete')" command="delete">删除</el-dropdown-item>
+									</el-dropdown-menu>
+								</template>
+							</el-dropdown>
+						</div>
+					</template>
+					<template #column-couponApproval="{ scope }">
+						<div class="coupon-release">
+							<span class="coupon-release-pill" :data-publish-status="scope.row.publication?.publishStatus">
+								{{ ['未上架', '已上架', '已下架'][scope.row.publication?.publishStatus ?? 0] ?? '—' }}
+							</span>
+							<el-button link type="primary" title="查看审批流程" @click.stop="openCouponApproval(scope.row)">
+								{{ couponAuditLabel(scope.row) }} <span aria-hidden="true">↗</span>
+							</el-button>
+						</div>
+					</template>
+					<template #column-salePrice="{ scope }">
+						<span class="coupon-price-value" :class="{ free: Number(scope.row.salePrice) === 0 }">
+							{{ Number(scope.row.salePrice) === 0 ? '免费领取' : `¥${money(scope.row.salePrice)}` }}
+						</span>
+					</template>
+					<template #column-couponStock="{ scope }">
+						<span v-if="scope.row.issueLimit == null" class="coupon-unlimited">不限量</span>
+						<div v-else class="coupon-stock">
+							<span><strong>{{ remainingCouponStock(scope.row) }}</strong> / {{ scope.row.issueLimit }} 张</span>
+							<div class="coupon-stock-track" aria-hidden="true">
+								<span :style="{ width: Math.min(100, remainingCouponStock(scope.row) / Math.max(1, scope.row.issueLimit) * 100) + '%' }" />
+							</div>
+						</div>
+					</template>
+					<template #slot-coupon-actions="{ scope }">
+						<div class="coupon-row-actions">
+							<el-tooltip v-if="can('coupon:update') && Crud?.getPermission('update')" content="编辑">
+								<el-button :icon="Edit" circle size="small" type="primary" plain
+									aria-label="编辑优惠券" @click.stop="Crud?.rowEdit(scope.row)" />
+							</el-tooltip>
+							<el-tooltip v-if="can('coupon:delete') && Crud?.getPermission('delete')" content="删除">
+								<el-button :icon="Delete" circle size="small" type="danger" plain
+									aria-label="删除优惠券" @click.stop="Crud?.rowDelete(scope.row)" />
+							</el-tooltip>
+						</div>
+					</template>
 					<template #column-publicationActions="{ scope }">
+						<div class="coupon-publication-actions">
 						<el-button
 							v-if="
 								can('coupon:submitAudit') &&
+								scope.row.status === 1 &&
 								scope.row.publication?.auditStatus !== 1 &&
-								scope.row.publication?.publishStatus !== 1
+								scope.row.publication?.publishStatus !== 1 &&
+								!approvedCurrentCouponVersion(scope.row)
 							"
-							link
+							plain
+							size="small"
 							type="primary"
 							:disabled="publicationBusy"
 							@click="publication(scope.row, 'submitAudit')"
@@ -68,18 +146,21 @@
 						>
 						<el-button
 							v-if="can('coupon:withdrawAudit') && scope.row.publication?.auditStatus === 1"
-							link
+							plain
+							size="small"
 							:disabled="publicationBusy"
 							@click="publication(scope.row, 'withdrawAudit')"
-							>撤回</el-button
+							>撤回审核</el-button
 						>
 						<el-button
 							v-if="
 								can('coupon:publish') &&
-								scope.row.publication?.auditStatus === 2 &&
+								scope.row.status === 1 &&
+								approvedCurrentCouponVersion(scope.row) &&
 								scope.row.publication?.publishStatus !== 1
 							"
-							link
+							plain
+							size="small"
 							type="success"
 							:disabled="publicationBusy"
 							@click="publication(scope.row, 'publish')"
@@ -87,17 +168,74 @@
 						>
 						<el-button
 							v-if="can('coupon:unpublish') && scope.row.publication?.publishStatus === 1"
-							link
+							plain
+							size="small"
 							type="danger"
 							:disabled="publicationBusy"
 							@click="publication(scope.row, 'unpublish')"
 							>下架</el-button
 					>
+						</div>
 					</template>
 				</cl-table>
 			</cl-row>
-			<cl-row><cl-flex1 /><cl-pagination /></cl-row>
-			<cl-upsert v-if="kind !== 'order'" ref="Upsert">
+			<cl-row class="business-pagination"><cl-flex1 /><cl-pagination /></cl-row>
+			<cl-upsert ref="Upsert">
+				<template v-if="kind === 'coupon'" #prepend="{ scope }">
+					<CouponEditorHeading :draft="scope" :type-name="typeNames[scope.type]" :step="couponStep" @update:step="goToCouponStep" />
+				</template>
+				<template #slot-price="{ scope }">
+					<div class="coupon-price">
+						<el-radio-group aria-label="领取方式" :model-value="paid" @change="value => { paid = !!value; scope.salePrice = paid ? undefined : 0 }">
+							<el-radio-button :value="false">免费领取</el-radio-button>
+							<el-radio-button :value="true">付费购买</el-radio-button>
+						</el-radio-group>
+						<label v-if="paid" class="coupon-sale-price">
+							<span>售价（元）</span>
+							<el-input-number v-model="scope.salePrice" aria-label="售价（元）"
+								:min="0.01" :precision="2" :controls="false" placeholder="请输入售价" />
+						</label>
+					</div>
+				</template>
+				<template v-if="kind === 'coupon'" #append>
+					<CouponEditorNavigation :step="couponStep" @update:step="goToCouponStep" />
+				</template>
+				<template #slot-valid-days="{ scope }">
+					<div class="coupon-number-field">
+					<el-input-number v-model="scope.validDays" :min="1" :precision="0" controls-position="right" />
+					<div class="coupon-presets">
+						<el-button v-for="days in [7, 15, 30, 90]" :key="days" size="small"
+							:type="scope.validDays === days ? 'primary' : 'default'" plain
+							@click="scope.validDays = days">{{ days }} 天</el-button>
+					</div>
+					</div>
+				</template>
+				<template #slot-min-spend="{ scope }">
+					<div class="coupon-number-field">
+						<el-input-number
+							:model-value="scope.minSpend || undefined"
+							:min="scope.type === 'FULL_REDUCTION' ? 0.01 : 0" :precision="2"
+							controls-position="right"
+							:placeholder="scope.type === 'FULL_REDUCTION' ? '请输入消费门槛' : '无门槛'"
+							@update:model-value="value => scope.minSpend = value ?? 0" />
+						<div v-if="scope.type !== 'FULL_REDUCTION'" class="coupon-presets">
+							<el-button size="small" plain :type="scope.minSpend > 0 ? 'default' : 'primary'"
+								@click="scope.minSpend = 0">无门槛</el-button>
+						</div>
+					</div>
+				</template>
+				<template #slot-discount-rate="{ scope }">
+					<div class="coupon-number-field">
+						<el-input-number v-model="scope.discountRate" :min="0.01" :max="9.99"
+							:precision="2" :step="0.1" controls-position="right" placeholder="例如 8.5" />
+						<div class="coupon-presets">
+							<el-button v-for="rate in [5, 7, 8, 8.5, 9, 9.5]" :key="rate" size="small" plain
+								:type="Number(scope.discountRate) === rate ? 'primary' : 'default'"
+								@click="scope.discountRate = rate">{{ rate }} 折</el-button>
+						</div>
+					</div>
+				</template>
+
 				<template #slot-cover="{ scope }"
 					><MerchantImageUpload
 						:key="uploadEpoch"
@@ -141,9 +279,11 @@
 							:value="category.id" /></el-select
 				></template>
 				<template #slot-stores="{ scope }"
-					><el-select
+					><div class="coupon-store-selection"><el-select
 						v-model="scope.storeIds"
 						multiple
+						collapse-tags
+						collapse-tags-tooltip
 						filterable
 						:loading="optionsLoading"
 						placeholder="选择适用门店"
@@ -156,9 +296,14 @@
 							:disabled="
 								store.status !== 1 && !originalStoreIds.includes(store.id)
 							" /></el-select
-				></template>
-				<template #slot-issue-limit="{ scope }"
-					><el-switch
+					/>
+					<span v-if="coversAllAvailableStores(scope.storeIds)" class="coupon-store-summary">
+						已选当前全部可选营业门店
+					</span>
+				</div></template>
+				<template #slot-issue-limit="{ scope }">
+					<div class="coupon-number-field">
+					<el-switch
 						:model-value="scope.issueLimit == null"
 						active-text="不限量"
 						@update:model-value="
@@ -172,8 +317,15 @@
 						:min="Math.max(scope.issuedCount || 0, 1)"
 						:precision="0"
 						controls-position="right"
-						style="margin-left: 12px; width: 150px"
-				/></template>
+					/>
+					<div v-if="scope.issueLimit != null" class="coupon-presets">
+						<el-button v-for="quantity in [50, 100, 500]" :key="quantity" size="small"
+							:type="scope.issueLimit === quantity ? 'primary' : 'default'" plain
+							:disabled="quantity < (scope.issuedCount || 0)"
+							@click="scope.issueLimit = quantity">{{ quantity }} 张</el-button>
+					</div>
+					</div>
+				</template>
 				<template #slot-content="{ scope }">
 					<div class="content-list">
 					<div
@@ -183,9 +335,10 @@
 					>
 						<el-input
 							v-model="item.name"
-							placeholder="项目名称"
+							placeholder="例如：招牌烧烤套餐"
+							:aria-label="`第 ${index + 1} 项名称`"
 							:disabled="!!item.productId"
-						/><el-select v-model="item.type" :disabled="!!item.productId"
+						/><el-select v-model="item.type" :aria-label="`第 ${index + 1} 项类型`" :disabled="!!item.productId"
 							><el-option label="商品" value="GOODS" /><el-option
 								label="服务"
 								value="SERVICE" /><el-option
@@ -193,6 +346,7 @@
 								value="EXPERIENCE" /></el-select
 						><el-input-number
 							v-model="item.quantity"
+							:aria-label="`第 ${index + 1} 项数量`"
 							:min="1"
 							:precision="0"
 							controls-position="right"
@@ -213,29 +367,19 @@
 					</div>
 				</template>
 			</cl-upsert>
-			<cl-dialog v-model="orderVisible" title="模拟购券订单详情" width="680px">
-				<el-descriptions :column="2" border
-					><el-descriptions-item label="订单编号">{{
-						order.order?.orderNo
-					}}</el-descriptions-item
-					><el-descriptions-item label="金额"
-						>{{ money(order.order?.totalAmount) }} 元</el-descriptions-item
-					><el-descriptions-item label="订单状态">{{
-						orderStates[order.order?.orderStatus] || '—'
-					}}</el-descriptions-item
-					><el-descriptions-item label="模拟支付">{{
-						paymentStates[order.order?.paymentStatus] || '—'
-					}}</el-descriptions-item></el-descriptions
-				>
-				<el-table :data="order.items" border
-					><el-table-column prop="couponName" label="券名称" /><el-table-column
-						prop="quantity"
-						label="数量" /><el-table-column
-						prop="unitPrice"
-						label="单价" /><el-table-column prop="subtotal" label="小计"
-				/></el-table>
-			</cl-dialog>
 		</cl-crud>
+		<el-drawer v-if="kind === 'coupon'" v-model="couponApprovalVisible" append-to-body
+			title="优惠券审批流程" size="min(640px, 96vw)">
+			<div v-loading="couponApprovalLoading" class="coupon-approval">
+				<div class="coupon-approval-title">
+					<span>优惠券</span>
+					<h3>{{ couponApprovalName }}</h3>
+				</div>
+				<el-alert v-if="couponApprovalError" :title="couponApprovalError" type="error" :closable="false" />
+				<ApprovalFlow v-else-if="couponApprovalDetail" :detail="couponApprovalDetail" type="COUPON" />
+				<el-empty v-else-if="!couponApprovalLoading" description="提交审核后，可在这里查看处理进度和结果。" />
+			</div>
+		</el-drawer>
 		<cl-dialog
 			v-model="accountVisible"
 			:title="(accountStore?.name || '') + ' · 门店账号管理'"
@@ -249,10 +393,13 @@
 		/></cl-dialog>
 		<StoreLocationPicker v-if="kind === 'store'" ref="LocationPicker" />
 	</div>
+	</AssistantLayout>
 </template>
 
 <script setup lang="ts">
 import CoverPlaceholder from '/$/space/components/cover-placeholder.vue';
+import AssistantLayout from '/$/ai/components/assistant-layout.vue';
+import AssistantEntry from '/$/ai/components/assistant-entry.vue';
 import { ref } from 'vue';
 import { useBase } from '/$/base';
 import { useRouter } from 'vue-router';
@@ -265,24 +412,40 @@ import StoreAccounts from './store-accounts.vue';
 import StoreLocationPicker from './store-location-picker.vue';
 import { validCoordinate, updateStoreLocation } from '../map/store-map';
 import { useCrud, useTable, useSearch, useUpsert } from '@cool-vue/crud';
+import { ArrowDown, Delete, Edit } from '@element-plus/icons-vue';
+import StoreDirectoryHeader from '/$/merchant/components/store-directory-header.vue';
+import { workspaceApi } from '/$/workspace/api';
+import ApprovalFlow from '/$/approval/components/approval-flow.vue';
+import type { ApprovalDetail } from '/$/approval/utils/flow';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { merchantRequest } from '/@/merchant-api';
 import { createMerchantCrudService, type MerchantResource } from '../merchant-service';
 import CouponCover from './coupon-cover.vue';
+import CouponEditorHeading from "/@/modules/coupon/components/coupon-editor-heading.vue";
+import CouponEditorNavigation from "/@/modules/coupon/components/coupon-editor-navigation.vue";
+import { couponFieldStep, useCouponEditorFlow } from "/@/modules/coupon/components/coupon-editor-flow";
+const { couponStep, goToCouponStep, prepareCouponStep, resetCouponStep } = useCouponEditorFlow();
+const paid = ref(false);
 import MerchantImageUpload from './merchant-image-upload.vue';
 const uploadBusy = ref(false),
 	uploadEpoch = ref(0);
 
 const props = defineProps<{ kind: MerchantResource }>();
 const kind = props.kind;
+const assistantOpen = ref(false);
+const assistantCoupon = ref<number>();
+const assistantSelection = ref<number[]>([]);
+function setAssistantSelection(rows: { id: number }[]) {
+	assistantSelection.value = rows.map(row => row.id);
+	assistantCoupon.value = rows.length === 1 ? rows[0].id : undefined;
+}
+const storeScopeName = ref(identity === 'STORE' ? '本门店' : '本商家');
 const categories = ref<any[]>([]),
 	storeOptions = ref<any[]>([]),
 	originalStoreIds = ref<number[]>([]);
 const optionsLoading = ref(false),
 	optionsFailed = ref(false),
 	publicationBusy = ref(false);
-const orderVisible = ref(false),
-	order = ref<any>({});
 const typeNames: Record<string, string> = {
 	FULL_REDUCTION: '满减券',
 	DISCOUNT: '折扣券',
@@ -290,25 +453,6 @@ const typeNames: Record<string, string> = {
 	PACKAGE: '套餐券',
 	EXPERIENCE: '体验券',
 	EXCHANGE: '兑换券'
-};
-const typeColors: Record<string, string> = {
-	FULL_REDUCTION: '#c94b43',
-	DISCOUNT: '#367bbd',
-	CASH: '#a66a10',
-	PACKAGE: '#7b5db8',
-	EXPERIENCE: '#247f73',
-	EXCHANGE: '#b34b7b'
-};
-const orderStates: Record<string, string> = {
-	PENDING: '待支付',
-	PAID: '已完成',
-	CANCELLED: '已取消',
-	FAILED: '失败'
-};
-const paymentStates: Record<string, string> = {
-	UNPAID: '未支付',
-	SUCCESS: '模拟支付成功',
-	FAILED: '模拟支付失败'
 };
 const contentTypes = ['PACKAGE', 'EXPERIENCE', 'EXCHANGE'];
 const money = (value: any) => Number(value || 0).toFixed(2);
@@ -329,8 +473,19 @@ function ruleText(row: any) {
 		return `${threshold}${numberText(row.discountRate)}折${row.maxDiscount == null ? '' : `，最高优惠${numberText(row.maxDiscount)}元`}`;
 	return row.description || '内容待配置';
 }
-const scopeText = (row: any) =>
-	row.scopeType === 0 ? '全部营业门店' : row.storeNames?.join('、') || '指定门店';
+function coversAllAvailableStores(storeIds?: number[]) {
+	if (!storeIds?.length || optionsLoading.value || optionsFailed.value) return false;
+	const activeStores = storeOptions.value.filter(store => store.status === 1);
+	const selectedIds = new Set(storeIds.map(String));
+	return activeStores.length === selectedIds.size &&
+		activeStores.every(store => selectedIds.has(String(store.id)));
+}
+
+function scopeText(row: any) {
+	if (row.scopeType === 0) return '全部营业门店';
+	if (coversAllAvailableStores(row.storeIds)) return '当前全部可选营业门店';
+	return row.storeNames?.join('、') || '指定门店';
+}
 const LocationPicker = ref<InstanceType<typeof StoreLocationPicker>>();
 const locationFingerprint = ref('');
 function locationSignature(data: any) {
@@ -370,124 +525,90 @@ function manageAccounts(row: any) {
 		query: { storeId: row.id }
 	});
 }
-const opColumn: any =
-	kind === 'order'
-		? {
-				type: 'op',
-				width: 130,
-				buttons: [
-					{
-						label: '查看详情',
-						type: 'primary',
-						onClick: ({ scope }: any) => detail(scope.row)
-					}
-				]
-			}
-		: {
-				type: 'op',
-				width: kind === 'store' ? 350 : 140,
-				buttons: [
-					...(can(kind === 'store' ? 'store:edit' : 'coupon:update') ? ['edit'] : []),
-					...(can(kind === 'store' ? 'store:delete' : 'coupon:delete') ? ['delete'] : []),
-					...(kind === 'store'
-						? [
-								...(can('store:edit')
-									? [
-											{
-												label: '门店位置',
-												onClick: ({ scope }: any) =>
-													editStoreLocation(scope.row)
-											}
-										]
-									: []),
-								...(can('account:manage')
-									? [
-											{
-												label: '账号管理',
-												onClick: ({ scope }: any) =>
-													manageAccounts(scope.row)
-											}
-										]
-									: [])
-							]
-						: [])
-				]
-			};
+function storeAction(command: string, row: any) {
+	if (command === 'location') void editStoreLocation(row);
+	if (command === 'accounts') manageAccounts(row);
+	if (command === 'delete') Crud.value?.rowDelete(row);
+}
+const couponApprovalVisible = ref(false);
+const couponApprovalLoading = ref(false);
+const couponApprovalName = ref('');
+const couponApprovalError = ref('');
+const couponApprovalDetail = ref<ApprovalDetail>();
+let couponApprovalRequest = 0;
+
+function approvedCurrentCouponVersion(row: any) {
+	return row.ruleVersion != null &&
+		row.publication?.auditStatus === 2 &&
+		row.publication.submittedVersion === row.ruleVersion;
+}
+
+function couponAuditLabel(row: any) {
+	if (row.publication?.auditStatus === 2 && !approvedCurrentCouponVersion(row)) return '需重新审核';
+	return ['未提交', '待审核', '审核通过', '驳回'][row.publication?.auditStatus ?? 0] ?? '查看流程';
+}
+
+function remainingCouponStock(row: any) {
+	return Math.max(0, row.issueLimit - (row.issuedCount || 0));
+}
+
+async function openCouponApproval(row: any) {
+	const requestId = ++couponApprovalRequest;
+	couponApprovalName.value = row.name;
+	couponApprovalDetail.value = undefined;
+	couponApprovalError.value = '';
+	couponApprovalVisible.value = true;
+	couponApprovalLoading.value = true;
+	try {
+		const result = await merchantRequest(
+			'workspace/coupon/info?includeApproval=true&id=' + encodeURIComponent(row.id)
+		);
+		if (requestId !== couponApprovalRequest) return;
+		if (!Object.prototype.hasOwnProperty.call(result ?? {}, 'approval')) {
+			couponApprovalError.value = '当前后端版本暂不支持查看审批流程，请更新后端后重试';
+			return;
+		}
+		couponApprovalDetail.value = result.approval ?? undefined;
+	} catch (error) {
+		if (requestId === couponApprovalRequest)
+			couponApprovalError.value =
+				(error as { message?: string })?.message || '审批流程加载失败，请重试';
+	} finally {
+		if (requestId === couponApprovalRequest) couponApprovalLoading.value = false;
+	}
+}
+
 const columns: any[] =
 	kind === 'coupon'
 		? [
 				{ type: 'selection', fixed: 'left' },
-				{ label: '券封面', prop: 'cover', width: 86, fixed: 'left' },
-				{ label: '券名称', prop: 'name', minWidth: 210 },
+				{ label: '优惠券', prop: 'name', minWidth: 220, align: 'left' },
+				{ label: '优惠摘要', minWidth: 160, formatter: ruleText, align: 'left' },
+				{ label: '售价', prop: 'salePrice', width: 105 },
+				{ label: '剩余库存', prop: 'couponStock', width: 120 },
+				{ label: '适用门店', minWidth: 150, formatter: scopeText },
 				{
-					label: '平台审核',
-					minWidth: 120,
-					formatter: (row: any) =>
-						['未提交', '待审核', '审核通过', '驳回'][row.publication?.auditStatus ?? 0]
+					label: '发布状态',
+					prop: 'couponApproval',
+					width: 132,
+					showOverflowTooltip: false
 				},
-				{
-					label: '平台上架',
-					minWidth: 100,
-					formatter: (row: any) =>
-						['未上架', '已上架', '已下架'][row.publication?.publishStatus ?? 0]
-				},
-				{ label: '券类型', prop: 'type', minWidth: 100 },
-				{ label: '优惠内容', minWidth: 230, formatter: ruleText },
-				{
-					label: '售价',
-					prop: 'salePrice',
-					minWidth: 110,
-					formatter: (row: any) =>
-						Number(row.salePrice) === 0 ? '免费' : `${money(row.salePrice)} 元`
-				},
-				{ label: '适用门店', minWidth: 220, formatter: scopeText },
-				{
-					label: '状态',
-					minWidth: 90,
-					formatter: (row: any) => ['草稿', '启用', '停用'][row.status]
-				},
-				{ label: '发布操作', prop: 'publicationActions', width: 180, fixed: 'right' },
-				opColumn
+				{ label: '发布操作', prop: 'publicationActions', width: 136, fixed: 'right', showOverflowTooltip: false },
+				{ type: 'op', width: 88, buttons: [{ name: 'slot-coupon-actions' }] }
 			]
-		: kind === 'store'
-			? [
-					{ type: 'selection', fixed: 'left' },
-					{ label: '门店封面', prop: 'cover', width: 100 },
-					{ label: '门店名称', prop: 'name', minWidth: 200 },
-					{ label: '门店类型', prop: 'categoryName', minWidth: 140 },
-					{ label: '详细地址', prop: 'address', minWidth: 260 },
-					{ label: '联系电话', prop: 'phone', minWidth: 150 },
-					{ label: '营业时间', prop: 'businessHours', minWidth: 170 },
-					{
-						label: '状态',
-						minWidth: 90,
-						formatter: (row: any) =>
-							['禁用', '营业', '停业', '关闭'][row.status] || '未知'
-					},
-					opColumn
-				]
-			: [
-					{ label: '订单编号', prop: 'orderNo', minWidth: 220 },
-					{
-						label: '订单状态',
-						minWidth: 110,
-						formatter: (row: any) => orderStates[row.orderStatus] || row.orderStatus
-					},
-					{
-						label: '模拟支付',
-						minWidth: 140,
-						formatter: (row: any) =>
-							paymentStates[row.paymentStatus] || row.paymentStatus
-					},
-					{
-						label: '金额',
-						minWidth: 110,
-						formatter: (row: any) => `${money(row.totalAmount)} 元`
-					},
-					{ label: '创建时间', prop: 'createTime', minWidth: 170 },
-					opColumn
+		: [
+					{ type: 'selection', fixed: 'left', width: 44 },
+					{ label: '门店名称', prop: 'name', minWidth: 240, align: 'left', showOverflowTooltip: false },
+					{ label: '营业状态', prop: 'storeStatus', width: 100, align: 'left' },
+					{ label: '联系方式', prop: 'storeContact', minWidth: 150, align: 'left', showOverflowTooltip: false },
+					{ label: '操作', prop: 'storeActions', width: 130, align: 'right', showOverflowTooltip: false }
 				];
-const Table = useTable({ props: { showOverflowTooltip: true }, columns });
+const Table = useTable({
+	height: kind === 'coupon' ? '100%' : undefined,
+	emptyText: kind === 'coupon' ? '暂无符合条件的优惠券' : kind === 'store' ? '没有符合条件的门店' : undefined,
+	props: { showOverflowTooltip: true },
+	columns
+});
 const Search = useSearch({
 	items: [
 		{
@@ -608,8 +729,14 @@ const couponItems: any[] = [
 		{ name: 'slot-content' },
 		{ span: 24, hidden: ({ scope }: any) => !contentTypes.includes(scope.type) }
 	),
-	field('售价（元）', 'salePrice', moneyInput, { required: true }),
-	field('最低消费（元）', 'minSpend', moneyInput, {
+	field('领取方式', 'salePrice', { name: 'slot-price' }, {
+		rules: {
+			validator: (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
+				callback(paid.value && !(Number(value) > 0) ? new Error('请输入大于 0 元的售价') : undefined);
+			}
+		}
+	}),
+	field('最低消费（元）', 'minSpend', { name: 'slot-min-spend' }, {
 		hidden: ({ scope }: any) => contentTypes.includes(scope.type)
 	}),
 	field('减免金额（元）', 'discountAmount', moneyInput, {
@@ -623,17 +750,7 @@ const couponItems: any[] = [
 	field(
 		'折扣数',
 		'discountRate',
-		{
-			name: 'el-input-number',
-			props: {
-				min: 0.01,
-				max: 9.99,
-				precision: 2,
-				step: 0.1,
-				controlsPosition: 'right',
-				style: { width: '100%' }
-			}
-		},
+		{ name: 'slot-discount-rate' },
 		{ required: true, hidden: ({ scope }: any) => scope.type !== 'DISCOUNT' }
 	),
 	field('优惠上限（元）', 'maxDiscount', moneyInput, {
@@ -663,7 +780,7 @@ const couponItems: any[] = [
 		]),
 		{ required: true }
 	),
-	field('有效天数', 'validDays', integerInput, {
+	field('有效天数', 'validDays', { name: 'slot-valid-days' }, {
 		required: true,
 		hidden: ({ scope }: any) => scope.validityType !== 'AFTER_ISSUE'
 	}),
@@ -689,11 +806,33 @@ const couponItems: any[] = [
 	field('领取开始时间', 'saleStartTime', dateInput),
 	field('领取结束时间', 'saleEndTime', dateInput)
 ];
+for (const item of couponItems) {
+	const step = couponFieldStep(item.prop);
+	item.props = { ...item.props, class: `coupon-fields coupon-fields--${step}` };
+}
 const Upsert = useUpsert({
-	dialog: { width: '860px', height: '65vh' },
-	props: { labelPosition: 'top' },
-	items: kind === 'store' ? storeItems : couponItems,
+	dialog: kind === 'coupon'
+		? { width: 'min(1120px, 96vw)', height: 'min(720px, 76dvh)', controls: ['close'] }
+		: { width: '860px', height: '65vh' },
+	props: {
+		labelPosition: 'top',
+		onValidate(prop: string, valid: boolean) {
+			if (!valid && kind === 'coupon') {
+				const step = couponFieldStep(prop);
+				couponStep.value = step;
+			}
+		}
+	},
+	items: kind === 'store' ? storeItems : [{
+		span: 24,
+		props: { class: 'coupon-editor-fields' },
+		component: { name: 'el-col', props: { span: 24 } },
+		children: couponItems
+	}],
 	onOpened(data) {
+		assistantOpen.value = false;
+		resetCouponStep();
+		paid.value = Number(data.salePrice) > 0;
 		uploadEpoch.value++;
 		uploadBusy.value = false;
 		const defaults =
@@ -763,6 +902,13 @@ const Upsert = useUpsert({
 			delete payload._locationPicker;
 		}
 		if (kind === 'coupon') {
+			if (paid.value && !(Number(data.salePrice) > 0)) {
+				couponStep.value = 1;
+				ElMessage.warning('请输入大于 0 元的售价');
+				done();
+				return;
+			}
+			payload.salePrice = paid.value ? data.salePrice : 0;
 			payload.contentItems = contentTypes.includes(data.type) ? data.contentItems || [] : [];
 			if (data.scopeType === 0) payload.storeIds = [];
 			for (const key of [
@@ -810,9 +956,20 @@ const Upsert = useUpsert({
 		next(payload);
 	}
 });
-const Crud = useCrud({ service: createMerchantCrudService(kind) }, app => app.refresh());
-async function loadOptions() {
-	if (kind === 'order') return;
+const Crud = useCrud({ service: createMerchantCrudService(kind) }, app => {
+	app.refresh();
+	if (kind === 'coupon') void loadOptions(false);
+	if (kind === 'store') {
+		void workspaceApi('me').then(scope => {
+			const name = identity === 'STORE' ? scope?.storeName : scope?.merchantName;
+			if (name) storeScopeName.value = name;
+		}).catch(() => {
+			// Scope is already enforced by the store API.
+		});
+	}
+});
+async function loadOptions(showError = true) {
+	if (optionsLoading.value) return;
 	optionsLoading.value = true;
 	optionsFailed.value = false;
 	try {
@@ -821,20 +978,33 @@ async function loadOptions() {
 		else storeOptions.value = await merchantRequest('workspace/store/options');
 	} catch (error: any) {
 		optionsFailed.value = true;
-		ElMessage.error(error.message || '选项加载失败');
+		if (showError) ElMessage.error(error.message || '选项加载失败');
 	} finally {
 		optionsLoading.value = false;
 	}
 }
-async function publication(row: any, action: string) {
+const publicationLabels = {
+	submitAudit: '提交审核',
+	withdrawAudit: '撤回审核',
+	publish: '上架',
+	unpublish: '下架'
+};
+
+async function publication(row: any, action: keyof typeof publicationLabels) {
+	if (publicationBusy.value) return;
+	const label = publicationLabels[action];
+	publicationBusy.value = true;
 	try {
-		await ElMessageBox.confirm('确认执行此优惠券状态操作？', '操作确认');
-		publicationBusy.value = true;
+		await ElMessageBox.confirm(`确认对「${row.name}」执行${label}？`, label, {
+			confirmButtonText: label,
+			cancelButtonText: '取消'
+		});
 		await merchantRequest('workspace/coupon/publication', {
 			id: row.id,
 			version: row.ruleVersion,
 			action
 		});
+		ElMessage.success(`${label}成功`);
 		await Crud.value?.refresh();
 	} catch (error: any) {
 		if (error?.message) ElMessage.error(error.message);
@@ -842,17 +1012,159 @@ async function publication(row: any, action: string) {
 		publicationBusy.value = false;
 	}
 }
-async function detail(row: any) {
-	try {
-		order.value = await merchantRequest(`workspace/order/info?id=${row.id}`);
-		orderVisible.value = true;
-	} catch (error: any) {
-		ElMessage.error(error.message);
-	}
-}
 </script>
 
+
 <style scoped>
+.coupon-workspace { padding: 0; overflow: hidden; background: var(--el-fill-color-light); box-sizing: border-box; }
+.coupon-workspace > :deep(.cl-crud) {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+.coupon-workspace :is(.business-actions, .business-pagination) { flex: 0 0 auto; }
+.coupon-workspace .business-actions,
+.coupon-workspace .business-table { background: var(--el-bg-color); padding: 0 12px; margin: 0; }
+.coupon-workspace .business-actions { align-items: center; padding-top: 12px; padding-bottom: 8px; }
+.coupon-workspace .business-actions :deep(.el-button) { border-radius: 8px; }
+.coupon-workspace .coupon-toolbar-search { margin-inline-start: auto; max-width: 100%; }
+.business-stores {
+	box-sizing: border-box;
+	padding: 18px 22px 0;
+	background: var(--workspace-canvas);
+}
+html.dark .business-stores { background: var(--el-bg-color-page); }
+.business-stores > :deep(.cl-crud) { background: transparent; }
+.business-stores .business-actions {
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 12px 14px;
+	margin: 4px 0 0;
+}
+.business-stores .store-toolbar-search { margin-inline-start: auto; max-width: 100%; }
+.business-stores :deep(th.el-table__cell) {
+	background: color-mix(in srgb, var(--el-fill-color-light) 78%, var(--el-color-primary) 2%, var(--el-bg-color));
+	color: var(--el-text-color-regular);
+	font-weight: 600;
+}
+.business-stores :deep(.el-table--border .el-table__cell) { border-right: 0; }
+.business-stores :deep(.el-table--border::before),
+.business-stores :deep(.el-table--border::after),
+.business-stores :deep(.el-table__border-left-patch) { display: none; }
+.business-stores :deep(.el-pagination) { flex-wrap: wrap; row-gap: 6px; }
+.store-identity { display: flex; align-items: center; gap: 10px; }
+.store-identity > div { min-width: 0; }
+.store-identity strong { display: block; font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.store-identity small, .store-contact small { display: block; color: var(--el-text-color-regular); font-size: 12px; line-height: 1.5; }
+.store-identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.store-identity .store-cover { width: 38px; height: 38px; flex: none; border-radius: 6px; }
+.store-contact { font-size: 12px; font-variant-numeric: tabular-nums; }
+.store-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+.store-status { border: 0; }
+.store-status i {
+	display: inline-block;
+	width: 5px;
+	height: 5px;
+	margin-inline-end: 5px;
+	border-radius: 50%;
+	background: currentColor;
+	vertical-align: 2px;
+}
+@media (max-width: 850px) {
+	.business-stores { padding: 8px; }
+	.business-stores .store-toolbar-search { margin-inline-start: 0; }
+}
+.coupon-workspace .business-table {
+	flex: 1 1 0;
+	min-height: 0;
+	flex-wrap: nowrap;
+	overflow: hidden;
+}
+.coupon-workspace .business-table :deep(.el-table) { max-height: none !important; margin-bottom: 0; }
+.coupon-workspace .business-pagination {
+	padding: 10px 12px 2px;
+	background: var(--el-bg-color);
+}
+.coupon-workspace .business-pagination :deep(.el-pagination) { flex-wrap: wrap; row-gap: 6px; }
+.coupon-workspace :deep(.el-table) {
+	border: 1px solid var(--el-border-color-lighter);
+	border-radius: 14px;
+	--el-table-border-color: var(--el-border-color-extra-light);
+	--el-table-row-hover-bg-color: var(--el-color-primary-light-9);
+}
+.coupon-workspace :deep(.el-table .el-table__cell) { border-right: 0; }
+.coupon-workspace :deep(.el-table::after),
+.coupon-workspace :deep(.el-table__border-left-patch) { display: none; }
+.coupon-workspace :deep(.el-table th.el-table__cell) {
+	padding: 12px 0;
+	font-size: 12px;
+	font-weight: 650;
+	background-color: var(--workspace-table-band) !important;
+	color: #fff !important;
+	border-bottom-color: var(--workspace-table-band);
+}
+.coupon-workspace :deep(.el-table td.el-table__cell) { padding: 12px 0; }
+.coupon-workspace :deep(.el-table__body tr:nth-child(even) > td) {
+	background-color: color-mix(in srgb, var(--el-color-primary) 3%, var(--el-bg-color));
+}
+.coupon-workspace :deep(.el-table__body tr:hover > td),
+.coupon-workspace :deep(.el-table__body tr.hover-row > td) {
+	background-color: var(--el-color-primary-light-9);
+}
+.coupon-identity { display: flex; align-items: center; gap: 12px; white-space: normal; }
+.coupon-identity :deep(.coupon-cover) { flex: 0 0 46px; width: 46px; height: 46px; border-radius: 10px; }
+.coupon-identity > div { min-width: 0; text-align: left; overflow-wrap: anywhere; }
+.coupon-identity strong { display: block; font-size: 14px; color: var(--el-text-color-primary); }
+.coupon-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.coupon-release { display: grid; justify-items: center; gap: 4px; }
+.coupon-release .el-button { padding: 0; font-size: 12px; }
+.coupon-release .el-button span span { margin-inline-start: 3px; }
+.coupon-release-pill, .coupon-unlimited {
+	padding: 2px 8px; border-radius: 6px; font-size: 12px;
+	background: var(--el-fill-color); color: var(--el-text-color-secondary);
+}
+.coupon-release-pill[data-publish-status="1"] {
+	background: var(--el-color-success-light-8);
+	color: var(--el-color-success-dark-2);
+}
+.coupon-release-pill[data-publish-status="2"] {
+	background: var(--el-color-warning-light-8);
+	color: var(--el-color-warning-dark-2);
+}
+.coupon-price-value { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--el-text-color-primary); }
+.coupon-price-value.free { font-size: 12px; color: var(--el-color-success-dark-2); }
+.coupon-stock { display: grid; gap: 5px; padding: 0 5px; color: var(--el-text-color-secondary); font-size: 12px; }
+.coupon-stock strong { color: var(--el-text-color-primary); font-variant-numeric: tabular-nums; }
+.coupon-stock-track { height: 3px; border-radius: 4px; overflow: hidden; background: var(--el-fill-color); }
+.coupon-stock-track span { display: block; height: 100%; border-radius: inherit; background: var(--workspace-accent); }
+.coupon-row-actions { display: flex; justify-content: center; gap: 6px; }
+.coupon-row-actions .el-button + .el-button { margin-left: 0; }
+.coupon-publication-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 8px; }
+.coupon-publication-actions .el-button { min-width: 76px; border-radius: 7px; font-weight: 600; }
+.coupon-publication-actions .el-button + .el-button { margin-left: 0; }
+.coupon-identity small {
+	--coupon-accent: var(--el-color-primary);
+	padding: 0 7px;
+	border-radius: 5px;
+	background: color-mix(in srgb, var(--coupon-accent) 15%, var(--el-bg-color));
+	color: color-mix(in srgb, var(--coupon-accent) 78%, var(--el-text-color-primary));
+}
+.coupon-identity [data-coupon-type="FULL_REDUCTION"] { --coupon-accent: #df5537; }
+.coupon-identity [data-coupon-type="DISCOUNT"] { --coupon-accent: #8652d7; }
+.coupon-identity [data-coupon-type="CASH"] { --coupon-accent: #bf7c18; }
+.coupon-identity [data-coupon-type="PACKAGE"] { --coupon-accent: #326ae0; }
+.coupon-identity [data-coupon-type="EXCHANGE"] { --coupon-accent: #168b80; }
+.coupon-identity .coupon-label-muted { background: var(--el-fill-color); color: var(--el-text-color-secondary); }
+.coupon-number-field { display: grid; gap: 8px; justify-items: start; width: 100%; }
+.coupon-store-selection { width: 100%; }
+.coupon-store-summary { color: var(--el-color-primary); font-size: 12px; }
+.coupon-number-field .el-input-number { width: 156px; max-width: 100%; }
+.coupon-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.coupon-presets .el-button + .el-button { margin-left: 0; }
+.coupon-price { display: grid; gap: 10px; justify-items: start; }
+.coupon-sale-price { display: grid; gap: 4px; line-height: 1.4; }
+
 .location-field {
 	display: flex;
 	flex-wrap: wrap;
@@ -860,11 +1172,6 @@ async function detail(row: any) {
 	gap: 10px;
 	font-size: 12px;
 	color: var(--el-text-color-secondary);
-}
-.coupon-type-tag {
-	border: none;
-	color: #fff;
-	white-space: nowrap;
 }
 .content-list {
 	display: flex;
@@ -878,8 +1185,26 @@ async function detail(row: any) {
 }
 .content-row {
 	display: flex;
+	align-items: center;
 	gap: 8px;
 	margin-bottom: 12px;
+}
+.coupon-approval {
+	min-height: 160px;
+}
+.coupon-approval-title {
+	margin-bottom: 20px;
+	padding: 14px 16px;
+	border-radius: 10px;
+	background: var(--el-fill-color-light);
+}
+.coupon-approval-title span {
+	color: var(--el-text-color-secondary);
+	font-size: 12px;
+}
+.coupon-approval-title h3 {
+	margin: 4px 0 0;
+	overflow-wrap: anywhere;
 }
 .content-row > .el-input {
 	flex: 1;

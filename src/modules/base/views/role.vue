@@ -1,4 +1,5 @@
 <template>
+	<CatalogWorkbench title="运营角色" description="管理运营账号可以访问的菜单和操作。">
 	<cl-crud ref="Crud">
 		<cl-row>
 			<cl-refresh-btn />
@@ -41,9 +42,11 @@
 			</template>
 		</cl-upsert>
 	</cl-crud>
+	</CatalogWorkbench>
 </template>
 
 <script lang="ts" setup>
+import CatalogWorkbench from '/@/modules/workspace/components/catalog-workbench.vue';
 defineOptions({
 	name: 'sys-role'
 });

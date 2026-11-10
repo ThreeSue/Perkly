@@ -1,5 +1,5 @@
 <template>
-	<ManagementShell
+	<ManagementShell register
 		title="岗位管理"
 		eyebrow="岗位与功能"
 		description="岗位决定员工默认可以使用哪些功能；员工的权限可在员工账号中单独调整"
@@ -39,7 +39,7 @@
 				系统预设岗位由平台提供；自定义岗位由商家创建。选择商家后可查看该商家可用的岗位。
 			</p>
 		</div>
-		<el-table class="management-table" :data="pageRows" v-loading="busy" stripe>
+		<el-table class="management-table" :height="registerHeight" :data="pageRows" v-loading="busy" :empty-text="error ? '列表暂不可用' : '没有匹配的记录'">
 			<el-table-column label="岗位" min-width="160"
 				><template #default="{ row }"
 					><div class="cell-main">{{ row.name }}</div>
@@ -83,7 +83,7 @@
 				></el-table-column
 			>
 
-			<el-table-column label="操作" width="130" fixed="right"
+			<el-table-column label="操作" width="145" fixed="right" align="right"
 				><template #default="{ row }"
 					><el-button link @click="open(row, row.builtin && !isPlatform)"
 						>{{ row.builtin && !isPlatform ? '查看权限' : '编辑' }}</el-button
@@ -103,15 +103,16 @@
 				@size-change="page = 1"
 			/>
 		</div>
-		<el-dialog
-			class="workspace-dialog"
+		<el-drawer
+			append-to-body
+			class="workspace-editor"
 			v-model="visible"
 			:title="readOnly ? '查看岗位权限' : '岗位与权限'"
-			width="min(880px,95vw)"
+			size="min(880px,100vw)"
 			:close-on-click-modal="false"
 			:before-close="closeForm"
-			><el-alert v-if="readOnly" title="系统预设岗位由平台维护；如需调整个人权限，请前往员工账号。" type="info" :closable="false" show-icon /><el-form label-position="top" :disabled="readOnly"
-				><h3 class="role-section">1. 基本信息</h3>
+			><el-alert v-if="readOnly" title="系统预设岗位由平台维护；如需调整个人权限，请前往员工账号。" type="info" :closable="false" show-icon /><el-form class="workspace-editor-form" label-position="top" :disabled="readOnly"
+				><section class="workspace-editor-section"><h3 class="workspace-section-heading">基本信息</h3>
 				<el-form-item v-if="isPlatform && !form.builtin" label="所属商家"
 					><el-select v-model="form.merchantId" filterable @change="loadStores"
 						><el-option
@@ -129,7 +130,7 @@
 								:disabled="!!form.id"
 								maxlength="40" /></el-form-item></el-collapse-item
 				></el-collapse>
-				<h3 class="role-section">2. 适用范围</h3>
+				</section><section class="workspace-editor-section"><h3 class="workspace-section-heading">适用范围</h3>
 				<el-form-item label="账号类型"
 					><el-radio-group
 						v-model="form.accountType"
@@ -160,7 +161,8 @@
 				><el-form-item label="备注"
 					><el-input v-model="form.remark" maxlength="255"
 				/></el-form-item>
-				<h3 class="role-section">3. 功能权限</h3><PermissionPreview :menus="available" :selected-ids="form.menuIds || []" :account-name="form.name" />
+				</section></el-form>
+			<section class="workspace-editor-section is-permissions"><h3 class="workspace-section-heading">功能权限</h3>
 				<el-tabs
 					><el-tab-pane label="岗位可使用的页面与操作"
 						><PermissionPicker v-model="form.menuIds" :menus="available" :disabled="readOnly" /></el-tab-pane
@@ -169,13 +171,14 @@
 							title="授予范围独立于本人使用权限，且始终受上级授权限制。"
 							:closable="false" /><PermissionPicker
 							v-model="form.grantMenuIds"
-							:menus="available" :disabled="readOnly" /></el-tab-pane></el-tabs></el-form
-			><template #footer
+							:menus="available" :disabled="readOnly" /></el-tab-pane></el-tabs></section>
+			<PermissionPreview :menus="available" :selected-ids="form.menuIds || []" :account-name="form.name" />
+			<template #footer
 				><el-button @click="closeForm()">取消</el-button
 				><el-button v-if="!readOnly" type="primary" :loading="busy" @click="save"
 					>保存岗位</el-button
 				></template
-			></el-dialog
+			></el-drawer
 		>
 	</ManagementShell>
 </template>
@@ -203,6 +206,8 @@ import PermissionPicker from '../components/permission-picker.vue';
 import PermissionPreview from '../components/permission-preview.vue';
 import { useUnsavedForm } from '../composables/unsaved-form';
 import { useCool } from '/@/cool';
+import { useRegisterHeight } from '../composables/register-height';
+const registerHeight = useRegisterHeight();
 const { service } = useCool();
 const rows = ref<any[]>([]),
 	merchants = ref<any[]>([]),
@@ -405,10 +410,5 @@ onMounted(async () => {
 }
 .el-form .el-select {
 	width: 100%;
-}
-:global(.workspace-dialog .el-dialog__body) {
-	max-height: 65vh;
-	overflow: auto;
-	padding-right: 12px;
 }
 </style>

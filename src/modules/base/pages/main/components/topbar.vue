@@ -19,10 +19,17 @@
 		</ul>
 
 		<!-- 用户信息 -->
+		<el-button v-if="user.info" text class="app-topbar__shortcut" @click="router.push('/my/assistant')">
+			<cl-svg name="icon-ai" /> AI 工作台
+		</el-button>
 		<el-badge v-if="user.info" is-dot :hidden="notices.unread === 0">
-			<el-button text @click="router.push('/my/notices')">站内通知</el-button>
+			<el-button text class="app-topbar__shortcut" aria-label="站内通知" title="站内通知" @click="router.push('/my/notices')">
+				<el-icon><Bell /></el-icon><span class="app-topbar__shortcut-label">站内通知</span>
+			</el-button>
 		</el-badge>
-		<el-button v-if="identity === 'STORE' && user.info" text @click="router.push('/my/chats')">门店客服</el-button>
+		<el-button v-if="identity === 'STORE' && user.info" text class="app-topbar__shortcut" aria-label="门店客服" title="门店客服" @click="router.push('/my/chats')">
+			<el-icon><ChatDotRound /></el-icon><span class="app-topbar__shortcut-label">门店客服</span>
+		</el-button>
 		<template v-if="user.info">
 			<el-dropdown
 				hide-on-click
@@ -31,7 +38,8 @@
 				@command="onCommand"
 			>
 				<div class="app-topbar__user">
-					<el-text class="mr-[10px]">{{ identityName }} · {{ user.info.nickName }}</el-text>
+					<span class="app-topbar__identity">{{ identityName }}</span>
+					<el-text class="app-topbar__name" truncated :title="user.info.nickName">{{ user.info.nickName }}</el-text>
 					<cl-avatar :size="26" :src="user.info.headImg" />
 				</div>
 
@@ -69,17 +77,18 @@ defineOptions({
 import { isPlatform, identityName, identity } from '/@/workspace';
 import { merchantRequest } from '/@/merchant-api';
 import { useNoticeStore } from '/$/workspace/stores/notices';
-import { computed, markRaw, onMounted, reactive } from 'vue';
+import { computed, markRaw, onMounted, reactive, ref } from 'vue';
 import { isFunction, orderBy } from 'lodash-es';
 import { useBase } from '/$/base';
 import { module, useCool } from '/@/cool';
 import { ElMessageBox } from 'element-plus';
+import { Bell, ChatDotRound } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import RouteNav from './route-nav.vue';
 import AMenu from './amenu.vue';
 
 const { router, service, browser } = useCool();
-const { user, app } = useBase();
+const { user, app, menu } = useBase();
 const notices = useNoticeStore();
 const { t } = useI18n();
 
@@ -178,7 +187,7 @@ onMounted(() => {
 	&__user {
 		display: flex;
 		align-items: center;
-		outline: none;
+		gap: 8px;
 		cursor: pointer;
 		white-space: nowrap;
 		padding: 5px 5px 5px 10px;
@@ -186,6 +195,42 @@ onMounted(() => {
 
 		&:hover {
 			background-color: var(--el-fill-color-light);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--el-color-primary);
+			outline-offset: -2px;
+		}
+	}
+
+	&__identity {
+		flex: none;
+		padding: 3px 7px;
+		border-radius: 5px;
+		background: var(--workspace-selected);
+		color: var(--workspace-accent-text);
+		font-size: 12px;
+		font-weight: 650;
+	}
+
+	&__name {
+		max-width: clamp(0px, 16vw, 220px);
+	}
+	&__shortcut {
+		flex: none;
+		&-label { margin-inline-start: 5px; }
+	}
+
+	@media (max-width: 768px) {
+		&__name { display: none; }
+		&__shortcut { padding-inline: 7px; }
+		&__shortcut-label { display: none; }
+		&__tools { margin-inline-end: 4px; }
+		&__tools > li { margin-inline-start: 4px; }
+		:deep(.route-nav), :deep(.a-menu) {
+			min-width: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
 		}
 	}
 

@@ -9,7 +9,7 @@ import { ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { useCool } from "/@/cool";
 const props = withDefaults(defineProps<{ modelValue?: number | null; activeOnly?: boolean; placeholder?: string }>(), { placeholder: "输入名称或电话搜索商家" });
-const emit = defineEmits<{ "update:modelValue": [value: number | undefined]; change: [value: number | undefined] }>();
+const emit = defineEmits<{ "update:modelValue": [value: number | undefined]; change: [value: number | undefined]; selected: [value: Eps.MerchantInfoEntity | undefined] }>();
 const { service } = useCool();
 const options = ref<Eps.MerchantInfoEntity[]>([]);
 const selected = ref<Eps.MerchantInfoEntity>();
@@ -40,5 +40,6 @@ function change(value: number | "") {
 	const id = value === "" ? undefined : value;
 	emit("update:modelValue", id);
 	emit("change", id);
+	emit("selected", options.value.find(item => item.id === id));
 }
 </script>

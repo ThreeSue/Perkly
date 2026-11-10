@@ -1,5 +1,5 @@
 <template>
-	<div class="app-layout" :class="{ 'is-collapse': app.isFold, 'is-full': app.isFull }">
+	<div class="app-layout" :class="{ 'is-collapse': app.isFold, 'is-full': app.isFull, 'is-store-directory': ['/merchant/store', '/merchant/stores', '/store/stores'].includes(route.path) }">
 		<div class="app-layout__mask" @click="app.fold(true)"></div>
 
 		<div class="app-layout__left">
@@ -9,7 +9,8 @@
 		<div class="app-layout__right">
 			<topbar />
 			<process />
-			<views />
+			<ModuleAssistantLayout><views /></ModuleAssistantLayout>
+			<StrongNotice />
 		</div>
 	</div>
 </template>
@@ -31,6 +32,8 @@ import Topbar from './components/topbar.vue';
 import Slider from './components/slider.vue';
 import process from './components/process.vue';
 import Views from './components/views.vue';
+import StrongNotice from '/$/workspace/components/strong-notice.vue';
+import ModuleAssistantLayout from '/$/ai/components/module-assistant-layout.vue';
 
 const { app, menu, user } = useBase();
 const notices = useNoticeStore();
@@ -82,6 +85,35 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+.is-store-directory {
+	:deep(.app-topbar) {
+		border-bottom: 1px solid var(--el-border-color-extra-light);
+	}
+
+	:deep(.app-views) {
+		margin-inline: 0;
+		width: 100%;
+		border-radius: 0;
+	}
+}
+
+@media (min-width: 1100px) {
+	.app-layout:not(.is-collapse, .is-full) {
+		.app-layout__left { width: 200px; }
+		.app-layout__right { width: calc(100% - 200px); }
+		:deep(.app-slider__logo) {
+			padding-inline: 12px;
+
+			img { flex-shrink: 0; }
+			span {
+				margin-left: 8px;
+				font-size: 16px;
+				letter-spacing: 0;
+			}
+		}
+	}
+}
+
 .app-global {
 	position: absolute;
 	left: 0;

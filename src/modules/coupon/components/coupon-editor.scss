@@ -1,0 +1,143 @@
+.el-overlay-dialog:has(> .cl-dialog .coupon-steps) {
+	display: grid;
+	place-items: center;
+	overflow: hidden;
+	overscroll-behavior: none;
+}
+.el-overlay-dialog > .cl-dialog:has(.coupon-steps) {
+	width: min(1120px, 96vw);
+	height: min(810px, 94dvh);
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	border-radius: 20px;
+	box-shadow: 0 28px 80px #101b3d45;
+}
+.cl-dialog:has(.coupon-steps) > .el-dialog__header {
+	background: var(--workspace-table-band);
+	color: #fff;
+	border-bottom: 1px solid #ffffff18;
+}
+.cl-dialog:has(.coupon-steps) > .el-dialog__footer {
+	background: var(--el-fill-color-light);
+	border-top: 1px solid var(--el-border-color-lighter);
+}
+.cl-dialog:has(.coupon-steps) .cl-form__footer .el-button--success {
+	--el-button-bg-color: var(--workspace-accent);
+	--el-button-border-color: var(--workspace-accent);
+	--el-button-hover-bg-color: color-mix(in srgb, var(--workspace-accent), black 14%);
+	--el-button-hover-border-color: var(--el-button-hover-bg-color);
+	--el-button-active-bg-color: var(--el-button-hover-bg-color);
+	--el-button-active-border-color: var(--el-button-hover-border-color);
+	--el-button-disabled-bg-color: var(--el-color-primary-light-5);
+	--el-button-disabled-border-color: var(--el-button-disabled-bg-color);
+	border-radius: var(--workspace-control-radius);
+}
+.coupon-editor-masthead {
+	width: 100%; display: flex; align-items: center; gap: 13px;
+	margin-bottom: 8px; padding: 12px;
+	border-radius: 10px;
+	background: var(--el-color-primary-light-9);
+	color: var(--el-text-color-primary);
+}
+.coupon-editor-masthead h2 { margin: 0; font-size: 18px; }
+.coupon-editor-ticket {
+	display: grid; place-items: center; flex: 0 0 44px; height: 32px;
+	background: var(--workspace-selected); color: var(--workspace-accent-text); font-weight: 700;
+	clip-path: polygon(0 0, 100% 0, 100% 34%, 88% 50%, 100% 66%, 100% 100%, 0 100%, 0 66%, 12% 50%, 0 34%);
+}
+.cl-dialog:has(.coupon-steps) > .el-dialog__body {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+}
+.cl-dialog:has(.coupon-steps) > .el-dialog__body > .el-scrollbar {
+	height: 100% !important;
+}
+.cl-dialog:has(.coupon-steps) > .el-dialog__body :is(
+	.el-scrollbar__wrap, .el-scrollbar__view, .cl-dialog__default,
+	.cl-form__container, form
+) { height: 100%; min-height: 0; overflow: hidden; }
+.cl-dialog:has(.coupon-steps) .cl-form__items {
+	position: absolute;
+	inset: 16px 24px;
+	height: auto;
+	overflow: hidden;
+}
+.cl-form__items:has(.coupon-steps) > .el-row {
+	position: relative;
+	box-sizing: border-box;
+	height: 100%;
+	padding: 0 12px 0 324px;
+	flex-direction: column;
+	flex-wrap: nowrap;
+}
+.cl-form__items:has(.coupon-steps) > .el-row > .el-col:has(> .coupon-editor-fields) {
+	flex: 1 1 0;
+	min-height: 0;
+	overflow: auto;
+	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
+	padding-top: 4px;
+}
+.coupon-editor-fields { margin-bottom: 0; }
+.coupon-editor-fields .cl-form-item__children > .el-row { width: 100%; }
+.coupon-editor-fields .cl-form-item__children { width: 100%; }
+.coupon-steps {
+	position: relative; width: 100%; display: grid; grid-template-columns: repeat(3, 1fr);
+	border-bottom: 1px solid var(--el-border-color-lighter); padding: 10px 0 20px;
+}
+.coupon-steps button {
+	position: relative; display: grid; justify-items: center; gap: 8px;
+	border: 0; background: transparent; color: var(--el-text-color-secondary); cursor: pointer;
+}
+.coupon-step-track {
+	position: absolute; inset: 26px calc(100% / 6) auto; height: 2px;
+	background: var(--el-border-color);
+}
+.coupon-step-track > div {
+	height: 100%; background: var(--el-color-primary); transform-origin: left;
+	transition: transform 280ms ease;
+}
+.coupon-steps button span {
+	display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+	border: 1px solid var(--el-border-color); background: var(--el-fill-color-light);
+	transition: background-color 220ms ease, border-color 220ms ease, color 220ms ease;
+}
+.coupon-steps button[aria-current] { color: var(--el-color-primary); }
+.coupon-steps button:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -2px; border-radius: 8px; }
+.coupon-steps button[aria-current] span { color: white; background: var(--workspace-accent); border-color: var(--workspace-accent); }
+.coupon-steps .step-complete span { color: var(--el-color-primary); border-color: currentColor; }
+.coupon-step-heading { width: 100%; padding: 12px 5px 10px; }
+.coupon-step-heading h2 { margin: 5px 0 0; font-size: 21px; }
+.coupon-step-heading p { margin: 5px 0 0; color: var(--el-text-color-regular); font-size: 12px; line-height: 1.5; }
+.cl-form__items:has(.coupon-steps) .coupon-fields { animation: coupon-step-enter 200ms ease-out both; }
+@keyframes coupon-step-enter {
+	from { opacity: 0; transform: translateY(5px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+	.coupon-step-track > div, .coupon-steps button span { transition: none; }
+	.cl-form__items:has(.coupon-steps) .coupon-fields { animation: none; }
+}
+.coupon-step-navigation {
+	width: 100%;
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 8px;
+	padding-top: 10px;
+	border-top: 1px solid var(--el-border-color-lighter);
+}
+.cl-form__items:has(.coupon-steps[data-step="0"]) .coupon-fields:not(.coupon-fields--0),
+.cl-form__items:has(.coupon-steps[data-step="1"]) .coupon-fields:not(.coupon-fields--1),
+.cl-form__items:has(.coupon-steps[data-step="2"]) .coupon-fields:not(.coupon-fields--2) { display: none !important; }
+.cl-form__items:has(.coupon-steps[data-step="0"]) .el-col:has(> .coupon-fields:not(.coupon-fields--0)),
+.cl-form__items:has(.coupon-steps[data-step="1"]) .el-col:has(> .coupon-fields:not(.coupon-fields--1)),
+.cl-form__items:has(.coupon-steps[data-step="2"]) .el-col:has(> .coupon-fields:not(.coupon-fields--2)) { display: none; }
+@media (max-width: 720px) {
+	.cl-form__items:has(.coupon-steps) > .el-row { padding: 0 5px; }
+	.coupon-editor-masthead { display: none; }
+	.coupon-steps { padding-bottom: 8px; }
+}

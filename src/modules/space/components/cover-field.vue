@@ -8,7 +8,9 @@
 		:ai-draft="aiDraft"
 		@busy-change="emit('busy-change', $event)"
 	/>
-	<div v-else class="cover-field">
+	<component v-else :is="aiDraft ? AiCoverPicker : 'div'"
+		v-bind="aiDraft ? { compact: true, draft: aiDraft, cover: value, onSelect: selectMerchantMaterial } : {}">
+	<div class="cover-field">
 		<cl-upload v-model="value" :material-library="false" type="image" accept="image/*" :limit="1" :limit-size="5" text="上传新图" />
 		<Space
 			v-if="canBrowse"
@@ -23,8 +25,8 @@
 		/>
 		<el-button v-if="!canBrowse" disabled title="请管理员开放文件空间查看权限">从素材库选择</el-button>
 		<MerchantMaterialPicker v-if="aiDraft?.merchantId && canAi" :merchant-id="aiDraft.merchantId" :current-url="value" :current-id="materialId" label="本商家素材库" @select="selectMerchantMaterial" />
-		<AiCoverPicker v-if="aiDraft" :draft="aiDraft" @select="selectMerchantMaterial" />
 	</div>
+	</component>
 </template>
 
 <script setup lang="ts">

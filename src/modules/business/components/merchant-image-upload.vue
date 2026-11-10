@@ -1,7 +1,7 @@
 <template>
 	<div class="merchant-image-upload">
 		<el-image
-			v-if="modelValue"
+			v-if="!aiDraft && modelValue"
 			:src="modelValue"
 			:preview-src-list="[modelValue]"
 			preview-teleported
@@ -10,7 +10,9 @@
 		>
 			<template #error><CoverPlaceholder /></template>
 		</el-image>
-		<div v-else class="preview"><CoverPlaceholder /></div>
+		<div v-else-if="!aiDraft" class="preview"><CoverPlaceholder /></div>
+		<component :is="aiDraft ? AiCoverPicker : 'div'"
+			v-bind="aiDraft ? { compact: true, draft: aiDraft, disabled: busy, cover: modelValue, onSelect: selectMaterial } : {}">
 		<div class="actions">
 			<el-upload
 				ref="upload"
@@ -34,9 +36,9 @@
 				@select="selectMaterial"
 			/>
 			<el-button v-else disabled title="请上级开放“素材库查看与选用”权限">从素材库选择</el-button>
-			<AiCoverPicker v-if="aiDraft" :draft="aiDraft" :disabled="busy" @select="selectMaterial" />
 			<el-button v-if="modelValue" :disabled="busy" @click="remove">移除图片</el-button>
 		</div>
+		</component>
 		<span class="hint">支持 JPG、PNG、GIF，单张不超过5MB；上传成功即进入本商家素材库，保存资料后更新封面。</span>
 		<span v-if="!canBrowse || !canManage" class="error" role="alert">请上级开放“素材库查看与选用”和“上传与管理素材”权限后上传；已有图片仍可保留。</span>
 		<span v-if="error" class="error" role="alert">{{ error }}</span>
@@ -134,6 +136,7 @@ onBeforeUnmount(() => {
 </script>
 <style scoped>
 .merchant-image-upload {
+	width: 100%;
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
@@ -147,9 +150,11 @@ onBeforeUnmount(() => {
 }
 .actions {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 12px;
+	gap: 8px;
 }
+.actions :deep(.el-button + .el-button) { margin-left: 0; }
 .hint {
 	font-size: 12px;
 	color: var(--el-text-color-secondary);

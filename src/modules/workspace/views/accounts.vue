@@ -1,5 +1,5 @@
 <template>
-	<ManagementShell
+	<ManagementShell register
 		title="账号管理"
 		eyebrow="账号与数据范围"
 		description="一号一岗位，菜单权限与可查看的数据范围分别设置"
@@ -55,7 +55,7 @@
 		<p class="management-caption">
 			停用账号会终止原登录，历史记录保留。选择门店、岗位和状态后筛选当前查询结果。
 		</p>
-		<el-table class="management-table" :data="pageRows" v-loading="busy" stripe>
+		<el-table class="management-table" :height="registerHeight" :data="pageRows" v-loading="busy" :empty-text="error ? '列表暂不可用' : '没有匹配的记录'">
 			<el-table-column label="账号" min-width="165"
 				><template #default="{ row }"
 					><div class="cell-main">{{ row.name }}</div>
@@ -91,7 +91,7 @@
 					}}</el-tag></template
 				></el-table-column
 			>
-			<el-table-column label="操作" width="145" fixed="right"
+			<el-table-column label="操作" width="145" fixed="right" align="right"
 				><template #default="{ row }"
 					><el-button
 						link
@@ -119,15 +119,16 @@
 				@size-change="page = 1"
 			/>
 		</div>
-		<el-dialog
-			class="workspace-dialog"
+		<el-drawer
+			append-to-body
+			class="workspace-editor"
 			v-model="visible"
 			title="账号设置"
-			width="min(900px,95vw)"
+			size="min(900px,100vw)"
 			:close-on-click-modal="false"
 			:before-close="closeForm"
-			><el-form label-position="top"
-				><h3>1. 登录资料</h3>
+			><el-form class="workspace-editor-form" label-position="top"
+				><section class="workspace-editor-section"><h3 class="workspace-section-heading">登录资料</h3>
 				<el-form-item label="登录账号（新建使用手机号，已有账号不可修改）"
 					><el-input
 						v-model="form.username"
@@ -143,7 +144,7 @@
 						maxlength="64"
 						autocomplete="new-password"
 				/></el-form-item>
-				<h3>2. 账号归属与可查看数据</h3>
+				</section><section class="workspace-editor-section"><h3 class="workspace-section-heading">账号归属与可查看数据</h3>
 				<el-form-item v-if="isPlatform" label="所属商家"
 					><el-select
 						v-model="form.merchantId"
@@ -197,7 +198,7 @@
 							:label="s.name"
 							:value="s.id" /></el-select
 				></el-form-item>
-				<h3>3. 岗位及此账号的权限</h3>
+				</section><section class="workspace-editor-section is-permissions"><h3 class="workspace-section-heading">岗位及此账号的权限</h3>
 				<el-form-item label="岗位（仅一个）"
 					><el-select v-model="form.roleId" filterable
 						><el-option
@@ -228,13 +229,13 @@
 						</p>
 					</div>
 				</div>
-<el-form-item label="账号可用功能"><div style="width:100%"><p class="management-caption">勾选即可访问并展示。灰色功能超出可分配范围，无法调整；已生效权限可在预览中查看。</p><PermissionPicker v-model="selectedMenuIds" :menus="available" :unavailable-ids="unavailableIds" /><PermissionPreview :menus="available" :selected-ids="selectedMenuIds" :account-name="form.name" /></div></el-form-item></el-form
+<el-form-item label="账号可用功能"><div style="width:100%"><p class="management-caption">勾选即可访问并展示。灰色功能超出可分配范围，无法调整；已生效权限可在预览中查看。</p><PermissionPicker v-model="selectedMenuIds" :menus="available" :unavailable-ids="unavailableIds" /><PermissionPreview :menus="available" :selected-ids="selectedMenuIds" :account-name="form.name" /></div></el-form-item></section></el-form
 			><template #footer
 				><el-button @click="closeForm()">取消</el-button
 				><el-button type="primary" :loading="busy" @click="save"
 					>保存账号</el-button
 				></template
-			></el-dialog
+			></el-drawer
 		>
 	</ManagementShell>
 </template>
@@ -254,6 +255,8 @@ import { identity, isPlatform } from '/@/workspace';
 import PermissionPicker from '../components/permission-picker.vue';
 import PermissionPreview from '../components/permission-preview.vue';
 import { useUnsavedForm } from '../composables/unsaved-form';
+import { useRegisterHeight } from '../composables/register-height';
+const registerHeight = useRegisterHeight();
 const rows = ref<any[]>([]),
 	merchants = ref<any[]>([]),
 	stores = ref<any[]>([]),
@@ -631,10 +634,5 @@ h3 {
 	margin: 28px 0 20px;
 	border-bottom: 1px solid var(--el-border-color);
 	padding-bottom: 12px;
-}
-:global(.workspace-dialog .el-dialog__body) {
-	max-height: 65vh;
-	overflow: auto;
-	padding-right: 12px;
 }
 </style>

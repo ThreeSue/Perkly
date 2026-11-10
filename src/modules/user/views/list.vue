@@ -1,4 +1,5 @@
 <template>
+	<CatalogWorkbench title="用户列表" description="按账号信息查找用户，查看登录状态、微信绑定及历史关联。">
 	<cl-crud ref="Crud">
 		<cl-row>
 			<!-- 刷新按钮 -->
@@ -24,8 +25,9 @@
 
 		<!-- 新增、编辑 -->
 		<cl-upsert ref="Upsert" />
-		<el-dialog v-model="detailVisible" :title="t('账号详情与绑定关系')" width="640px">
-			<div v-loading="detailLoading">
+		<el-drawer v-model="detailVisible" :title="t('账号详情与绑定关系')" size="min(680px, 100vw)" destroy-on-close @close="detailRequest++">
+			<div v-loading="detailLoading" :aria-busy="detailLoading" style="min-height: 160px">
+				<ManagementState v-if="detailError" kind="error" :title="t('获取账号详情失败')" :description="detailError" @retry="showDetail(detailId)" />
 				<template v-if="detail">
 					<el-alert v-if="detail.historyPending" :closable="false" type="warning" :title="t('历史待处理记录：未自动删除或停用，处理前请检查业务数据。')" class="mb-4" />
 					<el-descriptions :column="2" border>
@@ -48,11 +50,14 @@
 					</template>
 				</template>
 			</div>
-		</el-dialog>
+		</el-drawer>
 	</cl-crud>
+	</CatalogWorkbench>
 </template>
 
 <script lang="ts" setup>
+import ManagementState from '/@/modules/workspace/components/management-state.vue';
+import CatalogWorkbench from '/@/modules/workspace/components/catalog-workbench.vue';
 defineOptions({
 	name: 'user-list'
 });
@@ -61,7 +66,6 @@ import { useCrud, useSearch, useTable, useUpsert } from '@cool-vue/crud';
 import { useI18n } from 'vue-i18n';
 import { useCool } from '/@/cool';
 import { reactive, ref } from 'vue';
-import { ElMessage } from 'element-plus';
 
 const { t } = useI18n();
 const { service } = useCool();
@@ -72,14 +76,27 @@ interface AccountDetail {
 	legacyAccounts?: { id: number; nickName?: string; phoneMasked?: string }[];
 }
 const detailVisible = ref(false);
+const detailError = ref('');
+let detailRequest = 0;
+let detailId = 0;
 const detailLoading = ref(false);
 const detail = ref<AccountDetail | null>(null);
 function maskPhone(phone?: string) { return phone ? phone.slice(0, 3) + '****' + phone.slice(-4) : t('未绑定'); }
 async function showDetail(id: number) {
-	detailVisible.value = true; detailLoading.value = true; detail.value = null;
-	try { detail.value = await service.user.info.info({ id }) as unknown as AccountDetail; }
-	catch (error) { ElMessage.error((error as Error).message || t('获取账号详情失败')); }
-	finally { detailLoading.value = false; }
+	const current = ++detailRequest;
+	detailId = id;
+	detailVisible.value = true;
+	detailLoading.value = true;
+	detail.value = null;
+	detailError.value = '';
+	try {
+		const data = await service.user.info.info({ id }) as unknown as AccountDetail;
+		if (current === detailRequest) detail.value = data;
+	} catch (error) {
+		if (current === detailRequest) detailError.value = (error as Error).message || t('请稍后重试');
+	} finally {
+		if (current === detailRequest) detailLoading.value = false;
+	}
 }
 
 const options = reactive({

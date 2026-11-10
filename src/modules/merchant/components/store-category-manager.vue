@@ -1,21 +1,24 @@
 <template>
-	<cl-crud ref="Crud">
-		<el-alert
-			title="门店类型由平台统一维护，所有商家共用。停用后不能为新门店选择；已有门店归属保留，关联门店的类型不能删除。"
-			type="info"
-			:closable="false"
-			show-icon
-			style="margin-bottom: 16px"
-		/>
-		<cl-row><cl-refresh-btn /><cl-add-btn /><cl-multi-delete-btn /><OrderManager :service="service.merchant.storeCategory" field="sort" @saved="Crud?.refresh()" /></cl-row>
-		<cl-row><cl-search ref="Search" reset-btn /></cl-row>
-		<cl-row><cl-table ref="Table" /></cl-row>
-		<cl-row><cl-flex1 /><cl-pagination /></cl-row>
-		<cl-upsert ref="Upsert" />
-	</cl-crud>
+	<CatalogWorkbench
+		title="门店类型"
+		description="平台统一维护门店类型。停用后不可新选，已关联门店保留原类型。"
+	>
+		<cl-crud ref="Crud">
+			<cl-row
+				><cl-add-btn /><cl-refresh-btn /><cl-multi-delete-btn /><OrderManager
+					:service="service.merchant.storeCategory"
+					field="sort"
+					@saved="Crud?.refresh()" /><cl-flex1 /><cl-search ref="Search" reset-btn
+			/></cl-row>
+			<cl-row><cl-table ref="Table" /></cl-row>
+			<cl-row><cl-flex1 /><cl-pagination /></cl-row>
+			<cl-upsert ref="Upsert" />
+		</cl-crud>
+	</CatalogWorkbench>
 </template>
 
 <script lang="ts" setup>
+import CatalogWorkbench from '/@/modules/workspace/components/catalog-workbench.vue';
 import { useCrud, useTable, useSearch, useUpsert } from '@cool-vue/crud';
 import { useCool } from '/@/cool';
 import OrderManager from '/#/crud/components/order-manager.vue';
@@ -29,7 +32,13 @@ const statuses = [
 const Table = useTable({
 	columns: [
 		{ type: 'selection' },
-		{ label: '门店类型', prop: 'name', minWidth: 160, showOverflowTooltip: true },
+		{
+			label: '门店类型',
+			prop: 'name',
+			className: 'catalog-name',
+			minWidth: 160,
+			showOverflowTooltip: true
+		},
 		{ label: '排序', prop: 'sort', width: 100, sortable: 'asc' },
 		{ label: '状态', prop: 'status', width: 100, dict: statuses },
 		{ label: '关联门店数', prop: 'storeCount', minWidth: 120 },
@@ -47,7 +56,7 @@ const Table = useTable({
 			component: { name: 'cl-date-text' },
 			showOverflowTooltip: true
 		},
-		{ type: 'op', width: 180, buttons: ['edit', 'delete'] }
+		{ type: 'op', fixed: 'right', width: 180, buttons: ['edit', 'delete'] }
 	]
 });
 const Search = useSearch({

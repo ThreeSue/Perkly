@@ -38,16 +38,6 @@
 			</div>
 		</div>
 
-		<div
-			class="dev-tools__close hidden-sm-and-down"
-			:class="{
-				'is-hide': !visible
-			}"
-			@click="open"
-			v-if="isDev"
-		>
-			<i class="iconfont icon-xia"></i>
-		</div>
 	</teleport>
 </template>
 
@@ -64,7 +54,6 @@ import ToolDict from './dict.vue';
 import ToolProxy from './proxy.vue';
 import ToolDoc from './doc.vue';
 import ToolAccount from './account.vue';
-import { isDev } from '/@/config';
 
 const { t } = useI18n();
 const { user } = useBase();
@@ -153,21 +142,8 @@ const info = computed(() => tab.list.find(e => e.value == tab.active));
 
 const visible = ref(false);
 
-function open() {
-	if (visible.value) {
-		close();
-	} else {
-		visible.value = true;
-	}
-}
-
-function close() {
-	visible.value = false;
-}
-
 onMounted(() => {
 	getIcon();
-	// open();
 });
 </script>
 
@@ -257,41 +233,5 @@ onMounted(() => {
 		}
 	}
 
-	&__close {
-		position: fixed;
-		right: 20px;
-		bottom: 20px;
-		z-index: 10;
-		border-radius: 20px;
-		background-color: #2c3142;
-		color: #fff;
-		cursor: pointer;
-		height: 30px;
-		width: 30px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-
-		--rotate: -45deg;
-
-		i {
-			display: inline-block;
-			font-size: 12px;
-			transform: rotate(var(--rotate));
-			transition: transform 0.3s;
-		}
-
-		&:hover {
-			--rotate: -45deg;
-
-			i {
-				transform: rotate(var(--rotate)) translateY(5px);
-			}
-		}
-
-		&.is-hide {
-			--rotate: 135deg;
-		}
-	}
 }
 </style>

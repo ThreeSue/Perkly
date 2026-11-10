@@ -13,7 +13,7 @@
 	></TradeRecords>
 </template>
 <script setup lang="ts">
-import TradeRecords from '../components/trade-records.vue';
+import TradeRecords from '/$/business/components/trade-records.vue';
 import MerchantSelect from '../../merchant/components/merchant-select.vue';
 import { service } from '/@/cool';
 import { useBase, checkPerm } from '/$/base';

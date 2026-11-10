@@ -1,13 +1,7 @@
 <template>
+	<CatalogWorkbench title="首页广告" description="管理广告图片、展示时间和跳转目标，发布前可预览展示结果。">
 	<el-empty v-if="!allowed('page')" description="当前账号没有首页广告查看权限" />
 	<cl-crud v-else ref="Crud">
-		<cl-row
-			><el-alert
-				title="广告仅在启用、展示时间有效且目标可公开查看时展示。用户端页面本次暂不接入。"
-				type="info"
-				:closable="false"
-				show-icon
-		/></cl-row>
 		<cl-row
 			><cl-refresh-btn /><cl-add-btn /><cl-multi-delete-btn />
 			<OrderManager
@@ -165,9 +159,11 @@
 			</div>
 		</el-dialog>
 	</cl-crud>
+	</CatalogWorkbench>
 </template>
 
 <script setup lang="ts">
+import CatalogWorkbench from '/@/modules/workspace/components/catalog-workbench.vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useCrud, useTable, useUpsert, useSearch } from '@cool-vue/crud';

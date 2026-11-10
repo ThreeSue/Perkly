@@ -1,9 +1,8 @@
 <template>
-	<ManagementShell
+	<ManagementShell register
 		:title="isPlatform ? '平台储值账务' : '储值消费账单'"
 		description="先开消费账单，可选用券，再由顾客确认普通模拟支付或储值支付"
 	>
-		<el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 		<div class="management-toolbar">
 			<el-radio-group
 				v-model="tab"
@@ -21,7 +20,8 @@
 			>
 			<el-button :loading="busy" @click="load">刷新</el-button>
 		</div>
-		<el-table v-if="tab === 'accounts'" v-loading="busy" :data="rows" empty-text="暂无储值账户"
+		<ManagementState v-if="error" kind="error" title="账务记录加载失败" :description="error" @retry="load" />
+		<el-table class="management-table" :height="registerHeight" v-else-if="tab === 'accounts'" v-loading="busy" :data="rows" empty-text="暂无储值账户"
 			><el-table-column prop="customerName" label="顾客" /><el-table-column
 				label="当前余额（元）"
 				><template #default="{ row }">{{ money(row.balance) }}</template></el-table-column
@@ -29,6 +29,7 @@
 		/></el-table>
 		<el-table
 			v-else-if="tab === 'transactions' || isPlatform"
+			class="management-table" :height="registerHeight"
 			v-loading="busy"
 			:data="rows"
 			empty-text="暂无储值流水"
@@ -43,9 +44,7 @@
 					types[row.type] || row.type
 				}}</template></el-table-column
 			><el-table-column label="状态" width="90"
-				><template #default="{ row }">{{
-					row.status === 'SUCCESS' ? '成功' : '失败'
-				}}</template></el-table-column
+				><template #default="{ row }"><el-tag :type="row.status === 'SUCCESS' ? 'success' : 'danger'">{{ row.status === 'SUCCESS' ? '成功' : '失败' }}</el-tag></template></el-table-column
 			><el-table-column label="原额" width="110"
 				><template #default="{ row }">{{
 					money(row.originalAmount)
@@ -65,7 +64,7 @@
 				}}</template></el-table-column
 			><el-table-column prop="createTime" label="时间" width="180"
 		/></el-table>
-		<el-table v-else v-loading="busy" :data="rows" empty-text="暂无消费账单"
+		<el-table v-else class="management-table" :height="registerHeight" v-loading="busy" :data="rows" empty-text="暂无消费账单"
 			><el-table-column prop="merchantName" label="商家" min-width="130" /><el-table-column
 				prop="storeName"
 				label="门店"
@@ -73,9 +72,7 @@
 			/><el-table-column label="金额" width="110"
 				><template #default="{ row }">{{ money(row.amount) }}</template></el-table-column
 			><el-table-column label="状态" width="100"
-				><template #default="{ row }">{{
-					statuses[row.status] || row.status
-				}}</template></el-table-column
+				><template #default="{ row }"><el-tag :type="billTone(row.status)">{{ statuses[row.status] || row.status }}</el-tag></template></el-table-column
 			><el-table-column label="券优惠" width="110">
 				<template #default="{ row }">{{ money(row.couponDiscount) }}</template>
 			</el-table-column><el-table-column label="实付" width="110">
@@ -87,7 +84,7 @@
 				show-overflow-tooltip
 			/><el-table-column prop="createTime" label="开单时间" width="180" /><el-table-column
 				label="操作"
-				width="180"
+				width="180" fixed="right" align="right"
 				><template #default="{ row }"
 					><el-button link type="primary" @click="show(row)">出示账单</el-button
 					><el-button
@@ -100,19 +97,23 @@
 				></el-table-column
 			></el-table
 		>
-		<el-pagination
-			v-model:current-page="page"
-			:page-size="20"
-			:total="total"
-			layout="total, prev, pager, next"
-			@current-change="load"
-		/>
-		<el-dialog
+		<div v-if="!error && total" class="management-pagination">
+			<el-pagination
+				v-model:current-page="page"
+				:page-size="20"
+				:total="total"
+				layout="total, prev, pager, next"
+				@current-change="load"
+			/>
+		</div>
+		<el-drawer
 			v-model="visible"
+			append-to-body
+			class="workspace-editor"
 			title="开具无券直接消费账单"
-			width="min(600px,94vw)"
+			size="min(600px,100vw)"
 			:close-on-click-modal="false"
-			><el-form label-position="top" :disabled="saving"
+			><el-form label-position="top" :disabled="saving" @submit.prevent="save"
 				><el-form-item label="消费门店"
 					><el-select v-model="form.storeId" filterable style="width: 100%"
 						><el-option
@@ -127,19 +128,25 @@
 						:max="1000000"
 						:precision="2" /></el-form-item
 				><el-form-item label="备注"
-					><el-input v-model="form.remark" maxlength="200" /></el-form-item
-				><el-button type="primary" :loading="saving" @click="save"
-					>确认开单</el-button
-				></el-form
-			></el-dialog
+					><el-input v-model="form.remark" maxlength="200" placeholder="选填，便于后续查账" /></el-form-item>
+			</el-form>
+			<template #footer>
+				<el-button :disabled="saving" @click="visible = false">取消</el-button>
+				<el-button type="primary" :loading="saving" @click="save">确认开单</el-button>
+			</template>
+		</el-drawer
 		>
-		<el-dialog v-model="billVisible" title="消费结算账单" width="min(640px,94vw)"
+		<el-drawer v-model="billVisible" append-to-body title="消费结算账单" size="min(640px,100vw)"
 			><template v-if="bill"
-				><h3>{{ bill.storeName }}</h3>
-				<p>消费金额：{{ money(bill.amount) }} 元</p>
-				<p>券优惠：{{ money(bill.couponDiscount) }} 元</p>
-				<p>用券后应付：{{ money(bill.remainingAmount ?? bill.amount) }} 元</p>
-				<p>状态：{{ statuses[bill.status] }}</p>
+				><div class="bill-summary">
+					<div><span>用券后应付</span><strong>{{ money(bill.remainingAmount ?? bill.amount) }} 元</strong></div>
+					<el-tag effect="light" :type="billTone(bill.status)">{{ statuses[bill.status] || bill.status }}</el-tag>
+				</div>
+				<el-descriptions :column="1" border>
+					<el-descriptions-item label="消费门店">{{ bill.storeName }}</el-descriptions-item>
+					<el-descriptions-item label="消费金额">{{ money(bill.amount) }} 元</el-descriptions-item>
+					<el-descriptions-item label="券优惠">{{ money(bill.couponDiscount) }} 元</el-descriptions-item>
+				</el-descriptions>
 				<p v-if="bill.status === 'PAID'">实付 {{ money(bill.paidAmount) }} 元 · {{ bill.paymentMode === 'SIMULATED' ? '普通模拟支付' : '储值支付' }}</p>
 				<el-alert
 					title="将账单编号交给顾客确认付款。储值支付先用券，再对剩余金额应用一个最优惠活动。"
@@ -156,10 +163,30 @@
 					<el-button :loading="saving" @click="applyCoupon">确认用券</el-button>
 				</el-form>
 			</template
-			></el-dialog
+			></el-drawer
 		>
 	</ManagementShell>
 </template>
+<style scoped>
+.bill-summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 14px;
+	padding: 14px 16px;
+	border-radius: 10px;
+	background: var(--workspace-neutral, var(--el-fill-color-light));
+}
+.bill-summary span { color: var(--el-text-color-regular); }
+.bill-summary strong {
+	display: block;
+	margin-top: 4px;
+	color: var(--workspace-ink, var(--el-text-color-primary));
+	font-size: 24px;
+	font-variant-numeric: tabular-nums;
+}
+</style>
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
@@ -167,7 +194,10 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { isPlatform } from '/@/workspace';
 import { useBase } from '/$/base';
 import { featureApi } from '../feature-api';
+import ManagementState from '../components/management-state.vue';
 import ManagementShell from '../components/management-shell.vue';
+import { useRegisterHeight } from '../composables/register-height';
+const registerHeight = useRegisterHeight();
 const { menu } = useBase();
 const route = useRoute();
 const couponCode = ref('');
@@ -208,7 +238,12 @@ const rows = ref<any[]>([]),
 	bill = ref<any>();
 const form = ref({ requestId: '', storeId: undefined as number | undefined, remark: '' });
 const money = (cents: number) => ((cents || 0) / 100).toFixed(2);
+function billTone(status: string) {
+	return status === 'PAID' ? 'success' : status === 'PENDING' ? 'warning' : 'info';
+}
+let listRevision = 0;
 async function load() {
+	const round = ++listRevision;
 	busy.value = true;
 	error.value = '';
 	try {
@@ -219,13 +254,16 @@ async function load() {
 					? 'wallet/transactions'
 					: 'wallet/bills/page';
 		const r = await featureApi(`${path}?pageNumber=${page.value}&pageSize=20`);
+		if (round !== listRevision) return;
 		rows.value = r.list;
 		total.value = r.total;
 	} catch (e: any) {
+		if (round !== listRevision) return;
 		rows.value = [];
+		total.value = 0;
 		error.value = e.message;
 	} finally {
-		busy.value = false;
+		if (round === listRevision) busy.value = false;
 	}
 }
 async function open() {
@@ -243,6 +281,7 @@ async function open() {
 	}
 }
 async function save() {
+	if (saving.value) return;
 	if (!form.value.storeId || amountYuan.value <= 0)
 		return ElMessage.warning('请选择门店和有效消费金额');
 	saving.value = true;

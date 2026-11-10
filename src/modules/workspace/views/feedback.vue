@@ -1,6 +1,5 @@
 <template>
-	<ManagementShell title="用户反馈" description="平台统一受理，单次回复后保留处理记录">
-		<el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
+	<ManagementShell register title="用户反馈" description="平台统一受理，单次回复后保留处理记录">
 		<div class="management-toolbar">
 			<el-select
 				v-model="status"
@@ -15,7 +14,8 @@
 					value="REPLIED" /></el-select
 			><el-button :loading="busy" @click="load">刷新</el-button>
 		</div>
-		<el-table v-loading="busy" :data="rows" empty-text="暂无反馈">
+		<ManagementState v-if="error" kind="error" title="反馈列表加载失败" :description="error" @retry="load" />
+		<el-table v-else class="management-table" :height="registerHeight" v-loading="busy" :data="rows" empty-text="暂无反馈">
 			<el-table-column prop="customerName" label="用户" width="150" /><el-table-column
 				prop="content"
 				label="反馈内容"
@@ -39,21 +39,34 @@
 				></el-table-column
 			>
 		</el-table>
-		<el-pagination
-			v-model:current-page="page"
-			:page-size="20"
-			:total="total"
-			layout="total, prev, pager, next"
-			@current-change="load"
-		/>
-		<el-dialog
+		<div v-if="!error && total" class="management-pagination">
+			<el-pagination
+				v-model:current-page="page"
+				:page-size="20"
+				:total="total"
+				layout="total, prev, pager, next"
+				@current-change="load"
+			/>
+		</div>
+		<el-drawer
 			v-model="visible"
+			append-to-body
+			destroy-on-close
+			@close="detailRevision++"
 			title="反馈处理"
-			width="min(720px, 94vw)"
+			size="min(720px, 100vw)"
 			:close-on-click-modal="false"
 		>
-			<template v-if="detail"
-				><p>{{ detail.customerName }} · {{ detail.createTime }}</p>
+			<el-skeleton v-if="detailBusy" :rows="5" animated />
+			<ManagementState v-else-if="detailError" kind="error" title="反馈详情加载失败" :description="detailError" @retry="open(activeId)" />
+			<template v-else-if="detail"
+				><header class="feedback-heading">
+					<h3>{{ detail.customerName || '未记录用户名' }}</h3>
+					<el-tag :type="detail.status === 'REPLIED' ? 'success' : 'warning'">
+						{{ detail.status === 'REPLIED' ? '已回复' : '待回复' }}
+					</el-tag>
+					<time>{{ detail.createTime }}</time>
+				</header>
 				<p class="feedback-text">{{ detail.content }}</p>
 				<div class="feedback-images">
 					<el-image
@@ -79,19 +92,24 @@
 							:rows="5"
 							maxlength="2000"
 							show-word-limit /></el-form-item
-					><el-button type="primary" :loading="saving" @click="save"
-						>确认回复</el-button
 					></el-form
 				>
 			</template>
-		</el-dialog>
+			<template #footer>
+				<el-button :disabled="saving" @click="visible = false">关闭</el-button>
+				<el-button v-if="detail?.status === 'PENDING'" type="primary" :disabled="!reply.trim()" :loading="saving" @click="save">确认回复</el-button>
+			</template>
+		</el-drawer>
 	</ManagementShell>
 </template>
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { featureApi } from '../feature-api';
+import ManagementState from '../components/management-state.vue';
 import ManagementShell from '../components/management-shell.vue';
+import { useRegisterHeight } from '../composables/register-height';
+const registerHeight = useRegisterHeight();
 const rows = ref<any[]>([]),
 	detail = ref<any>(),
 	page = ref(1),
@@ -102,29 +120,46 @@ const rows = ref<any[]>([]),
 	visible = ref(false),
 	saving = ref(false),
 	reply = ref('');
+let listRevision = 0;
 async function load() {
+	const round = ++listRevision;
 	busy.value = true;
 	error.value = '';
 	try {
 		const r = await featureApi(
 			`support/feedback/page?pageNumber=${page.value}&pageSize=20${status.value ? '&status=' + status.value : ''}`
 		);
+		if (round !== listRevision) return;
 		rows.value = r.list;
 		total.value = r.total;
 	} catch (e: any) {
+		if (round !== listRevision) return;
 		rows.value = [];
+		total.value = 0;
 		error.value = e.message;
 	} finally {
-		busy.value = false;
+		if (round === listRevision) busy.value = false;
 	}
 }
+const detailBusy = ref(false);
+const detailError = ref('');
+const activeId = ref(0);
+let detailRevision = 0;
 async function open(id: number) {
+	activeId.value = id;
+	const round = ++detailRevision;
+	visible.value = true;
+	detail.value = undefined;
+	reply.value = '';
+	detailError.value = '';
+	detailBusy.value = true;
 	try {
-		detail.value = await featureApi('support/feedback/detail?id=' + id);
-		reply.value = '';
-		visible.value = true;
+		const result = await featureApi('support/feedback/detail?id=' + id);
+		if (round === detailRevision) detail.value = result;
 	} catch (e: any) {
-		ElMessage.error(e.message);
+		if (round === detailRevision) detailError.value = e.message || '请重试。';
+	} finally {
+		if (round === detailRevision) detailBusy.value = false;
 	}
 }
 async function save() {
@@ -149,6 +184,17 @@ async function save() {
 onMounted(load);
 </script>
 <style scoped>
+.feedback-heading {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 6px 12px;
+	align-items: center;
+	padding: 14px;
+	background: var(--workspace-neutral);
+	border-radius: 8px;
+}
+.feedback-heading h3 { margin: 0; color: var(--workspace-ink); }
+.feedback-heading time { color: var(--el-text-color-secondary); font-size: 12px; }
 .feedback-text {
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;

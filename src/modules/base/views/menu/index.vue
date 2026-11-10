@@ -1,13 +1,6 @@
 <template>
+	<CatalogWorkbench :title="initialAudience === 'BUSINESS' ? '商家与门店菜单' : '运营菜单'" description="维护页面、按钮和菜单顺序。商家功能授权控制开放范围，岗位权限决定员工可执行的操作。">
 	<cl-crud ref="Crud">
-		<cl-row>
-			<div class="menu-heading">
-				<h2>{{ initialAudience === 'BUSINESS' ? '商家与门店菜单' : '运营菜单' }}</h2>
-				<p>
-					维护页面和按钮目录；商家功能授权控制开放范围，岗位权限决定员工实际使用哪些功能。
-				</p>
-			</div>
-		</cl-row>
 		<cl-row>
 			<el-radio-group v-model="audience" @change="refresh()">
 				<el-radio-button value="PLATFORM">平台运营</el-radio-button>
@@ -110,9 +103,11 @@
 			</template>
 		</cl-upsert>
 	</cl-crud>
+	</CatalogWorkbench>
 </template>
 
 <script lang="ts" setup>
+import CatalogWorkbench from '/@/modules/workspace/components/catalog-workbench.vue';
 defineOptions({
 	name: 'sys-menu'
 });
@@ -508,12 +503,4 @@ mitt.on('helper.createMenu', refresh);
 </script>
 
 <style scoped>
-.menu-heading h2 {
-	margin: 0 0 8px;
-	font-size: 20px;
-}
-.menu-heading p {
-	margin: 0 0 12px;
-	color: var(--el-text-color-secondary);
-}
 </style>
