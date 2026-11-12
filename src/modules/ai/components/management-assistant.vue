@@ -1,8 +1,8 @@
 <template>
-  <section class="management-assistant assistant-edge is-visible" :class="{ compact }" aria-label="AI助手">
+  <section class="management-assistant assistant-edge is-visible" :class="{ compact, 'is-workbench': !compact && scope === 'GLOBAL' }" aria-label="AI助手">
     <header class="management-assistant__header">
-      <div><strong>{{ scope === 'GLOBAL' ? 'AI 助手' : names[scope] + ' AI 助手' }}</strong>
-        <p>{{ scope === 'GLOBAL' ? '查询业务资料，核对后完成授权操作' : '仅服务当前模块，切换任务由你决定' }}</p></div>
+      <div class="assistant-heading"><cl-svg name="icon-ai" aria-hidden="true" /><div><strong>{{ scope === 'GLOBAL' ? 'AI 助手' : names[scope] + ' AI 助手' }}</strong>
+        <p>{{ scope === 'GLOBAL' ? '查询业务资料，核对后完成授权操作' : '仅服务当前模块，切换任务由你决定' }}</p></div></div>
       <el-button text @click="emit('close')">关闭</el-button>
     </header>
     <div ref="transcript" class="management-assistant__transcript" aria-live="polite" aria-relevant="additions">
@@ -10,7 +10,7 @@
         <div class="assistant-suggestions"><el-button v-for="text in suggestions" :key="text" @click="send(text)">{{ text }}</el-button></div>
       </div>
       <article v-for="(turn,index) in turns" :key="index" :class="['assistant-turn',turn.role]">
-        <span class="turn-speaker">{{ turn.role === 'user' ? '你' : '助手' }}</span>
+        <span class="turn-speaker"><cl-svg v-if="turn.role === 'assistant'" name="icon-ai" aria-hidden="true" />{{ turn.role === 'user' ? '你' : '助手' }}</span>
         <p>{{ turn.text }}</p>
         <template v-if="turn.reply">
           <div v-for="(result,i) in turn.reply.results" :key="i" class="assistant-result">
@@ -29,7 +29,7 @@
           <el-button v-if="turn.reply.handoffText" type="primary" @click="handoff(turn.reply.handoffText)">前往 AI 工作台继续</el-button>
         </template>
       </article>
-      <p v-if="busy" class="assistant-waiting" role="status">正在理解需求并核对业务数据…</p>
+      <div v-if="busy" class="assistant-waiting" role="status"><span class="waiting-indicator" aria-hidden="true"><i></i><i></i><i></i></span><span>正在核对业务数据…</span></div>
     </div>
     <div v-if="preview" class="assistant-review">
       <strong>待确认操作</strong>
@@ -38,7 +38,7 @@
       <div class="review-actions"><el-button :disabled="busy" @click="cancel">取消待办</el-button><el-button type="primary" :loading="busy" @click="confirm">确认执行</el-button></div>
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
-    <AssistantComposer v-model="message" :busy="busy" placeholder="描述要查询或处理的事情" @send="send" />
+    <div class="assistant-input-area"><AssistantComposer v-model="message" :busy="busy" placeholder="描述要查询或处理的事情" @send="send" /></div>
     <el-drawer v-model="couponOpen" append-to-body size="min(840px, 96vw)" title="优惠券任务" :destroy-on-close="false">
       <CouponAssistant :key="couponRevision" :initial-text="couponDemand" :bootstrap="couponBootstrap" standalone-editor :visible="couponOpen" @saved="emit('saved')" @close="couponOpen = false" />
     </el-drawer>
@@ -121,7 +121,7 @@ async function handoff(text:string) {
 }
 </script>
 <style scoped>
-.management-assistant { display:flex; flex-direction:column; height:100%; min-height:0; background:var(--el-bg-color); color:var(--el-text-color-primary); border:1px solid var(--el-border-color-light); border-radius:14px; overflow:hidden; }
+.management-assistant { box-sizing:border-box; display:flex; flex-direction:column; height:100%; min-width:0; min-height:0; background:var(--el-bg-color); color:var(--el-text-color-primary); border:1px solid var(--el-border-color-light); border-radius:12px; overflow:hidden; }
 .management-assistant__header { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:16px 20px; border-bottom:1px solid var(--el-border-color-light); }
 .management-assistant__header strong { font-size:16px; }.management-assistant__header p { color:var(--el-text-color-secondary); font-size:12px; margin:6px 0 0; }
 .management-assistant__transcript { flex:1; min-height:0; overflow:auto; padding:24px; scrollbar-width:thin; scroll-behavior:smooth; }
@@ -133,4 +133,40 @@ async function handoff(text:string) {
 details summary { cursor:pointer; color:var(--el-color-primary); margin:8px 0; }.assistant-review { padding:16px 20px; max-height:38%; overflow:auto; border-top:1px solid var(--el-border-color-light); }.review-actions { display:flex; justify-content:flex-end; margin-top:12px; gap:8px; }
 .assistant-waiting { color:var(--el-text-color-secondary); font-size:13px; }.compact .management-assistant__transcript { padding:14px; }.compact .assistant-welcome { padding:16px 0; }.compact .assistant-welcome h2 { font-size:18px; }.compact .management-assistant__header { padding:12px; }
 @media (prefers-reduced-motion:reduce) { .management-assistant__transcript { scroll-behavior:auto; } }
+
+/* Full-page conversations share one reading measure, including pending feedback. */
+.management-assistant { --conversation-width:800px; }
+.assistant-heading { display:flex; align-items:center; gap:12px; min-width:0; }
+.assistant-heading > :deep(.cl-svg) { width:30px; height:30px; flex-shrink:0; color:var(--el-color-primary); }
+.turn-speaker { display:flex; align-items:center; gap:8px; font-weight:600; }
+.turn-speaker :deep(.cl-svg) { width:20px; height:20px; color:var(--el-color-primary); }
+.user .turn-speaker { justify-content:flex-end; }
+.assistant-turn { max-width:var(--conversation-width); margin-bottom:28px; }
+.assistant-turn > p { font-size:15px; line-height:1.8; }
+.assistant-turn.user > p { border-radius:16px 16px 4px 16px; background:var(--el-color-primary-light-9); }
+.assistant-result { margin-top:16px; padding:14px 16px; border:1px solid var(--el-border-color-lighter); border-radius:10px; background:var(--el-fill-color-extra-light); }
+.assistant-result > strong { font-size:13px; }
+.assistant-result summary { font-size:13px; padding-block:4px; }
+.assistant-waiting { display:flex; align-items:center; gap:10px; max-width:var(--conversation-width); margin:0 auto 24px; min-height:32px; }
+.waiting-indicator { display:flex; gap:4px; color:var(--el-color-primary); }
+.waiting-indicator i { width:5px; height:5px; border-radius:50%; background:currentColor; animation:assistant-pending 1.2s ease-in-out infinite; }
+.waiting-indicator i:nth-child(2) { animation-delay:.15s; }.waiting-indicator i:nth-child(3) { animation-delay:.3s; }
+.assistant-input-area { flex-shrink:0; min-width:0; }
+.is-workbench { border:0; border-radius:0; background:var(--el-bg-color-page); }
+.is-workbench::before,.is-workbench::after { display:none; }
+.is-workbench .management-assistant__header { width:min(var(--conversation-width),calc(100% - 48px)); box-sizing:border-box; margin:0 auto; padding:20px 0 16px; border-bottom:1px solid var(--el-border-color-light); flex-shrink:0; }
+.is-workbench .management-assistant__header strong { font-size:20px; }
+.is-workbench .management-assistant__transcript { padding:24px; }
+.is-workbench .assistant-welcome { max-width:var(--conversation-width); padding:clamp(32px,8vh,80px) 0; }
+.is-workbench .assistant-welcome h2 { font-size:28px; letter-spacing:-.02em; }
+.is-workbench .assistant-input-area { padding:12px 24px 16px; }
+.is-workbench :deep(.assistant-composer) { max-width:var(--conversation-width); box-sizing:border-box; margin:0 auto; padding:12px 16px; border:1px solid var(--el-border-color); border-radius:16px; background:var(--el-bg-color); transition:border-color .18s ease; }
+.is-workbench :deep(.assistant-composer:focus-within) { border-color:var(--el-color-primary); }
+.is-workbench :deep(.assistant-composer textarea) { font-size:14px; line-height:1.7; }
+.is-workbench > .assistant-review,.is-workbench > .el-alert { width:min(var(--conversation-width),calc(100% - 48px)); box-sizing:border-box; margin-inline:auto; flex-shrink:0; }
+.compact .assistant-heading { gap:8px; }.compact .assistant-heading > :deep(.cl-svg) { width:22px; height:22px; }
+.compact .assistant-result { padding:10px; }.compact .assistant-turn > p { font-size:14px; }
+@keyframes assistant-pending { 0%,80%,100% { opacity:.35; transform:translateY(0); } 40% { opacity:1; transform:translateY(-3px); } }
+@media(max-width:600px) { .is-workbench .management-assistant__header { width:calc(100% - 24px); padding-block:12px; }.is-workbench .management-assistant__transcript { padding:16px 12px; }.is-workbench .assistant-input-area { padding:8px 12px 12px; }.assistant-turn.user > p { max-width:92%; } }
+@media(prefers-reduced-motion:reduce) { .waiting-indicator i { animation:none; } }
 </style>

@@ -21,7 +21,7 @@ defineProps<{ title: string; context?: string }>();
 	box-sizing: border-box;
 	height: 100%;
 	overflow: auto;
-	padding: 20px 22px 24px;
+	padding: 0;
 	color: var(--workspace-ink);
 	font-variant-numeric: tabular-nums;
 }
@@ -146,7 +146,7 @@ html[data-workspace="platform"] .workbench-banner { --workbench-brand: #2146b6; 
 	.workbench-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 590px) {
-	.workbench { padding: 10px; }
+	.workbench { padding: 0; }
 	.workbench-heading { padding: 16px 14px; }
 	.workbench-heading h1 { font-size: 24px; }
 	.workbench-banner-actions { padding-inline: 10px; }

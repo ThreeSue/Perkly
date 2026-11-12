@@ -52,8 +52,11 @@ onUnmounted(() => {
 .app-views {
 	flex: 1;
 	overflow: hidden;
-	margin: 0 10px 10px 10px;
-	width: calc(100% - 20px);
+	// The shared assistant layout owns the outer gutter for both columns.
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	width: 100%;
 	box-sizing: border-box;
 	border-radius: 6px;
 	position: relative;

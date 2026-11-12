@@ -9,7 +9,6 @@
 			}"
 			@click="select(index)"
 		>
-			<cl-svg class="mr-3" :name="item.icon" :size="16" v-if="item.icon" />
 			<span class="text-[12px] tracking-wider whitespace-nowrap">{{ item.meta?.label }}</span>
 		</div>
 	</div>

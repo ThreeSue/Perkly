@@ -99,15 +99,15 @@ onBeforeUnmount(() => {
 
 @media (min-width: 1100px) {
 	.app-layout:not(.is-collapse, .is-full) {
-		.app-layout__left { width: 200px; }
-		.app-layout__right { width: calc(100% - 200px); }
+		.app-layout__left { width: 248px; }
+		.app-layout__right { width: calc(100% - 248px); }
 		:deep(.app-slider__logo) {
 			padding-inline: 12px;
 
 			img { flex-shrink: 0; }
 			span {
 				margin-left: 8px;
-				font-size: 16px;
+				font-size: 20px;
 				letter-spacing: 0;
 			}
 		}
@@ -130,7 +130,7 @@ onBeforeUnmount(() => {
 	&__left {
 		overflow: hidden;
 		height: 100%;
-		width: 255px;
+		width: 248px;
 		transition: left 0.2s;
 	}
 
@@ -138,7 +138,7 @@ onBeforeUnmount(() => {
 		display: flex;
 		flex-direction: column;
 		height: 100%;
-		width: calc(100% - 255px);
+		width: calc(100% - 248px);
 	}
 
 	&__mask {
@@ -188,11 +188,11 @@ onBeforeUnmount(() => {
 
 		&.is-collapse {
 			.app-layout__left {
-				width: 67px;
+				width: 0;
 			}
 
 			.app-layout__right {
-				width: calc(100% - 67px);
+				width: 100%;
 			}
 		}
 	}

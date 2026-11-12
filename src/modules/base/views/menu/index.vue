@@ -46,9 +46,6 @@
 		<cl-row>
 			<cl-table ref="Table">
 				<!-- 图标 -->
-				<template #column-icon="{ scope }">
-					<cl-svg :name="scope.row.icon" :size="16" />
-				</template>
 
 				<!-- 是否显示 -->
 				<template #column-isShow="{ scope }">
@@ -223,11 +220,6 @@ const Table = useTable({
 			width: 100
 		},
 		{
-			prop: 'icon',
-			label: t('图标'),
-			width: 100
-		},
-		{
 			prop: 'type',
 			label: t('类型'),
 			width: 110,
@@ -399,7 +391,8 @@ const Upsert = useUpsert({
 		{
 			prop: 'icon',
 			label: t('图标'),
-			hidden: ({ scope }) => scope.type == 2,
+			// 保留历史字段参与编辑回填，纯文字导航不提供图标配置入口。
+			hidden: true,
 			component: {
 				name: 'cl-menu-icon',
 				props: {

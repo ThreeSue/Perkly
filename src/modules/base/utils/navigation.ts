@@ -5,7 +5,7 @@ const section = (name: string, icon: string, pages: string[]): Section => ({ nam
 const platform: Section[] = [
 	section('商家与门店', 'icon-local', ['/merchant/info', '/merchant/category', '/merchant/store', '/merchant/storeCategory', '/merchant/storeMap']),
 	section('优惠与活动', 'icon-tag', ['/coupon/template', '/home/banner', '/workspace-admin/activities', '/workspace-admin/stamps', '/workspace-admin/recharge']),
-	section('审核中心', 'icon-approve', ['/approval/merchant', '/approval/coupon']),
+	section('审核中心', 'icon-approve', ['/approval/merchant', '/approval/coupon', '/user/search-risk', '/workspace-admin/search-risk']),
 	section('交易与账务', 'icon-amount', ['/trade/purchases', '/trade/consumption', '/workspace-admin/wallet']),
 	section('用户与服务', 'icon-user', ['/user/list', '/workspace-admin/feedback', '/workspace-admin/notices']),
 	section('商家授权', 'icon-auth', ['/workspace-admin/authorization', '/workspace-admin/accounts', '/workspace-admin/roles', '/workspace-admin/menus']),

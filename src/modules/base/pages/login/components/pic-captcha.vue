@@ -40,8 +40,8 @@ async function refresh() {
 
 	try {
 		const { captchaId, data } = await (isPlatform
-			? service.base.open.captcha({ height: 45, width: 150, color: '#2c3142' })
-			: merchantRequest('auth/captcha'));
+			? service.base.open.captcha({ height: 45, width: 150, type: 'transparent' })
+			: merchantRequest('auth/captcha?type=transparent'));
 		if (!data || !captchaId) return;
 		if (data.includes(';base64,')) base64.value = data;
 		else svg.value = data;
@@ -75,7 +75,7 @@ defineExpose({
 	border: 0;
 	padding: 0;
 	border-radius: var(--workspace-control-radius);
-	background: var(--el-bg-color);
+	background: transparent;
 	color: var(--el-text-color-regular);
 	font-size: 12px;
 	&:focus-visible { outline: 2px solid var(--workspace-accent-text); outline-offset: -2px; }

@@ -49,7 +49,7 @@
 							<el-dropdown-menu>
 								<el-dropdown-item v-if="isPlatform && row.status === 'PENDING'" @click="show(row)">查看详情</el-dropdown-item>
 								<el-dropdown-item v-if="isPlatform && row.status === 'PUBLISHED'" @click="configure(row)">启停与时间</el-dropdown-item>
-								<el-dropdown-item v-if="!isPlatform && canParticipate && row.status === 'PUBLISHED'" @click="participationId = row.id">参与设置</el-dropdown-item>
+								<el-dropdown-item v-if="!isPlatform && canParticipate && ['PUBLISHED','CONFIRMING'].includes(row.status)" @click="participationId = row.id">{{ row.status === 'CONFIRMING' ? '确认集章邀请' : '参与设置' }}</el-dropdown-item>
 								<el-dropdown-item v-if="isPlatform" @click="noticeId = row.id">发送与回执</el-dropdown-item>
 								<el-dropdown-item v-if="canTakeOffline(row)" divided class="activity-danger" @click="offline(row)">下架</el-dropdown-item>
 							</el-dropdown-menu>
@@ -238,6 +238,7 @@ async function saveSchedule() {
 	finally { saving.value = false; }
 }
 const statusText: Record<string, string> = {
+    CONFIRMING: '等待商家确认',
 	PENDING: '待审核',
 	PUBLISHED: '已发布',
 	REJECTED: '已驳回',

@@ -46,6 +46,10 @@
 					row.rewardStock - row.grantedCount
 				}}</template></el-table-column
 			>
+            <el-table-column label="商家确认" width="145"><template #default="{ row }">
+                {{ row.confirmations?.length ? row.confirmations.filter((c:any)=>c.status==='ACCEPTED').length + ' / ' + row.confirmations.length + ' 已同意' : '尚未邀请 / 历史活动' }}
+                <el-tag v-if="row.confirmations?.some((c:any)=>c.status==='REJECTED')" type="danger" size="small">有商家拒绝</el-tag>
+            </template></el-table-column>
 			<el-table-column label="操作" width="145" fixed="right" align="right">
 				<template #default="{ row }">
 					<el-button link type="primary" @click="edit(row)">{{ row.status === 'DRAFT' ? '编辑' : '详情' }}</el-button>
@@ -53,7 +57,8 @@
 						<el-button link>更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
 						<template #dropdown>
 							<el-dropdown-menu>
-								<el-dropdown-item v-if="row.status === 'DRAFT'" :disabled="saving" @click="publish(row)">发布</el-dropdown-item>
+                                <el-dropdown-item v-if="row.status === 'DRAFT'" :disabled="saving" @click="publish(row)">发送商家邀请</el-dropdown-item>
+                                <el-dropdown-item v-if="row.status === 'CONFIRMING'" :disabled="saving" @click="withdraw(row)">撤回并调整</el-dropdown-item>
 								<el-dropdown-item v-if="row.status === 'PUBLISHED'" @click="openSchedule(row)">启停与时间</el-dropdown-item>
 								<el-dropdown-item @click="showProgress(row)">进度与奖励</el-dropdown-item>
 								<el-dropdown-item @click="stock(row)">补库存</el-dropdown-item>
@@ -84,12 +89,17 @@
 			:before-close="guard.close"
 		>
 			<el-alert
-				title="发布后商家目标、门店范围、奖励券及其规则版本固定。每位顾客只奖励一次，不循环集章。"
+					title="先邀请商家确认门店，全部同意后自动上线。待确认时可撤回调整；上线后目标、时间与奖励规则固定，每人只奖励一次。"
 				type="info"
 				:closable="false"
 				show-icon
 			/>
 			<el-form label-position="top" :disabled="saving || readonly || loadingOptions">
+                <el-table v-if="confirmationRows.length" :data="confirmationRows">
+                    <el-table-column label="受邀商家"><template #default="{ row }">{{ merchantName(row.merchantId) }}</template></el-table-column>
+                    <el-table-column label="确认状态"><template #default="{ row }">{{ ({PENDING:'待确认',ACCEPTED:'已同意',REJECTED:'已拒绝'} as Record<string,string>)[row.status] }}</template></el-table-column>
+                    <el-table-column prop="reason" label="说明" />
+                </el-table>
 				<el-form-item label="活动名称（必填）"
 					><el-input v-model="form.title" maxlength="100" show-word-limit
 				/></el-form-item>
@@ -255,6 +265,7 @@
 				<el-form-item label="生效时间"
 					><el-date-picker
 						v-model="schedule.range"
+                        disabled
 						type="datetimerange"
 						value-format="YYYY-MM-DD HH:mm:ss"
 						style="width: 100%"
@@ -390,6 +401,12 @@ const form = ref(blank()),
 const selectedReward = computed(() =>
 	rewards.value.find(r => r.id === form.value.rewardTemplateId)
 );
+const confirmationRows = ref<any[]>([]);
+async function withdraw(row:any) {
+    try { await ElMessageBox.confirm('撤回后本轮商家确认失效。修改草稿并重新发送邀请，所有商家需重新确认。','撤回邀请'); }
+    catch { return; }
+    await mutate('withdraw',{id:row.id,version:row.version});
+}
 const rewardEditor = ref(false),
 	noticeId = ref<number>();
 const couponTypes: Record<string, string> = {
@@ -427,7 +444,7 @@ const benefit = (r: any) =>
 				? r.discountRate + ' 折'
 				: (r.contentItems || []).map((c: any) => c.name + ' × ' + c.quantity).join('、');
 const state = (r: any) =>
-	r.status === 'DRAFT'
+    r.status === 'CONFIRMING' ? '等待商家确认' : r.status === 'DRAFT'
 		? '草稿'
 		: r.status === 'OFFLINE'
 			? '已下架'
@@ -474,6 +491,7 @@ async function edit(row?: any) {
 	try {
 		if (row) {
 			const r = await featureApi('promotions/stamps/info?id=' + row.id);
+            confirmationRows.value = r.confirmations || [];
             rewards.value = [...rewards.value.filter(c => c.id !== r.reward.id), r.reward];
 			form.value = {
 				...blank(),
@@ -491,6 +509,7 @@ async function edit(row?: any) {
 			};
 			readonly.value = r.status !== 'DRAFT';
 		} else {
+			confirmationRows.value = [];
 			form.value = blank();
 			readonly.value = false;
 		}
@@ -524,7 +543,7 @@ async function save() {
 		});
 		guard.markClean();
 		visible.value = false;
-		ElMessage.success('草稿已保存，核对后可在列表发布');
+		ElMessage.success('草稿已保存，核对后可发送商家邀请');
 		await load();
 	} catch (e: any) {
 		ElMessage.error(e.message);
@@ -546,9 +565,9 @@ async function publish(row: any) {
 				row.reward.name +
 				' 一张；活动库存 ' +
 				row.rewardStock +
-				' 张。发布后目标和奖励规则不可修改。',
-			'核对并发布集章活动',
-			{ confirmButtonText: '确认发布', cancelButtonText: '继续核对' }
+				' 张。现在仅发送邀请，全部商家确认后才正式上线。',
+			'核对并邀请商家',
+			{ confirmButtonText: '发送邀请', cancelButtonText: '继续核对' }
 		);
 	} catch {
 		return;

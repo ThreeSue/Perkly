@@ -25,6 +25,7 @@
 
 		<!-- 新增、编辑 -->
 		<cl-upsert ref="Upsert" />
+		<ProfileViewer ref="Profile" />
 		<el-drawer v-model="detailVisible" :title="t('账号详情与绑定关系')" size="min(680px, 100vw)" destroy-on-close @close="detailRequest++">
 			<div v-loading="detailLoading" :aria-busy="detailLoading" style="min-height: 160px">
 				<ManagementState v-if="detailError" kind="error" :title="t('获取账号详情失败')" :description="detailError" @retry="showDetail(detailId)" />
@@ -57,6 +58,9 @@
 
 <script lang="ts" setup>
 import ManagementState from '/@/modules/workspace/components/management-state.vue';
+import ProfileViewer from '../components/profile-viewer.vue';
+import { checkPerm } from '/@/modules/base/utils/permission';
+import { isPlatform } from '/@/workspace';
 import CatalogWorkbench from '/@/modules/workspace/components/catalog-workbench.vue';
 defineOptions({
 	name: 'user-list'
@@ -69,6 +73,7 @@ import { reactive, ref } from 'vue';
 
 const { t } = useI18n();
 const { service } = useCool();
+const Profile = ref<InstanceType<typeof ProfileViewer>>();
 
 interface AccountDetail {
 	id: number; nickName?: string; phone?: string; status: number; createTime?: string;
@@ -211,8 +216,8 @@ const Table = useTable({
 		},
 		{
 			type: 'op',
-			width: 240,
-			buttons: [{ label: t('详情'), type: 'primary', onClick: ({ scope }) => showDetail(scope.row.id) }, 'edit', 'delete']
+			width: 310,
+			buttons: [{ label: t('详情'), type: 'primary', onClick: ({ scope }) => showDetail(scope.row.id) }, { label: t('用户画像'), type: 'primary', hidden: !isPlatform || !checkPerm('profile:read'), onClick: ({ scope }) => Profile.value?.open(scope.row) }, 'edit', 'delete']
 		}
 	]
 });

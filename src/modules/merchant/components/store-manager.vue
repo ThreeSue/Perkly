@@ -645,7 +645,7 @@ onActivated(() => {
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
-	padding: 18px 22px 0;
+	padding: 0;
 	box-sizing: border-box;
 	background: color-mix(in srgb, var(--el-bg-color-page) 94%, #3156bc);
 	color: var(--el-text-color-primary);
@@ -822,7 +822,7 @@ onActivated(() => {
 	vertical-align: 2px;
 }
 @media (max-width: 850px) {
-	.store-workspace.is-directory { padding: 8px; }
+	.store-workspace.is-directory { padding: 0; }
 }
 .store-toolbar-top,
 .store-toolbar-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

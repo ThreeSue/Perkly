@@ -360,26 +360,40 @@ async function loadDetail() {
 		}
 	}
 }
+let pendingTransition:
+	| { action: 'takeover' | 'close'; chatId: number; version: number; requestId: string }
+	| undefined;
 async function transition(action: 'takeover' | 'close') {
-	if (!selected.value || !detail.value || transitioning.value) return;
-	if (action === 'close') {
-		try {
-			await ElMessageBox.confirm('结束本轮接待后将保留全部历史消息。', '结束接待');
-		} catch {
-			return;
-		}
-	}
+	if (!selected.value || !detail.value || transitioning.value || sending.value) return;
+	const chatId = selected.value.id;
 	transitioning.value = true;
 	try {
-		await featureApi(`chats/${action}`, {
-			chatId: selected.value.id,
-			version: detail.value.version,
-			requestId: crypto.randomUUID()
-		});
+		if (action === 'close') {
+			try {
+				await ElMessageBox.confirm('结束本轮接待后将保留全部历史消息。', '结束接待');
+			} catch {
+				return;
+			}
+		}
+		if (
+			!pendingTransition ||
+			pendingTransition.chatId !== chatId ||
+			pendingTransition.action !== action
+		)
+			pendingTransition = {
+				action,
+				chatId,
+				version: detail.value.version,
+				requestId: crypto.randomUUID()
+			};
+		const { action: _, ...payload } = pendingTransition;
+		await featureApi(`chats/${action}`, payload);
+		pendingTransition = undefined;
 		await loadDetail();
 		await fetchMessages();
 	} catch (e: any) {
 		ElMessage.error(e?.message || '接待状态更新失败');
+		if (e?.code === 409 || e?.response?.status === 409) pendingTransition = undefined;
 		await loadDetail();
 	} finally {
 		transitioning.value = false;
@@ -438,6 +452,7 @@ const canSend = computed(() =>
 let timer: ReturnType<typeof setInterval> | undefined;
 let stopped = false;
 let requestId = crypto.randomUUID();
+let lastSendPayload = '';
 let generation = 0;
 let failedOlder = false;
 const messageBox = ref<HTMLElement>();
@@ -487,6 +502,8 @@ async function select(row: ChatSession) {
 	}
 	if (stopped) return;
 	selected.value = row;
+	lastSendPayload = '';
+	pendingTransition = undefined;
 	advice.value = '';
 	adviceError.value = '';
 	detail.value = undefined;
@@ -584,7 +601,7 @@ async function send() {
 	if (!canSend.value) return ElMessage.warning('请输入文字或上传图片');
 	sending.value = true;
 	try {
-		await featureApi('chats/send', {
+		const payload = {
 			chatId: selected.value.id,
 			requestId,
 			content: content.value,
@@ -592,7 +609,15 @@ async function send() {
 			card: selectedCard.value
 				? { type: selectedCard.value.type, id: selectedCard.value.id }
 				: undefined
-		});
+		};
+		const fingerprint = JSON.stringify({ ...payload, requestId: undefined });
+		if (lastSendPayload && fingerprint !== lastSendPayload) {
+			ElMessage.warning('上次发送结果未确认，请恢复原内容重试或刷新会话确认结果后再发送。');
+			return;
+		}
+		lastSendPayload = fingerprint;
+		await featureApi('chats/send', payload);
+		lastSendPayload = '';
 		content.value = '';
 		images.value = [];
 		selectedCard.value = undefined;

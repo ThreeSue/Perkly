@@ -15,6 +15,7 @@
 		<div v-if="error && data" class="workbench-inline-alert">
 			<el-alert :title="error" type="error" :closable="false" show-icon />
 		</div>
+		<RiskOverview />
 		<div v-if="data" class="workbench-grid operations-grid">
 			<section class="workbench-panel review-queue" aria-labelledby="review-heading">
 				<div class="workbench-section-head">
@@ -69,6 +70,7 @@
 </template>
 
 <script setup lang="ts">
+import RiskOverview from "/@/modules/user/components/risk-overview.vue";
 import { computed, onActivated, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { ArrowRight, Refresh } from '@element-plus/icons-vue';

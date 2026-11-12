@@ -58,8 +58,8 @@ export default defineComponent({
 
 					const item = (e: Menu.Item) => {
 						const arr = [
-							<cl-svg name={e.icon} size={18} />,
-							<span class="ml-4 tracking-wider text-[14px] mr-auto text-ellipsis overflow-hidden whitespace-nowrap">
+
+							<span class="b-menu__label" title={e.meta?.label}>
 								{e.meta?.label}
 							</span>
 						];
@@ -162,7 +162,7 @@ export default defineComponent({
 						default-active={route.path}
 						background-color="transparent"
 						collapse-transition={false}
-						collapse={browser.isMini ? false : app.isFold}
+						collapse={false}
 						onSelect={onSelect}
 						popper-offset={10}
 					>

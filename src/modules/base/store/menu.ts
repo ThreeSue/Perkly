@@ -136,6 +136,9 @@ export const useMenuStore = defineStore('menu', function () {
 				.map(e => {
 					const path = revisePath(e.router || String(e.id));
 					const isShow = e.isShow === undefined ? true : e.isShow;
+					// 兼容旧菜单名称，保留路由、节点 ID 和授权关系。
+					const label = ['/user/search-risk', '/workspace-admin/search-risk'].includes(path)
+						? '内容风险管控' : e.name;
 
 					return {
 						...e,
@@ -143,7 +146,7 @@ export const useMenuStore = defineStore('menu', function () {
 						isShow,
 						meta: {
 							...e.meta,
-							label: e.name, // 菜单名称的唯一标识
+							label,
 							keepAlive: e.keepAlive || 0
 						},
 						name: `${e.name}-${e.id}`, // 避免重复命名之前的冲突
