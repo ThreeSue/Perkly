@@ -27,6 +27,15 @@ public class WalletActivityController {
     private final HttpServletRequest request;
     private final ActivityAudienceService audience;
     private final ActivityNoticeService notices;
+    private final com.cool.modules.promotion.service.StampCampaignService stamps;
+    @GetMapping("/stamp-invitation") public R<?> stampInvitation(@RequestParam Long id) {
+        if(platform())throw new CoolException("请使用商家身份",403);
+        return R.ok(stamps.invitation(actor(),id));
+    }
+    @PostMapping("/stamp-confirm") public R<?> stampConfirm(@RequestBody com.cool.modules.promotion.service.StampCampaignService.Answer input) {
+        if(platform())throw new CoolException("请使用商家身份",403);
+        stamps.answer(actor(),input);return R.ok(stamps.invitation(actor(),input.id()));
+    }
 
     public record Id(Long id) {
     }

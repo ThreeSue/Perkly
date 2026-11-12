@@ -28,9 +28,15 @@ public class UserAssistantQueries {
     private final AppDiscoveryService discovery;
     private final CouponTradeService trade;
     private final CustomerCouponMapper owned;
-    private static final int MAX_PAGES=20;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.cool.modules.recommendation.RecommendationService recommendations;
 
     public Result query(Long customer, Action action, Conditions c, Location location, Target target, String state) {
+        if(target!=null && target.kind()==Kind.STORE && (action==Action.STORES || action==Action.RULES)) {
+            var row=discovery.store(target.id());
+            return new Result(List.of(card(Kind.STORE,row,false)),false,
+                "仅查询当前选中的门店，未进行附近搜索或替换其他门店；营业时间为门店公开资料，不保证此刻营业。");
+        }
         if(action==Action.RULES) {
             if(target==null || target.kind()!=Kind.COUPON && target.kind()!=Kind.WALLET)
                 return new Result(List.of(),false,"请先选择一张优惠券或我的券；历史券请从我的券进入。");
@@ -55,10 +61,11 @@ public class UserAssistantQueries {
         List<Map<String,Object>> candidates=new ArrayList<>();
         boolean partial=scan(p->{var req=new DiscoveryPageReq();req.setPage(p);req.setSize(100);req.setKeyword(c.keyword());
             return action==Action.COUPONS?discovery.coupons(req):discovery.stores(req);},candidates);
+        if(recommendations!=null)candidates=recommendations.rankForAssistant(customer,candidates,Boolean.TRUE.equals(c.cheap()));
         List<Card> cards=new ArrayList<>();
         for(var row:candidates) {
             if(action==Action.STORES) {
-                if(matchesPlace(row,c,location)) cards.add(card(Kind.STORE,row,false));
+                if(Long.valueOf(1).equals(number(row.get("status")))&&matchesPlace(row,c,location)) cards.add(card(Kind.STORE,row,false));
                 continue;
             }
             if(!eligible(customer,row,c)) continue;
@@ -78,12 +85,11 @@ public class UserAssistantQueries {
     }
 
     private boolean scan(IntFunction<PageResult<Map<String,Object>>> query,List<Map<String,Object>> rows) {
-        for(int p=1;p<=MAX_PAGES;p++) {
+        for(int p=1;;p++) {
             var page=query.apply(p);rows.addAll(page.getList());
             Long total=page.getPagination().getTotal();
             if(page.getList().size()<100 || total!=null && rows.size()>=total) return false;
         }
-        return true;
     }
     private boolean eligible(Long customer,Map<String,Object> row,Conditions c) {
         if(!"AVAILABLE".equals(row.get("saleState"))) return false;

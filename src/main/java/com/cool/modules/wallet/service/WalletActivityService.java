@@ -227,7 +227,7 @@ public class WalletActivityService {
     public ActivityView detail(Long actor,Long id) {
         var context=auth.context(actor);
         var row=activities.selectOneById(id);
-        if(row==null || !Set.of("PUBLISHED","OFFLINE").contains(row.getStatus()))throw new CoolException("活动不存在或无权查看",403);
+        if(row==null || !(Set.of("PUBLISHED","OFFLINE").contains(row.getStatus()) || "STAMP".equals(row.getKind()) && "CONFIRMING".equals(row.getStatus())))throw new CoolException("活动不存在或无权查看",403);
         var allowed=auth.storeIds(auth.user(actor));
         var visible=audience.definition(row).stream().filter(s->s.merchantId().equals(context.merchantId()) && allowed.contains(s.id())).toList();
         if(visible.isEmpty())throw new CoolException("活动不在当前授权门店范围",403);
@@ -247,6 +247,7 @@ public class WalletActivityService {
         var row=activities.selectOneByQuery(QueryWrapper.create().eq(WalletActivityEntity::getId,input.id()).forUpdate());
         if(row==null || !"PUBLISHED".equals(row.getStatus()) || !row.getEndAt().after(new Date()))
             throw new CoolException("活动不存在或已结束",409);
+        if("STAMP".equals(row.getKind()))throw new CoolException("已上线集章活动不可单独退出或变更门店，请联系运营暂停活动");
         audience.freeze(row);
         var changed=audience.changeParticipation(actor,row,input);
         if(!changed.isEmpty()){
@@ -272,7 +273,7 @@ public class WalletActivityService {
             Long merchant=auth.user(actor).getMerchantId();
             var rows = activities.selectListByQuery(q.orderBy(WalletActivityEntity::getId, false)).stream()
                 .filter(a -> merchant.equals(a.getMerchantId()) ? allowed.containsAll(a.getStoreIds())
-                    : a.getMerchantId()==null && Set.of("PUBLISHED","OFFLINE").contains(a.getStatus())
+                    : a.getMerchantId()==null && (Set.of("PUBLISHED","OFFLINE").contains(a.getStatus()) || "STAMP".equals(a.getKind()) && "CONFIRMING".equals(a.getStatus()))
                         && audience.definition(a).stream().anyMatch(s->merchant.equals(s.merchantId()) && allowed.contains(s.id())))
                 .toList();
             int start = (int) Math.min((long) (page - 1) * size, rows.size());

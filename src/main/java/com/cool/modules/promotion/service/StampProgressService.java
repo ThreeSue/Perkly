@@ -146,7 +146,7 @@ public class StampProgressService {
             .stream().filter(a->!ids.isEmpty() && ids.contains(a.getId()) || "PUBLISHED".equals(a.getStatus())
                 && !Boolean.FALSE.equals(a.getEnabled()) && a.getEndAt().after(new Date())).toList();
         int start=(int)Math.min((long)(page-1)*size,rows.size());
-        var data=rows.subList(start,Math.min(start+size,rows.size())).stream().map(a->new CustomerActivity(campaigns.view(a.getId()),
+        var data=rows.subList(start,Math.min(start+size,rows.size())).stream().map(a->new CustomerActivity(campaigns.customerView(a.getId()),
             joined.stream().filter(p->p.getActivityId().equals(a.getId())).findFirst().map(this::view).orElse(null))).toList();
         return new PageResult<>(data,rows.size(),page,size);
     }

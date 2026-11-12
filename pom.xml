@@ -41,6 +41,12 @@
         </dependencies>
     </dependencyManagement>
     <dependencies>
+        <!-- Same engine and bundled dictionary as Music Platform 2026. -->
+        <dependency>
+            <groupId>com.github.houbb</groupId>
+            <artifactId>sensitive-word</artifactId>
+            <version>0.29.5</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-openai</artifactId>

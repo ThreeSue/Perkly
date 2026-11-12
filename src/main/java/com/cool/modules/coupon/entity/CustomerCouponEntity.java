@@ -21,4 +21,6 @@ public class CustomerCouponEntity {
     private Long customerId;
     private Long couponTemplateId;
     private String code;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private String ruleSnapshot;
 }

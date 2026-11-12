@@ -22,6 +22,16 @@ import org.junit.jupiter.api.Test;
  * @Time: 17:07:03
  */
 class UserAssistantQueriesTest {
+    @Test void explicitStoreUsesPublicDetailAndNeverFallsBackToSearch() {
+        when(discovery.store(9L)).thenReturn(Map.of("id",9L,"name","指定门店","address","真实地址","businessHours","09:00-18:00"));
+        var result=queries.query(7L,Action.STORES,new Conditions("其他城市","其他店",null,null,null,null,true),null,new Target(Kind.STORE,9L),null);
+        assertEquals(List.of(9L),result.cards().stream().map(Card::id).toList());
+        assertTrue(result.cards().get(0).facts().contains(new Field("地址","真实地址")));
+        verify(discovery,never()).stores(any());
+        when(discovery.store(10L)).thenThrow(new CoolException("门店不存在或暂不可展示",404));
+        assertThrows(CoolException.class,()->queries.query(7L,Action.STORES,Conditions.empty(),null,new Target(Kind.STORE,10L),null));
+        verify(discovery,never()).stores(any());
+    }
     @Test void personalRecordTotalSurvivesCardPagination() {
         var p=page(List.of(Map.of("id",1L,"name","测试订单")));
         p.getPagination().setTotal(27L);
@@ -63,9 +73,11 @@ class UserAssistantQueriesTest {
         assertFalse(result.cards().get(0).purchasable());assertTrue(result.toString().contains("仅周末使用"));assertFalse(result.toString().contains("SECRET"));assertTrue(result.note().contains("快照"));
     }
     @Test void missingCoordinatesAreNotPretendedToBeNearbyAndAreaSearchUsesAddress(){
-        var row=new HashMap<String,Object>(Map.of("id",3L,"name","福州店","address","福建福州鼓楼区"));when(discovery.stores(any())).thenReturn(page(List.of(row)));
+        var row=new HashMap<String,Object>(Map.of("id",3L,"name","福州店","address","福建福州鼓楼区","status",1));when(discovery.stores(any())).thenReturn(page(List.of(row)));
         assertEquals(1,queries.query(7L,Action.STORES,new Conditions("福州",null,null,null,null,false,true),null,null,null).cards().size());
         assertTrue(queries.query(7L,Action.STORES,new Conditions(null,null,null,null,null,false,true),new Location(new java.math.BigDecimal("119.3"),new java.math.BigDecimal("26.1")),null,null).cards().isEmpty());
+        row.put("status",2);
+        assertTrue(queries.query(7L,Action.STORES,Conditions.empty(),null,null,null).cards().isEmpty());
     }
     @Test void cheapSortAndEmptyResultsRemainTruthful(){
         when(discovery.coupons(any())).thenReturn(page(List.of(coupon(1,1500,"AVAILABLE"),coupon(2,0,"AVAILABLE"),coupon(3,500,"AVAILABLE"))));

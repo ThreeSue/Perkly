@@ -21,9 +21,12 @@ import static com.cool.modules.merchant.location.LocationModels.*;
 @RequiredArgsConstructor
 public class MerchantMapController {
     private final TencentMapService maps;
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService searchRisk;
+    @org.springframework.beans.factory.annotation.Autowired private jakarta.servlet.http.HttpServletRequest request;
 
     @GetMapping("/suggest")
     public R<PlaceResult> suggest(@RequestParam String keyword, @RequestParam(required = false) String region) {
+        if(request.getRequestURI().startsWith("/app/"))searchRisk.check(keyword,"MAP_SUGGEST");
         return R.ok(maps.suggest(keyword, region));
     }
 

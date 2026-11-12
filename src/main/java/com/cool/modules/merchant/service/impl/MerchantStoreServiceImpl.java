@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMapper, MerchantStoreEntity>
         implements MerchantStoreService {
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
     private final MerchantInfoService merchantService;
     private final MerchantStoreCategoryService categoryService;
 
@@ -84,7 +85,7 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
             entity.setCover(materials.resolveCover(entity.getMerchantId(), entity.getCoverMaterialId(), entity.getCover()));
         }
         validate(entity, null);
-        return super.add(entity);
+        Long id=super.add(entity);risk.bind("STORE",id);return id;
     }
 
     @Override
@@ -143,6 +144,9 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
         if ((entity.getLongitude() == null) != (entity.getLatitude() == null)) throw new CoolException("经度和纬度需要同时填写或同时留空");
         validateCoordinate(entity.getLongitude(), "经度", new BigDecimal("-180"), new BigDecimal("180"));
         validateCoordinate(entity.getLatitude(), "纬度", new BigDecimal("-90"), new BigDecimal("90"));
+        risk.checkContent(entity.getName(),"STORE","STORE_NAME",entity.getId());
+        risk.checkContent(entity.getBusinessHours(),"STORE","STORE_HOURS",entity.getId());
+        risk.checkContent(entity.getAddress(),"STORE","STORE_ADDRESS",entity.getId());
     }
 
     private void validateCoordinate(BigDecimal value, String label, BigDecimal min, BigDecimal max) {

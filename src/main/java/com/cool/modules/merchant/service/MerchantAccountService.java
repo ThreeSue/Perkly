@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class MerchantAccountService {
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
     @org.springframework.beans.factory.annotation.Autowired
     private com.cool.modules.workspace.service.WorkspaceLegacyAccountBridge workspaceBridge;
 
@@ -215,6 +216,7 @@ public class MerchantAccountService {
         BaseSysUserEntity user = users.selectOneByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getUsername, username));
         if (user != null) throw new CoolException("账号已存在，请使用新的独立商家账号，避免改变运营账号身份");
         user = new BaseSysUserEntity();
+        risk.checkContent(name,"PROFILE","WORKSPACE_NICKNAME",null);
         user.setUsername(username); user.setName(name.trim()); user.setNickName(name.trim());
         user.setPassword(passwords.encode(password)); user.setPasswordV(1); user.setStatus(1);
         user.setMerchantId(merchantId); user.setMerchantRole("OWNER");

@@ -31,6 +31,8 @@ public class UserInfoEntity extends BaseEntity<UserInfoEntity> {
 
     @ColumnDefine(comment = "状态 0-禁用 1-正常 2-已注销", defaultValue = "1")
     private Integer status;
+    @ColumnDefine(comment = "停用原因，对已验证身份的用户可见",length=200)
+    private String banReason;
 
     @ColumnDefine(comment = "登录方式 0-小程序 1-公众号 2-H5", defaultValue = "0")
     private String loginType;

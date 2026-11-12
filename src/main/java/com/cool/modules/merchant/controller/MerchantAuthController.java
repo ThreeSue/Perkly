@@ -28,7 +28,9 @@ public class MerchantAuthController {
 
     @TokenIgnore
     @GetMapping("/captcha")
-    public R<?> captcha() { return R.ok(login.captcha(UserTypeEnum.ADMIN, "base64", 150, 45)); }
+    public R<?> captcha(@RequestParam(defaultValue = "base64") String type) {
+        return R.ok(login.captcha(UserTypeEnum.ADMIN, type, 150, 45));
+    }
 
     @TokenIgnore
     @PostMapping("/login")

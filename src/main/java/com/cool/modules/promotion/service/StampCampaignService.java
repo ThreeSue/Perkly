@@ -63,7 +63,60 @@ public class StampCampaignService {
     public record Stock(Long id,String requestId,Long amount) {}
     @io.swagger.v3.oas.annotations.media.Schema(name="StampCampaignView")
     public record View(Long id,String title,String description,String status,boolean enabled,Integer version,
-        Date startAt,Date endAt,List<GoalView> goals,Long rewardStock,Long grantedCount,CouponTemplateEntity reward) {}
+        Date startAt,Date endAt,List<GoalView> goals,Long rewardStock,Long grantedCount,CouponTemplateEntity reward,List<Confirmation> confirmations) {}
+    public record Confirmation(Long merchantId,String status,List<Long> storeIds,String reason,Long actor,Date answeredAt) {}
+    public record Answer(Long id,Integer version,Boolean accepted,List<Long> storeIds,String reason) {}
+    public record Invitation(Long id,Integer version,String status,boolean canConfirm,List<WalletActivityService.StoreName> stores,Confirmation answer,Integer targetCount,CouponTemplateEntity reward) {}
+    public List<Confirmation> confirmations(StampCampaignEntity c) {
+        if(c.getConfirmations()==null)return List.of();
+        try{return json.readValue(c.getConfirmations(),new com.fasterxml.jackson.core.type.TypeReference<List<Confirmation>>(){});}
+        catch(Exception e){throw new CoolException("商家确认记录无法读取");}
+    }
+    private void confirmations(StampCampaignEntity c,List<Confirmation> rows) {
+        try{c.setConfirmations(json.writeValueAsString(rows));}
+        catch(Exception e){throw new CoolException("商家确认记录无法保存");}
+    }
+    public Invitation invitation(Long actor,Long id) {
+        var a=header(id,false);var p=audience.participation(actor,a);
+        Long merchant=audience.merchantActor(actor,"activity:participate");
+        var answer=confirmations(config(id)).stream().filter(r->r.merchantId().equals(merchant)).findFirst().orElse(null);
+        return new Invitation(id,a.getActivityVersion(),a.getStatus(),p.canExit(),p.stores().stream().map(s->new WalletActivityService.StoreName(s.id(),s.name())).toList(),answer,goals(config(id)).size(),view(id).reward());
+    }
+    public void answer(Long actor,Answer input) {
+        var a=header(input.id(),true);version(a,input.version());
+        if(!"CONFIRMING".equals(a.getStatus()) || !a.getEndAt().after(new Date()))throw new CoolException("邀请已结束或已撤回，请刷新",409);
+        var invitation=invitation(actor,a.getId());
+        if(!invitation.canConfirm())throw new CoolException("需要本商家全部邀请门店授权才能确认",403);
+        if(input.accepted()==null)throw new CoolException("请选择同意或拒绝");
+        Long merchant=audience.merchantActor(actor,"activity:participate");
+        var c=config(a.getId());var selected=input.storeIds()==null?List.<Long>of():input.storeIds().stream().distinct().toList();
+        var available=invitation.stores().stream().map(WalletActivityService.StoreName::id).toList();
+        if(input.accepted() && (selected.isEmpty() || !available.containsAll(selected)))throw new CoolException("请选择至少一家受邀且正常的门店");
+        if(!input.accepted() && (input.reason()==null || input.reason().isBlank()))throw new CoolException("请填写拒绝原因");
+        if(input.reason()!=null && input.reason().length()>500)throw new CoolException("原因最多500字");
+        var rows=new ArrayList<>(confirmations(c));
+        if(rows.stream().noneMatch(r->r.merchantId().equals(merchant)))throw new CoolException("不在邀请商家范围",403);
+        rows.replaceAll(r->r.merchantId().equals(merchant)?new Confirmation(merchant,input.accepted()?"ACCEPTED":"REJECTED",input.accepted()?selected:List.of(),input.reason(),actor,new Date()):r);
+        confirmations(c,rows);configs.update(c);
+        a.setActivityVersion(a.getActivityVersion()+1);
+        if(rows.stream().allMatch(r->"ACCEPTED".equals(r.status()))) {
+            var accepted=normalize(rows.stream().map(r->new Goal(r.merchantId(),r.storeIds())).toList());
+            var current=reward(c.getRewardTemplateId(),true);
+            if(!Objects.equals(current.getRuleVersion(),c.getRewardRuleVersion()))throw new CoolException("奖励规则已变化，请运营撤回后重新邀请",409);
+            c.setGoals(goalsJson(accepted));configs.update(c);
+            a.setStoreIds(accepted.stream().flatMap(g->g.storeIds().stream()).toList());a.setAudienceSnapshot(null);
+            audience.freeze(a);a.setStatus("PUBLISHED");
+            // 确认前消费不可追溯补计。
+            if(a.getStartAt().before(new Date()))a.setStartAt(new Date(System.currentTimeMillis()/1000*1000));
+            activities.update(a,false);notices.published(a);
+        }else activities.update(a);
+    }
+    public void withdraw(Command input) {
+        permission();var a=header(input.id(),true);version(a,input.version());
+        if(!"CONFIRMING".equals(a.getStatus()))throw new CoolException("只能撤回待确认活动",409);
+        var targets=audience.definition(a);a.setStatus("DRAFT");a.setAudienceSnapshot(null);a.setActivityVersion(a.getActivityVersion()+1);activities.update(a,false);
+        notices.changed(a,targets,"INVITATION_WITHDRAWN");
+    }
     public record MerchantOption(Long id,String name,List<WalletActivityService.StoreName> stores) {}
     public record RewardReview(Long id,Integer version,Boolean approved,String reason) {}
     public void permission(){access.platform("stamp:manage");}
@@ -163,13 +216,15 @@ public class StampCampaignService {
         for(var key:List.of("publication","queryWrapper","createTime","updateTime","issuedCount"))snapshot.remove(key);
         c.setRewardSnapshot(JSONUtil.toJsonStr(snapshot));configs.update(c);
         a.setStoreIds(selected.stream().flatMap(g->g.storeIds().stream()).toList());
-        audience.freeze(a);a.setStatus("PUBLISHED");a.setReviewedBy(actor);a.setReviewedAt(new Date());
-        a.setActivityVersion(a.getActivityVersion()+1);activities.update(a);notices.published(a);
+        confirmations(c,selected.stream().map(g->new Confirmation(g.merchantId(),"PENDING",g.storeIds(),null,null,null)).toList());configs.update(c);
+        audience.freeze(a);a.setStatus("CONFIRMING");a.setReviewedBy(actor);a.setReviewedAt(new Date());
+        a.setActivityVersion(a.getActivityVersion()+1);activities.update(a);notices.changed(a,audience.definition(a),"INVITED");
     }
     public void schedule(Schedule input) {
         permission();dates(input.startAt(),input.endAt());
         var a=header(input.id(),true);version(a,input.version());
         if(!"PUBLISHED".equals(a.getStatus()) || input.enabled()==null)throw new CoolException("只能调整已发布活动",409);
+        if(!Objects.equals(a.getStartAt(),input.startAt()) || !Objects.equals(a.getEndAt(),input.endAt()))throw new CoolException("已确认活动时间不可更改，请新建活动重新邀请商家");
         var targets=audience.participating(a);a.setEnabled(input.enabled());a.setStartAt(input.startAt());a.setEndAt(input.endAt());
         a.setActivityVersion(a.getActivityVersion()+1);activities.update(a);notices.changed(a,targets,"CHANGED");
     }
@@ -215,12 +270,16 @@ public class StampCampaignService {
             frozen.setIssueLimit(r.getIssueLimit());r=frozen;
         }
         return new View(a.getId(),a.getTitle(),a.getDescription(),a.getStatus(),!Boolean.FALSE.equals(a.getEnabled()),
-            a.getActivityVersion(),a.getStartAt(),a.getEndAt(),goals,c.getRewardStock(),c.getGrantedCount(),r);
+            a.getActivityVersion(),a.getStartAt(),a.getEndAt(),goals,c.getRewardStock(),c.getGrantedCount(),r,confirmations(c));
     }
     public PageResult<View> page(int page,int size) {
         permission();SupportAccess.page(page,size);
         var rows=activities.paginate(page,size,QueryWrapper.create().eq(WalletActivityEntity::getKind,"STAMP").orderBy(WalletActivityEntity::getId,false));
         return new PageResult<>(rows.getRecords().stream().map(a->view(a.getId())).toList(),rows.getTotalRow(),page,size);
+    }
+    public View customerView(Long id) {
+        var v=view(id);
+        return new View(v.id(),v.title(),v.description(),v.status(),v.enabled(),v.version(),v.startAt(),v.endAt(),v.goals(),v.rewardStock(),v.grantedCount(),v.reward(),List.of());
     }
     public List<CouponTemplateEntity> rewards() {
         permission();return couponRows.selectListByQuery(QueryWrapper.create().eq(CouponTemplateEntity::getIssueChannel,"TASK_ONLY")

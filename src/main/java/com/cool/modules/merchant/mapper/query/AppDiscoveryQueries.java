@@ -111,7 +111,7 @@ public final class AppDiscoveryQueries {
                 field(COUPON, "allow_combine", "allowCombine"), field(COUPON, "validity_type", "validityType"),
                 field(COUPON, "valid_days", "validDays"), date("sale_start_time", "saleStartTime"),
                 date("sale_end_time", "saleEndTime"), date("valid_from", "validFrom"), date("valid_to", "validTo"),
-                saleState().as("saleState"))
+                saleState().as("saleState"),dateFormat(col(PUBLICATION,"published_at"),"%Y-%m-%d %H:%i:%s").as("publishedAt"))
                 .from(COUPON).innerJoin(MERCHANT)
                 .on(col(MERCHANT, "id").eq(col(COUPON, "merchant_id")))
                 .innerJoin(PUBLICATION).on(col(PUBLICATION, "coupon_template_id").eq(col(COUPON, "id"))

@@ -43,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(rollbackFor=Exception.class)
 public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardingService {
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
     @org.springframework.beans.factory.annotation.Autowired
     private com.cool.modules.workspace.service.WorkspaceLegacyAccountBridge workspaceBridge;
 
@@ -77,6 +78,8 @@ public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardi
     }
     @Override public MerchantOnboardingResp submit(Submit input, boolean resubmit) {
         validate(input); String phone=phone(input.onboardingToken());
+        risk.checkContent(input.merchantName(),"MERCHANT","MERCHANT_APPLICATION_NAME",null);
+        risk.checkContent(input.introduction(),"MERCHANT","MERCHANT_APPLICATION_INTRODUCTION",null);
         var category=categories.selectOneById(input.categoryId());
         require(category != null && Integer.valueOf(1).equals(category.getStatus()),"请选择启用的商家分类");
         Map<String,Object> data=new LinkedHashMap<>();

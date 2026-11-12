@@ -67,7 +67,54 @@ class StampIntegrationTest extends FeatureModulesIntegrationTest {
         return stampCampaign.save(admin,new StampCampaignService.Input(null,null,prefix+"五商家集章","集齐发券",
             new Date(System.currentTimeMillis()-60000),new Date(System.currentTimeMillis()+3600000),goals,reward.getId(),stock));
     }
-    void publish(Long id){stampCampaign.publish(admin,new StampCampaignService.Command(id,stampCampaign.view(id).version()));}
+    Long invitedOwner(Long business) {
+        if(business.equals(merchant)){activityPermission(owner,"activity:participate");return owner;}
+        Long original=merchant;merchant=business;
+        try {
+            Long actor=account("invite"+business,"OWNER",null);
+            for(var menu:auth.catalog()) {var g=new com.cool.modules.workspace.entity.WorkspaceGrantEntity();g.setSubjectType("MERCHANT");g.setSubjectId(business);g.setMenuId(menu.getId());g.setAllowed(true);grants.insert(g);}
+            activityPermission(actor,"activity:participate");return actor;
+        } finally {merchant=original;}
+    }
+    void publish(Long id){
+        stampCampaign.publish(admin,new StampCampaignService.Command(id,stampCampaign.view(id).version()));
+        for(var goal:stampCampaign.goals(stampCampaign.config(id))) {
+            Long actor=invitedOwner(goal.merchantId());
+            stampCampaign.answer(actor,new StampCampaignService.Answer(id,stampCampaign.view(id).version(),true,goal.storeIds(),null));
+        }
+    }
+    @Test void stampInvitationsGateConsumptionAndRejectStaleResponses() throws Exception {
+        var r=reward(true);var goals=targets(2,new ArrayList<>());var id=draft(r,goals,10);
+        stampCampaign.publish(admin,new StampCampaignService.Command(id,stampCampaign.view(id).version()));
+        assertEquals("CONFIRMING",stampCampaign.view(id).status());
+        assertTrue(stampProgress.customerList(customer,1,100).list().stream().noneMatch(a->a.activity().id().equals(id)));
+        completed(customer,goals.get(0),store,"PAID");
+        assertEquals(0,matchRows.selectCountByQuery(QueryWrapper.create().eq(StampVisitMatchEntity::getActivityId,id)));
+        Long actor=invitedOwner(merchant);int version=stampCampaign.view(id).version();
+        var merchantToken=token(actor,UserTypeEnum.MERCHANT);
+        mvc.perform(get("/merchant/governance/wallet/activities/stamp-invitation").header("Authorization",merchantToken).param("id",id.toString()))
+            .andExpect(jsonPath("$.code").value(1000)).andExpect(jsonPath("$.data.status").value("CONFIRMING"));
+        mvc.perform(post("/merchant/governance/wallet/activities/stamp-confirm").header("Authorization",merchantToken).contentType("application/json")
+            .content("{\"id\":"+id+",\"version\":"+version+",\"accepted\":false,\"reason\":\"时间待调整\"}"))
+            .andExpect(jsonPath("$.code").value(1000)).andExpect(jsonPath("$.data.answer.status").value("REJECTED"));
+        ops();version=stampCampaign.view(id).version();final int answerVersion=version;
+        assertThrows(CoolException.class,()->stampCampaign.answer(actor,new StampCampaignService.Answer(id,answerVersion,true,goals.get(1).storeIds(),null)));
+        stampCampaign.answer(actor,new StampCampaignService.Answer(id,version,false,List.of(),"时间不合适"));
+        assertEquals("REJECTED",stampCampaign.view(id).confirmations().get(0).status());
+        assertThrows(CoolException.class,()->stampCampaign.answer(actor,new StampCampaignService.Answer(id,answerVersion,true,List.of(store),null)));
+        stampCampaign.withdraw(new StampCampaignService.Command(id,stampCampaign.view(id).version()));
+        assertEquals("DRAFT",stampCampaign.view(id).status());
+        assertThrows(CoolException.class,()->stampCampaign.answer(actor,new StampCampaignService.Answer(id,stampCampaign.view(id).version(),true,List.of(store),null)));
+        stampCampaign.publish(admin,new StampCampaignService.Command(id,stampCampaign.view(id).version()));
+        assertTrue(stampCampaign.view(id).confirmations().stream().allMatch(c->"PENDING".equals(c.status())));
+        stampCampaign.answer(actor,new StampCampaignService.Answer(id,stampCampaign.view(id).version(),true,List.of(store),null));
+        assertEquals("CONFIRMING",stampCampaign.view(id).status());
+        Long second=invitedOwner(goals.get(1).merchantId());
+        stampCampaign.answer(second,new StampCampaignService.Answer(id,stampCampaign.view(id).version(),true,goals.get(1).storeIds(),null));
+        assertEquals("PUBLISHED",stampCampaign.view(id).status());
+        assertEquals(List.of(store),stampCampaign.goals(stampCampaign.config(id)).get(0).storeIds());
+        assertThrows(CoolException.class,()->activity.participate(actor,new com.cool.modules.wallet.service.ActivityAudienceService.ParticipationInput(id,stampCampaign.view(id).version(),true,List.of())));
+    }
     WalletBillEntity completed(Long customer,StampCampaignService.Goal goal,Long storeId,String status) {
         var b=new WalletBillEntity();b.setBillNo("W"+UUID.randomUUID().toString().replace("-",""));b.setOperatorId(admin);
         b.setRequestId(UUID.randomUUID().toString());b.setMerchantId(goal.merchantId());b.setStoreId(storeId);
@@ -111,10 +158,11 @@ class StampIntegrationTest extends FeatureModulesIntegrationTest {
         var v=stampCampaign.view(id);stampCampaign.schedule(new StampCampaignService.Schedule(id,v.version(),false,v.startAt(),v.endAt()));
         completed(customer,goals.get(0),otherStore,"PAID");
         assertEquals(1,matchRows.selectCountByQuery(QueryWrapper.create().eq(StampVisitMatchEntity::getActivityId,id)));
-        v=stampCampaign.view(id);stampCampaign.schedule(new StampCampaignService.Schedule(id,v.version(),true,new Date(System.currentTimeMillis()+60000),new Date(System.currentTimeMillis()+120000)));
+        v=stampCampaign.view(id);final var currentVersion=v.version();
+        assertThrows(CoolException.class,()->stampCampaign.schedule(new StampCampaignService.Schedule(id,currentVersion,true,new Date(System.currentTimeMillis()+60000),new Date(System.currentTimeMillis()+120000))));
         completed(customer,goals.get(0),store,"PAID");
         assertEquals(1,matchRows.selectCountByQuery(QueryWrapper.create().eq(StampVisitMatchEntity::getActivityId,id)));
-        assertNull(stampProgress.customerList(otherCustomer,1,20).list().get(0).progress());
+        assertTrue(stampProgress.customerList(otherCustomer,1,100).list().stream().noneMatch(a->a.activity().id().equals(id)));
     }
     @Test void stampHttpUsesActualCustomerAndRequiresOperatorPermission() throws Exception {
         var r=reward(true);Long id=draft(r,targets(2,new ArrayList<>()),10);publish(id);

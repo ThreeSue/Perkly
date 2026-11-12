@@ -28,6 +28,7 @@ import static com.mybatisflex.core.query.QueryMethods.*;
 @Service
 @RequiredArgsConstructor
 public class MerchantLocationService {
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService searchRisk;
     private static final double EARTH_RADIUS = 6371008.8;
     private final MerchantStoreMapper stores;
     private final MerchantStoreService storeService;
@@ -81,6 +82,7 @@ public class MerchantLocationService {
 
     @Transactional(readOnly = true)
     public PageResult<StorePoint> nearby(NearbyQuery input) {
+        searchRisk.check(input.getKeyword(),"NEARBY");
         input.validate();
         QueryWrapper query = projection().and(validCoordinates())
                 .eq(MerchantStoreEntity::getStatus, 1).eq(MerchantInfoEntity::getStatus, 1);

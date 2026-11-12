@@ -44,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, BaseSysUserEntity>
     implements BaseSysUserService {
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
 
     final private CoolCache coolCache;
 
@@ -121,6 +122,7 @@ public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, B
         requirePlatformAccount(userId);
         BaseSysUserEntity userEntity = getById(userId);
         CoolPreconditions.checkEmpty(userEntity, "用户不存在");
+        risk.checkContent(body.getStr("nickName"),"PROFILE","WORKSPACE_NICKNAME",userId);
         userEntity.setNickName(body.getStr("nickName"));
         userEntity.setHeadImg(body.getStr("headImg"));
         // 修改密码

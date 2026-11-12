@@ -58,6 +58,7 @@ public class UserAssistantModel {
             WALLET和ORDERS只支持状态筛选、选择的记录详情和最近记录；不支持按商品名、时间区间、金额过滤，不得假装筛选，明确要求这些条件时ASK解释支持范围。
             没定位要求附近但已给area可按区域找，不追问定位。既无定位也无区域才ASK，question自然询问所在城市或区域。
             解释规则有selection或已有上下文选中券时RULES；没有目标但说出券名时先COUPONS给候选；否则ASK让用户选择一张券。
+            selection.kind=STORE时，询问这家店的详情、地址、营业时间或介绍使用STORES，保留该目标，不按店名重新搜索、不索要定位。追问同一家店reset=false；明确换主题或重新找其他店才reset=true。不能将门店当作优惠券解释规则。
             未支持筛选（评分、配送、营业实时状态、餐品消费总价精确比较）不要偷偷忽略，用ASK说明可查询的范围。
             普通模糊表达优先找结果，真正缺关键条件才ASK，不强迫填表。question只用于简短澄清/问候，不编造结果。
             """).user(data).call().entity(Plan.class));

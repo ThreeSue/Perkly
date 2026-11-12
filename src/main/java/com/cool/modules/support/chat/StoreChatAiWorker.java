@@ -16,6 +16,7 @@ import jakarta.annotation.PreDestroy;import java.util.*;import java.util.concurr
  */
 @Service
 public class StoreChatAiWorker {
+ @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
  private final StoreChatAiJobMapper jobs;private final StoreChatMapper chats;private final StoreChatMessageMapper messages;
  private final StoreChatSettingsService settings;private final StoreChatKnowledge knowledge;private final StoreChatAiModel model;
  private final StoreChatReception reception;private final StoreChatCards cards;private final ObjectMapper json;private final TransactionTemplate tx;
@@ -84,6 +85,8 @@ public class StoreChatAiWorker {
      catch(CoolException changed){row.setContent("关联资料已变化，暂时无法可靠回答，请留言等待门店工作人员。");reliable=false;row.setSenderKind("SYSTEM");row.setSenderName("接待提示");row.setReferenceJson("[]");}
     }
    }
+   try{risk.checkContent(row.getContent(),"AI_OUTPUT","CHAT",chat.getId());}
+   catch(CoolException blocked){if(blocked.getCode()!=422)throw blocked;row.setContent("自动回复暂不可用，请等待门店工作人员处理。");row.setSenderKind("SYSTEM");row.setReferenceJson("[]");row.setCardSnapshot(null);reliable=false;}
    messages.insert(row);
    if(!reliable || reply.handoff())chat.setState("WAITING");
    chat.setVersion(chat.getVersion()+1);chat.setLatestQuestionId(null);reception.save(chat);job.setState("DONE");jobs.update(job);
@@ -91,6 +94,7 @@ public class StoreChatAiWorker {
  }
  private boolean matches(StoreChatEntity c,StoreChatAiJobEntity j){return c!=null && "AI".equals(c.getState()) && Objects.equals(c.getVersion(),j.getChatVersion()) && Objects.equals(c.getRound(),j.getRound()) && Objects.equals(c.getLatestQuestionId(),j.getMessageId());}
  public Advice suggest(Long actor,Suggest p,StoreChatAccess access){
+  if(p!=null)risk.checkContent(p.instruction(),"AI_INPUT","CHAT_SUGGEST",p.chatId());
   if(p==null || p.instruction()==null || p.instruction().isBlank() || p.instruction().length()>1000 || p.previous()!=null && p.previous().length()>2000)throw new CoolException("建议请求无效",400);
   var chat=access.own("WORKSPACE",actor,p.chatId(),"chat:reply",false);
   if(!"HUMAN".equals(chat.getState()) || !actor.equals(chat.getAssigneeId()))throw new CoolException("仅当前接待员工可生成建议",409);

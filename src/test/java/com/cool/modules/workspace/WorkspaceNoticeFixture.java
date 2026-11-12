@@ -26,6 +26,7 @@ abstract class WorkspaceNoticeFixture {
     BaseSysUserEntity sender=new BaseSysUserEntity(), target=new BaseSysUserEntity();
     WorkspaceNoticeService.SendInput input=new WorkspaceNoticeService.SendInput("request_123","标题","正文",List.of(2L));
     @BeforeEach void setup(){
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"risk",mock(com.cool.modules.searchrisk.SearchRiskService.class));
         sender.setId(1L);sender.setMerchantId(10L);sender.setAccountType("MERCHANT");sender.setStatus(1);
         target.setId(2L);target.setMerchantId(10L);target.setAccountType("STORE");target.setStatus(1);
         when(users.selectOneById(1L)).thenReturn(sender);when(auth.user(2L)).thenReturn(target);

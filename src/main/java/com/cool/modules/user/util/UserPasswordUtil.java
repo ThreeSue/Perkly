@@ -11,6 +11,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 public final class UserPasswordUtil {
     private static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
     private UserPasswordUtil() {}
+    public static String unavailableReason(UserInfoEntity user){return user!=null&&user.getBanReason()!=null&&!user.getBanReason().isBlank()?"账号已停用："+user.getBanReason():"账号不可用，请联系平台反馈核查";}
 
     /** 凭据指纹使密码变更前签发的访问和刷新令牌失效，不暴露原密码散列。 */
     public static String credentialVersion(UserInfoEntity user) {

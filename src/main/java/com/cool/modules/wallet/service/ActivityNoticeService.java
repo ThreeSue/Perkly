@@ -133,6 +133,8 @@ public class ActivityNoticeService {
     private String label(String kind) {
         return switch(kind) {
             case "PUBLISHED" -> "活动发布";
+            case "INVITED" -> "集章活动邀请，请确认参与门店";
+            case "INVITATION_WITHDRAWN" -> "集章邀请已撤回，原确认不再有效";
             case "REMINDER" -> "活动开始前提醒";
             case "ENDED","CLOSED" -> "活动结束";
             case "PARTICIPATION" -> "活动参与范围调整";
@@ -169,8 +171,8 @@ public class ActivityNoticeService {
         String content=data.title()+"\n规则："+excerpt(Objects.toString(data.description(),""),1800)+rule
             +"\n北京时间："+time(data.startAt())+" 至 "+time(data.endAt())+"（结束不含）\n本次涉及的参与门店："+excerpt(storeNames,1100)
             +"\n已排除或退出的门店："+excerpt(excluded,1100)
-            +"\n本次事件状态："+(Set.of("ENDED","CLOSED").contains(event.getKind())?"已结束":data.enabled()?"启用":"暂停")
-            +"\n"+label(event.getKind())+"。参与与退出以详情中的当前设置为准。";
+            +"\n本次事件状态："+("INVITED".equals(event.getKind())?"等待商家确认，尚未上线":"INVITATION_WITHDRAWN".equals(event.getKind())?"邀请已撤回":Set.of("ENDED","CLOSED").contains(event.getKind())?"已结束":data.enabled()?"启用":"暂停")
+            +"\n"+label(event.getKind())+("跨商家消费集章".equals(data.rate())?"。请打开详情核对；全部商家确认后上线，不能单独退出已上线活动。":"。参与与退出以详情中的当前设置为准。");
         Long notice=notices.activityNotice(event.getId(),event.getActivityId(),event.getActivityVersion(),
             delivery.getRecipientId(),label(event.getKind())+" · "+data.title(),content);
         delivery.setNoticeId(notice);delivery.setStatus("SENT");delivery.setAttempts(delivery.getAttempts()+1);

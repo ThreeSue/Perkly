@@ -57,7 +57,7 @@ public class AdminBaseOpenController {
 
     @Operation(summary = "验证码")
     @GetMapping("/captcha")
-    public R captcha(@Parameter(description = "类型：svg|base64") @RequestParam(defaultValue = "base64") String type,
+    public R captcha(@Parameter(description = "兼容参数，统一返回透明静态PNG的base64") @RequestParam(defaultValue = "base64") String type,
         @Parameter(description = "宽度") @RequestParam(defaultValue = "150") Integer width,
         @Parameter(description = "高度") @RequestParam(defaultValue = "50") Integer height) {
         return R.ok(baseSysLoginService.captcha(UserTypeEnum.ADMIN, type, width, height));

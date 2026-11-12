@@ -367,7 +367,7 @@ public class UserLoginServiceImpl implements UserLoginService {
     }
     private Dict generateToken(UserInfoEntity userInfoEntity, String refreshToken) {
         CoolPreconditions.check(userInfoEntity == null || !Integer.valueOf(1).equals(userInfoEntity.getStatus()),
-            "账号不可用");
+            UserPasswordUtil.unavailableReason(userInfoEntity));
         Dict tokenInfo = Dict.create()
             .set("userType", UserTypeEnum.APP.name())
             .set("credentialVersion", UserPasswordUtil.credentialVersion(userInfoEntity))

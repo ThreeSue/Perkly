@@ -73,7 +73,8 @@ public class UserAssistantService {
                 message=plan.action()==Action.UNSUPPORTED?"我可以帮你找券、查规则和记录。领取、下单或支付请进入相应详情页操作。":
                     plan.question()==null || plan.question().isBlank()?"可以告诉我想找的门店或优惠券，也可以查我的券和订单。":plan.question();
                 result=new Result(List.of(),false,"");
-            } else if(Boolean.TRUE.equals(conditions.nearby()) && location==null && conditions.area()==null) {
+            } else if(Boolean.TRUE.equals(conditions.nearby()) && location==null && conditions.area()==null
+                && !(selection!=null && selection.kind()==Kind.STORE && (plan.action()==Action.STORES || plan.action()==Action.RULES))) {
                 message="告诉我所在城市或区域就能先帮你找，也可以提供位置查看10公里内的门店。";
                 result=new Result(List.of(),false,"");
             } else {
@@ -81,7 +82,7 @@ public class UserAssistantService {
                 try {message=model.answer(input.message(),conditions,result);}
                 catch(Exception unavailable) {degraded=true;message=(result.cards().isEmpty()?"这次没有找到匹配结果。":"已查到以下真实记录，可点击卡片查看。")+result.note();}
             }
-            if(result.cards().size()==1 && (result.cards().get(0).kind()==Kind.COUPON || result.cards().get(0).kind()==Kind.WALLET)) {
+            if(result.cards().size()==1 && (result.cards().get(0).kind()==Kind.COUPON || result.cards().get(0).kind()==Kind.WALLET || result.cards().get(0).kind()==Kind.STORE)) {
                 Card only=result.cards().get(0);selection=new Target(only.kind(),only.id());
             }
             session.conditions=conditions;session.location=location;session.target=selection;session.action=plan.action();session.state=state;

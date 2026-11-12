@@ -54,7 +54,8 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        if (PathUtils.isMatch(ignoredUrlsProperties.getAdminAuthUrls(), requestURI)) {
+        if (PathUtils.isMatch(ignoredUrlsProperties.getAdminAuthUrls(), requestURI)
+                && !(requestURI.startsWith("/app/") && StrUtil.isNotBlank(request.getHeader("Authorization")))) {
             // 请求路径在忽略后台鉴权url里支持通配符，放行
             chain.doFilter(request, response);
             return;
@@ -97,10 +98,22 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
                 return;
             }
             if (requestURI.startsWith("/admin/") && !Objects.equals(userType, "ADMIN")) {
-                response.sendError(403); return;
+                SecurityContextHolder.clearContext();
+                response.setStatus(403);response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write(cn.hutool.json.JSONUtil.toJsonStr(com.cool.core.request.R.error(403,"请使用有权限的平台运营账号")));
+                return;
             }
             if (Objects.equals(userType, UserTypeEnum.APP.name())) {
                 // app
+                if(jwtTokenUtil.validateToken(authToken)) {
+                    var current=appUsers.selectOneById(jwt.getPayload("userId").toString());
+                    if(current!=null && !Integer.valueOf(1).equals(current.getStatus())) {
+                        SecurityContextHolder.clearContext();
+                        response.setStatus(403);response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write(cn.hutool.json.JSONUtil.toJsonStr(com.cool.core.request.R.error(403,UserPasswordUtil.unavailableReason(current))));
+                        return;
+                    }
+                }
                 handlerAppRequest(request, jwt, authToken);
             } else {
                 // admin

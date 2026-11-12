@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMapper, CouponTemplateEntity>
         implements CouponTemplateService {
     private final MerchantInfoMapper merchants;
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
     private final CouponTemplateRelationsMapper relations;
     private final MerchantMaterialService materials;
 
@@ -58,6 +59,8 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
 
     private void validateInput(CouponTemplateEntity input, List<Long> previousStores) {
         CouponTemplateRules.validate(input);
+        risk.checkContent(input.getName(),"COUPON","COUPON_NAME",input.getId());
+        risk.checkContent(input.getDescription(),"COUPON","COUPON_DESCRIPTION",input.getId());
         validateMerchant(input);
         validateStores(input, previousStores);
         validateContents(input);
@@ -94,6 +97,7 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         e.setCover(materials.resolveCover(e.getMerchantId(), e.getCoverMaterialId(), e.getCover()));
         validateInput(e, List.of());
         Long id = super.add(e);
+        risk.bind("COUPON",id);
         saveStores(e);
         relations.replaceContents(e.getMerchantId(), id, e.getContentItems());
         return id;
@@ -214,6 +218,8 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         for (CouponContentParam item : items) {
             if (item == null || item.getQuantity() == null || item.getQuantity() < 1) throw new CoolException("项目数量必须为正整数");
             String note = item.getItemDescription();
+            risk.checkContent(note,"COUPON","COUPON_ITEM_DESCRIPTION",e.getId());
+            if(item.getProductId()==null)risk.checkContent(item.getName(),"COUPON","COUPON_ITEM_NAME",e.getId());
             item.setItemDescription(note == null || note.isBlank() ? null : note.trim());
             if (item.getItemDescription() != null && item.getItemDescription().length() > 500) throw new CoolException("项目说明不能超过500字");
             if (item.getProductId() != null) {

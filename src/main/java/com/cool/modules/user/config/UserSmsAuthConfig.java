@@ -6,6 +6,7 @@ import com.cool.core.exception.CoolException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 
 /**
  * 阿里云短信认证客户端配置。
@@ -21,6 +22,7 @@ public class UserSmsAuthConfig {
     private String accessKeySecret;
 
     @Bean("aliyunSmsAuthClient")
+    @Lazy
     public Client aliyunSmsAuthClient() throws Exception {
         if (accessKeyId.isBlank() || accessKeySecret.isBlank()) {
             throw new CoolException("请配置短信认证的 AccessKey 环境变量");

@@ -24,4 +24,5 @@ public class StampCampaignEntity extends BaseEntity<StampCampaignEntity> {
     @ColumnDefine(type="mediumtext") private String rewardSnapshot;
     private Long rewardStock;
     private Long grantedCount;
+    @ColumnDefine(type="mediumtext") private String confirmations;
 }

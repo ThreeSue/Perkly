@@ -17,6 +17,7 @@ import org.springframework.retry.support.RetryTemplate;import java.time.Duration
  */
 @Service @RequiredArgsConstructor
 public class StoreChatAiModel {
+ @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
  private final AiProperties properties;private final ObjectMapper json;
  public ModelReply reply(Knowledge knowledge,boolean suggestion){
   if(!properties.configured())throw new CoolException("AI服务暂不可用",503);
@@ -47,6 +48,7 @@ public class StoreChatAiModel {
    var allowed=new HashSet<CardRef>();if(knowledge.store()!=null)allowed.add(new CardRef(knowledge.store().type(),knowledge.store().id()));
    knowledge.cards().forEach(c->allowed.add(new CardRef(c.type(),c.id())));
    if(result.references().stream().anyMatch(r->!allowed.contains(r)))throw new IllegalStateException("Ungrounded reference");
+   risk.checkContent(result.content(),"AI_OUTPUT","CHAT_AI",null);
    return result;
   }catch(Exception e){throw new CoolException("AI暂时无法给出可靠回复",503);}
  }

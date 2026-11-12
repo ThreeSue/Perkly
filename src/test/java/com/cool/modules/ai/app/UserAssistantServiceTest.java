@@ -41,6 +41,40 @@ class UserAssistantServiceTest {
         login(7,UserTypeEnum.MERCHANT);assertThrows(CoolException.class,()->service.chat(chat(null,"你好")));
         verifyNoInteractions(model,queries);
     }
+    @Test void selectedStoreBypassesStaleNearbyConditionAndSurvivesFollowup() {
+        var target=new Target(Kind.STORE,9L);
+        intent(plan(Action.STORES,new Conditions(null,null,null,null,null,null,true)));
+        var card=new Card(Kind.STORE,9L,"指定店","商家","","营业",null,false,"STORE_DETAIL",List.of());
+        when(queries.query(eq(7L),eq(Action.STORES),any(),isNull(),eq(target),isNull())).thenReturn(new Result(List.of(card),false,"指定门店"));
+        var first=service.chat(new Chat(null,"这家店在哪",null,target));
+        assertEquals(9L,first.cards().get(0).id());
+        var second=service.chat(chat(first.sessionId(),"营业时间呢"));
+        assertEquals(9L,second.cards().get(0).id());
+        verify(model).interpret(eq("营业时间呢"),any(),anyList(),eq(target),eq(false));
+        intent(new Plan(Action.STORES,true,Conditions.empty(),List.of(),null,null));
+        when(queries.query(eq(7L),eq(Action.STORES),any(),isNull(),isNull(),isNull())).thenReturn(new Result(List.of(),false,"新搜索"));
+        service.chat(chat(first.sessionId(),"重新找其他门店"));
+        verify(queries).query(eq(7L),eq(Action.STORES),any(),isNull(),isNull(),isNull());
+    }
+    @Test void replacingExplicitStoreKeepsNewTargetEvenWhenModelResets() {
+        intent(new Plan(Action.STORES,true,Conditions.empty(),List.of(),null,null));
+        when(queries.query(eq(7L),eq(Action.STORES),any(),isNull(),any(Target.class),isNull()))
+            .thenAnswer(call->{Target target=call.getArgument(4);return new Result(List.of(new Card(Kind.STORE,target.id(),"目标门店","商家","","营业",null,false,"STORE_DETAIL",List.of())),false,"指定门店");});
+        var first=service.chat(new Chat(null,"查看这家店",null,new Target(Kind.STORE,9L)));
+        var second=service.chat(new Chat(first.sessionId(),"换成这家",null,new Target(Kind.STORE,10L)));
+        assertEquals(10L,second.cards().get(0).id());
+        intent(plan(Action.STORES,null));
+        assertEquals(10L,service.chat(chat(first.sessionId(),"地址呢")).cards().get(0).id());
+    }
+    @Test void inaccessibleSelectedStoreDoesNotProduceAnAnswerOrReplacement() {
+        intent(plan(Action.STORES,null));
+        var target=new Target(Kind.STORE,99L);
+        when(queries.query(eq(7L),eq(Action.STORES),any(),isNull(),eq(target),isNull()))
+            .thenThrow(new CoolException("门店不存在或暂不可展示",404));
+        assertEquals(404,assertThrows(CoolException.class,()->service.chat(new Chat(null,"这家店在哪",null,target))).getCode());
+        verify(model,never()).answer(anyString(),any(),any());
+        verify(queries,times(1)).query(anyLong(),any(),any(),nullable(Location.class),nullable(Target.class),nullable(String.class));
+    }
     @Test void disabledCustomerIsRejectedBeforeModel(){
         doThrow(new CoolException("用户已失效",403)).when(access).customer(7L);
         assertThrows(CoolException.class,()->service.chat(chat(null,"你好")));verifyNoInteractions(model);

@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
 public class BackendAccountServiceImpl implements BackendAccountService {
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
     private final BaseSysUserMapper users;
     private final MerchantInfoMapper merchants;
     private final MerchantStoreMapper stores;
@@ -128,6 +129,7 @@ public class BackendAccountServiceImpl implements BackendAccountService {
         if (input.name() == null || input.name().isBlank() || input.name().trim().length() > 50) throw new CoolException("姓名必填且不超过50字");
         if (input.status() == null || (input.status() != 0 && input.status() != 1)) throw new CoolException("请选择启用或停用");
         var user = owner(input.id());
+        risk.checkContent(input.name(),"PROFILE","WORKSPACE_NICKNAME",user.getId());
         var change = new BaseSysUserEntity(); change.setId(user.getId()); change.setName(input.name().trim()); change.setNickName(input.name().trim());
         change.setStatus(input.status());
         if (!Objects.equals(user.getStatus(), input.status())) change.setPasswordV(user.getPasswordV() == null ? 1 : user.getPasswordV() + 1);

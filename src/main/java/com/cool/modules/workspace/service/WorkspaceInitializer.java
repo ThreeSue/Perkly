@@ -87,10 +87,15 @@ public class WorkspaceInitializer implements ApplicationRunner {
         featurePage("平台储值账务","wallet","wallet:manage","modules/workspace/views/wallet.vue",66);
         featurePage("支付优惠活动","activities","activity:manage","modules/workspace/views/activities.vue",67);
         featurePage("跨商家消费集章","stamps","stamp:manage","modules/workspace/views/stamps.vue",68);
+        featurePage("内容风险管控","search-risk","search:risk:view","modules/workspace/views/search-risk.vue",70);
+        var searchRiskPage=menus.selectOneByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getRouter,"/workspace-admin/search-risk"));
+        if(searchRiskPage!=null)action(searchRiskPage,"管理内容词库与复核","search:risk:manage",1);
         materialPermission("AI生成与完善优惠券封面","ai:image:generate",16);
         featurePage("AI图片控制台","ai-images","ai:manage","modules/ai/views/console.vue",69);
         var aiPage=menus.selectOneByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getRouter,"/workspace-admin/ai-images"));
         action(aiPage,"AI生成与完善优惠券封面","ai:image:generate",1);
+        var customerPage=menus.selectOneByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getViewPath,"modules/user/views/list.vue"));
+        if(customerPage!=null){action(customerPage,"查看用户消费画像","profile:read",10);action(customerPage,"更新用户消费画像","profile:update",11);}
     }
     private void materialPermission(String name, String permission, int order) {
         if (menus.selectCountByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getPerms, permission)) > 0) return;

@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service @RequiredArgsConstructor
 public class StoreChatService {
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
     private final StoreChatMapper chats;
     private final StoreChatMessageMapper messages;
     private final MerchantStoreMapper stores;
@@ -101,6 +102,7 @@ public class StoreChatService {
         if(store==null || !Set.of(1,2).contains(store.getStatus()) || !Objects.equals(store.getMerchantId(),chat.getMerchantId())
             || merchant==null || !Integer.valueOf(1).equals(merchant.getStatus()))throw new CoolException("门店已失效，不能继续发送",403);
         if(p.content()!=null && p.content().length()>2000)throw new CoolException("消息最多2000字");
+        risk.checkContent(p.content(),"CHAT","CHAT",p.chatId());
         var urls=images.validate(kind,actor,p.images());String content=Objects.toString(p.content(),"").trim();
         if(content.isEmpty() && urls.isEmpty() && p.card()==null)throw new CoolException("消息内容不能为空");
         String name;

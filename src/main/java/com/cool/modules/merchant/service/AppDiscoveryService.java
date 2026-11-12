@@ -34,9 +34,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AppDiscoveryService {
     private final MerchantStoreMapper stores;
+    private final com.cool.modules.searchrisk.SearchRiskService searchRisk;
     private final CouponTemplateMapper coupons;
 
     public PageResult<Map<String, Object>> stores(DiscoveryPageReq req) {
+        searchRisk.check(req.getKeyword(), "STORE");
         req.validate();
         return page(stores, AppDiscoveryQueries.stores(req), req);
     }
@@ -47,6 +49,7 @@ public class AppDiscoveryService {
     }
 
     public PageResult<Map<String, Object>> coupons(DiscoveryPageReq req) {
+        searchRisk.check(req.getKeyword(), "COUPON");
         req.validate();
         PageResult<Map<String, Object>> result = page(coupons, AppDiscoveryQueries.coupons(req), req);
         result.getList().forEach(this::couponDisplay);

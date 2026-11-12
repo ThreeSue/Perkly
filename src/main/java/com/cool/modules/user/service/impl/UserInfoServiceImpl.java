@@ -22,6 +22,22 @@ public class UserInfoServiceImpl extends BaseServiceImpl<UserInfoMapper, UserInf
 
     private final UserSmsUtil userSmsUtil;
     private final UserWxService userWxService;
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
+    @Override public Long add(UserInfoEntity input){risk.checkContent(input.getNickName(),"PROFILE","USER_NICKNAME",input.getId());return super.add(input);}
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.mapper.SearchRiskAuditMapper riskAudits;
+    @Override @org.springframework.transaction.annotation.Transactional public boolean update(UserInfoEntity input){
+        risk.checkContent(input.getNickName(),"PROFILE","USER_NICKNAME",input.getId());
+        if(input.getBanReason()!=null&&input.getBanReason().length()>200)throw new CoolException("停用原因最多200字");
+        var previous=input.getId()==null?null:mapper.selectOneById(input.getId());
+        if(Integer.valueOf(0).equals(input.getStatus())&&(input.getBanReason()==null||input.getBanReason().isBlank()))input.setBanReason("平台已停用此账号，请联系平台反馈核查");
+        if(Integer.valueOf(1).equals(input.getStatus()))input.setBanReason("");
+        boolean changed=super.update(input);
+        if(changed&&previous!=null&&input.getStatus()!=null&&!java.util.Objects.equals(previous.getStatus(),input.getStatus())){
+            var a=new com.cool.modules.searchrisk.SearchRiskAudit();a.setTargetId(input.getId());a.setOperatorId(com.cool.core.util.CoolSecurityUtil.getCurrentUserId());a.setAction("USER_STATUS");
+            a.setDetail(cn.hutool.json.JSONUtil.toJsonStr(java.util.Map.of("subjectType","APP","from",java.util.Objects.toString(previous.getStatus(),"UNKNOWN"),"to",input.getStatus(),"reason",java.util.Objects.toString(input.getBanReason(),""))));riskAudits.insert(a);
+        }
+        return changed;
+    }
 
     @Override
     public Object accountInfo(Long userId) {

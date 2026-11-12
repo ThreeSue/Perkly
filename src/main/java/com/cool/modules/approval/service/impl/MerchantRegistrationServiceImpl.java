@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(rollbackFor=Exception.class)
 public class MerchantRegistrationServiceImpl implements MerchantRegistrationService {
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
     private final MerchantApplicationMapper applications;
     private final BaseSysUserMapper accounts;
     private final MerchantCategoryMapper categories;
@@ -44,6 +45,8 @@ public class MerchantRegistrationServiceImpl implements MerchantRegistrationServ
         var violations=validator.validate(input);
         if (!violations.isEmpty()) throw new CoolException("申请资料不完整或格式不正确："+violations.iterator().next().getPropertyPath());
         long phoneDigits = input.getContactPhone().chars().filter(Character::isDigit).count();
+        risk.checkContent(input.getMerchantName(),"MERCHANT","MERCHANT_APPLICATION_NAME",null);
+        risk.checkContent(input.getIntroduction(),"MERCHANT","MERCHANT_APPLICATION_INTRODUCTION",null);
         if (phoneDigits < 7 || phoneDigits > 20) throw new CoolException("联系电话需包含7至20位数字");
         if ("admin".equalsIgnoreCase(input.getUsername()) || input.getPassword().getBytes(java.nio.charset.StandardCharsets.UTF_8).length>72) throw new CoolException("账号或密码格式不正确");
         var category=categories.selectOneById(input.getCategoryId());

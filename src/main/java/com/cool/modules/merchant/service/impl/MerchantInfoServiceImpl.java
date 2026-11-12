@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 public class MerchantInfoServiceImpl
         extends BaseServiceImpl<MerchantInfoMapper, MerchantInfoEntity>
         implements MerchantInfoService {
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
     private final MerchantCategoryService categoryService;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -44,7 +45,7 @@ public class MerchantInfoServiceImpl
             entity.setStatus(1);
         }
         validate(entity, true);
-        return super.add(entity);
+        Long id=super.add(entity);risk.bind("MERCHANT",id);return id;
     }
 
     @Override
@@ -90,6 +91,9 @@ public class MerchantInfoServiceImpl
         checkLength(entity.getAddress(), "详细地址", 500);
         checkLength(entity.getIntroduction(), "商家简介", 2000);
         checkLength(entity.getRemark(), "平台内部备注", 1000);
+        risk.checkContent(entity.getName(),"MERCHANT","MERCHANT_NAME",entity.getId());
+        risk.checkContent(entity.getIntroduction(),"MERCHANT","MERCHANT_INTRODUCTION",entity.getId());
+        risk.checkContent(entity.getAddress(),"MERCHANT","MERCHANT_ADDRESS",entity.getId());
     }
 
     private String required(String value, String label, int maxLength) {

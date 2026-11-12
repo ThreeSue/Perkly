@@ -19,6 +19,7 @@ public class AdminStampController {
     private final StampCampaignService campaigns;
     private final StampProgressService progress;
     public record Id(Long id) {}
+    @PostMapping("/withdraw") public R<?> withdraw(@RequestBody StampCampaignService.Command input){campaigns.withdraw(input);return R.ok();}
     @GetMapping("/options") public R<?> options(){return R.ok(campaigns.options());}
     @GetMapping("/rewards") public R<?> rewards(){return R.ok(campaigns.rewards());}
     @PostMapping("/rewards/create") public R<?> make(@RequestBody CouponTemplateEntity input){return R.ok(campaigns.makeReward(input));}

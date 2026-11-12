@@ -7,6 +7,7 @@ import com.cool.core.exception.CoolException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Lazy;
 
 /** 对接号码认证服务：由阿里云生成和核验短信验证码。 */
 @Service
@@ -24,7 +25,7 @@ public class AliyunSmsAuthService {
     @Value("${sms-auth.interval:60}")
     private long interval;
 
-    public AliyunSmsAuthService(@Qualifier("aliyunSmsAuthClient") Client client) {
+    public AliyunSmsAuthService(@Lazy @Qualifier("aliyunSmsAuthClient") Client client) {
         this.client = client;
     }
 

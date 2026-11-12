@@ -1,11 +1,7 @@
 package com.cool.modules.base.service.sys.impl;
 
-import cn.hutool.captcha.CaptchaUtil;
-import cn.hutool.captcha.GifCaptcha;
-import cn.hutool.captcha.generator.RandomGenerator;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.lang.Dict;
-import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.jwt.JWT;
@@ -20,7 +16,6 @@ import com.cool.modules.base.mapper.sys.BaseSysUserMapper;
 import com.cool.modules.base.service.sys.BaseSysLoginService;
 import com.cool.modules.base.service.sys.BaseSysPermsService;
 import com.mybatisflex.core.query.QueryWrapper;
-import java.awt.Color;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -50,17 +45,12 @@ public class BaseSysLoginServiceImpl implements BaseSysLoginService {
 		Map<String, Object> result = new HashMap<>();
 		String captchaId = StrUtil.uuid();
 		result.put("captchaId", captchaId);
-		GifCaptcha gifCaptcha = CaptchaUtil.createGifCaptcha(width, height);
-		if (ObjUtil.equals(userTypeEnum, UserTypeEnum.APP)) {
-			gifCaptcha.setGenerator(new RandomGenerator("0123456789", 4));
-		} else {
-			gifCaptcha.setGenerator(new RandomGenerator(4));
-		}
-		gifCaptcha.setBackground(new Color(248, 248, 248));
-		gifCaptcha.setMaxColor(60);
-		gifCaptcha.setMinColor(55);
-		result.put("data", "data:image/png;base64," + gifCaptcha.getImageBase64());
-		coolCache.set("verify:img:" + captchaId, gifCaptcha.getCode(), 1800);
+		// type 保留兼容旧客户端；所有入口统一输出透明静态 PNG。
+		int imageWidth = width == null ? 150 : Math.max(100, Math.min(width, 300));
+		int imageHeight = height == null ? 50 : Math.max(36, Math.min(height, 100));
+		String code = CaptchaImage.code();
+		result.put("data", CaptchaImage.render(code, imageWidth, imageHeight));
+		coolCache.set("verify:img:" + captchaId, code, 1800);
 		return result;
 	}
 

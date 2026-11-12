@@ -46,6 +46,7 @@ public class AdminUserAccountQueryService {
         List<Map<String, Object>> rows = rows(AdminUserAccountQueries.info(id));
         if (rows.isEmpty()) throw new CoolException("用户不存在");
         Map<String, Object> result = rows.get(0);
+        result.put("banReason",users.selectOneById(id).getBanReason());
         result.put("legacyAccounts", rows(AdminUserAccountQueries.legacyAccounts(id)));
         return result;
     }

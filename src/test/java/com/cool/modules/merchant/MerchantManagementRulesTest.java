@@ -67,6 +67,7 @@ class MerchantManagementRulesTest {
         var merchant = new MerchantInfoEntity(); merchant.setStatus(0); when(merchants.getById(1L)).thenReturn(merchant);
         var category = new MerchantStoreCategoryEntity(); category.setStatus(0); when(categories.getOne(any(QueryWrapper.class))).thenReturn(category);
         var service = spy(new MerchantStoreServiceImpl(merchants, categories)); var mapper = mock(MerchantStoreMapper.class);
+        ReflectionTestUtils.setField(service,"risk",mock(com.cool.modules.searchrisk.SearchRiskService.class));
         ReflectionTestUtils.setField(service,"history",mock(com.cool.modules.approval.service.ApprovalHistoryService.class));
         ReflectionTestUtils.setField(service, "mapper", mapper); when(mapper.update(any(MerchantStoreEntity.class))).thenReturn(1);
         when(mapper.selectOneByQuery(any(QueryWrapper.class))).thenReturn(store(1));
