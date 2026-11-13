@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class StoreChatService {
     @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
     private final StoreChatMapper chats;
+    private final StoreChatReadService readStates;
     private final StoreChatMessageMapper messages;
     private final MerchantStoreMapper stores;
     private final MerchantInfoMapper merchants;
@@ -46,7 +47,7 @@ public class StoreChatService {
     public record Send(Long chatId,String requestId,String content,List<String> images,CardRef card){
         public Send(Long chatId,String requestId,String content,List<String> images){this(chatId,requestId,content,images,null);}
     }
-    public record ChatView(Long id,String customerName,String merchantName,String storeName,Date createTime,String state,Integer round,Long version,Long assigneeId){}
+    public record ChatView(Long id,String customerName,String merchantName,String storeName,Date createTime,String state,Integer round,Long version,Long assigneeId,long lastReadMessageId,long unreadCount){}
     private Long staffStore(Long id){
         return chatAccess.staff(id,"chat:view");
     }
@@ -79,7 +80,8 @@ public class StoreChatService {
         var list=result.getRecords().stream().map(c->{
             var customer=customers.selectOneById(c.getCustomerId());var store=stores.selectOneById(c.getStoreId());var merchant=merchants.selectOneById(c.getMerchantId());
             StoreChatAccess.normalize(c);
-            return new ChatView(c.getId(),customer==null?"历史用户":Objects.toString(customer.getNickName(),"顾客"),merchant==null?"历史商家":merchant.getName(),store==null?"历史门店":store.getName(),c.getCreateTime(),c.getState(),c.getRound(),c.getVersion(),c.getAssigneeId());
+            var read=readStates.authorizedState(kind,actor,c.getId());
+            return new ChatView(c.getId(),customer==null?"历史用户":Objects.toString(customer.getNickName(),"顾客"),merchant==null?"历史商家":merchant.getName(),store==null?"历史门店":store.getName(),c.getCreateTime(),c.getState(),c.getRound(),c.getVersion(),c.getAssigneeId(),read.lastReadMessageId(),read.unreadCount());
         }).toList();
         return new UserFeedbackService.PageResult<>(list,result.getTotalRow(),page,size);
     }

@@ -21,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController @RequiredArgsConstructor @RequestMapping({"/app/support/chats","/merchant/governance/chats"})
 public class StoreChatController {
     private final StoreChatService chats;
+    private final StoreChatReadService readStates;
     private final SupportImageService images;
     private final HttpServletRequest request;
     private final StoreChatAccess access;
@@ -38,6 +39,9 @@ public class StoreChatController {
     @PostMapping("/open") public R<?> open(@RequestBody Open p){if(!"APP".equals(kind()))throw new CoolException("仅顾客可发起会话",403);return R.ok(chats.open(actor(),p.storeId()));}
     @GetMapping("/page") public R<?> page(@RequestParam(defaultValue="1") int pageNumber,@RequestParam(defaultValue="20") int pageSize){return R.ok(chats.page(kind(),actor(),pageNumber,pageSize));}
     @GetMapping("/messages") public R<?> messages(@RequestParam Long chatId,@RequestParam(required=false) Long afterId,@RequestParam(required=false) Long beforeId,@RequestParam(defaultValue="50") int pageSize){return R.ok(chats.messageViews(kind(),actor(),chatId,afterId,beforeId,pageSize));}
+    @PostMapping("/read") public R<?> read(@RequestBody StoreChatReadService.ReadInput p){return R.ok(readStates.markRead(kind(),actor(),p));}
+    @GetMapping("/read-state") public R<?> readState(@RequestParam Long chatId){return R.ok(readStates.state(kind(),actor(),chatId));}
+    @GetMapping("/unread") public R<?> unread(){return R.ok(readStates.unread(kind(),actor()));}
     @GetMapping("/detail") public R<?> detail(@RequestParam Long chatId){return R.ok(reception.detail(kind(),actor(),chatId));}
     @GetMapping("/coupon-options") public R<?> couponOptions(@RequestParam Long chatId,@RequestParam(required=false) String keyword,
         @RequestParam(defaultValue="false") boolean all,@RequestParam(defaultValue="1") int pageNumber,@RequestParam(defaultValue="20") int pageSize){
