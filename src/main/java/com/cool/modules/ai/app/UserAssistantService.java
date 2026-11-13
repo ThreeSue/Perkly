@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class UserAssistantService {
+ @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.ai.service.AiFeatureControl featureControl;
     private final UserAssistantModel model;
     private final UserAssistantQueries queries;
     private final SupportAccess access;
@@ -58,7 +59,8 @@ public class UserAssistantService {
         if(id==null || id.isBlank()) {id=UUID.randomUUID().toString();session=new Session(customer);sessions.put(id,session);}
         else {session=ownedSession(id,customer);}
         // 独立策略由现有AI控制台注入；未注入时使用本批约定的启用且不限次数。
-        UserAssistantPolicy gate=policy.getIfAvailable();if(gate!=null)gate.checkAndConsume(customer);
+        if(featureControl!=null)featureControl.consume("user",customer);
+        UserAssistantPolicy gate=policy.getIfAvailable();if(featureControl==null && gate!=null)gate.checkAndConsume(customer);
         synchronized(session) {
             Location location=input.location()!=null?input.location():session.location;
             Target selection=input.target()!=null?input.target():session.target;

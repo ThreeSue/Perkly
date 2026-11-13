@@ -22,6 +22,7 @@ import java.util.*;
  */
 @Service @RequiredArgsConstructor
 public class ProfileService {
+ @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.ai.service.AiFeatureControl featureControl;
  private final ProfileSnapshotMapper snapshots;private final ProfileJobMapper jobs;
  private final ProfileHistoryMapper history;
  private final ProfileCorrectionMapper corrections;
@@ -70,7 +71,7 @@ public class ProfileService {
   });
  }
  public boolean runOne() {
-  if(!Boolean.TRUE.equals(settings.current().getEnabled()))return false;
+  if(featureControl!=null && !featureControl.hasCapacity("profile",0L))return false;
   var claim=transaction.execute(tx->{
    var now=new Date();var j=jobs.selectOneByQuery(QueryWrapper.create().eq(ProfileJobEntity::getState,"PENDING")
     .le(ProfileJobEntity::getNextAttemptAt,now).orderBy(ProfileJobEntity::getRequestedAt,true).limit(1).forUpdate());
@@ -81,7 +82,7 @@ public class ProfileService {
   });
   if(claim==null)return false;
   ProfileSourceReader.Evidence facts=null;ProfileModel.Interpretation interpretation=null;String failure=null;
-  try{access.customer(claim.getCustomerId());facts=source.read(claim.getCustomerId(),Instant.now());interpretation=model.interpret(facts);}catch(Exception e){failure="PROFILE_ANALYSIS_FAILED";}
+  try{access.customer(claim.getCustomerId());facts=source.read(claim.getCustomerId(),Instant.now());if(featureControl!=null)featureControl.consume("profile",0L);interpretation=model.interpret(facts);}catch(Exception e){failure="PROFILE_ANALYSIS_FAILED";}
   final var evidence=facts;final var result=interpretation;final String error=failure;
   transaction.executeWithoutResult(tx->{
    var j=jobs.selectOneByQuery(QueryWrapper.create().eq(ProfileJobEntity::getCustomerId,claim.getCustomerId()).forUpdate());

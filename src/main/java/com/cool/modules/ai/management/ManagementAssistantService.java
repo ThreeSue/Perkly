@@ -18,6 +18,7 @@ import static com.cool.modules.ai.management.ManagementAssistantModels.*;
  */
 @Service
 public class ManagementAssistantService {
+ @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.ai.service.AiFeatureControl featureControl;
     private final ManagementAssistantAccess access;
     private final ManagementAssistantModel model;
     private final ManagementAssistantTasks tasks;
@@ -37,7 +38,8 @@ public class ManagementAssistantService {
     public record Context(String text,Long selectedId,Scope scope,List<Object> history,List<Result> facts,String tools) {}
     public record Capability(Scope module, boolean read, List<Action> actions) {}
     public List<Capability> capabilities(Actor actor) {
-        access.identity(actor);List<Capability> list=new ArrayList<>();
+        access.identity(actor);
+        if(featureControl!=null)featureControl.check("admin");List<Capability> list=new ArrayList<>();
         for(Scope scope:Scope.values()) {
             if(scope==Scope.GLOBAL)continue;
             String p,w;
@@ -97,6 +99,7 @@ public class ManagementAssistantService {
     }
     public Reply chat(Actor actor,String token,Request input) {
         access.identity(actor);
+        if(featureControl!=null)featureControl.check("admin");
         if(input==null || input.scope()==null || input.text()==null || input.text().isBlank() || input.text().length()>1500
             || input.requestId()==null || !input.requestId().matches("[A-Za-z0-9_-]{8,64}"))throw new CoolException("请求参数无效",400);
         String login=login(token);String id=input.sessionId();Session s;
@@ -116,6 +119,7 @@ public class ManagementAssistantService {
             List<Result> results=new ArrayList<>();List<Step> writes=new ArrayList<>();List<Result> previews=new ArrayList<>();
             Set<Step> attempted=new HashSet<>();
             String question=null;String handoff=null;
+            if(featureControl!=null)featureControl.consume("admin",actor.id());
             for(int round=0;round<3;round++) {
                 Plan plan=model.plan(new Context(input.text(),input.selectedId(),s.scope,List.copyOf(s.history),
                     results.isEmpty()?s.facts:List.copyOf(results),catalog()+pageMeaning(input.pageContext())+"当前身份："+access.accountType(actor)+"；当前权限能力："+capabilities(actor)));
@@ -178,6 +182,7 @@ public class ManagementAssistantService {
         }
     }
     public Reply confirm(Actor actor,String token,Confirm input) {
+        if(featureControl!=null)featureControl.check("admin");
         var s=owned(actor,login(token),input.sessionId(),null);
         synchronized(s) {
             if(!Objects.equals(s.pending,input.token()))throw new CoolException("预览已被替换或取消，请重新核对",409);
@@ -203,7 +208,8 @@ public class ManagementAssistantService {
     }
     private void cancelPending(Session s,String id){if(s.pending!=null){tasks.cancel(s.actor,id,s.login,s.pending);s.pending=null;}s.pendingPreview=null;coupons.cancel(s.actor,s.couponReply);s.couponReply=null;s.couponHistory.clear();}
     private Session owned(Actor actor,String login,String id,Scope scope) {
-        access.identity(actor);Session s=id==null?null:sessions.get(id);
+        access.identity(actor);
+        if(featureControl!=null)featureControl.check("admin");Session s=id==null?null:sessions.get(id);
         if(s==null || !s.actor.equals(actor) || !s.login.equals(login) || s.touched+1800000<System.currentTimeMillis()
             || scope!=null && scope!=s.scope)throw new CoolException("会话身份或模块范围已变化，请重新开始",409);
         return s;

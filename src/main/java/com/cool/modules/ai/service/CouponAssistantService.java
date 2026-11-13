@@ -40,6 +40,7 @@ import static com.cool.modules.ai.service.CouponAssistantContext.QUERY_ACTIONS;
 @Service
 @RequiredArgsConstructor
 public class CouponAssistantService {
+ @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.ai.service.AiFeatureControl featureControl;
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
     private static final Set<String> TYPES = Set.of("CASH", "DISCOUNT", "FULL_REDUCTION", "PACKAGE", "EXPERIENCE", "EXCHANGE");
     private static final String UPDATE_AND_SUBMIT = "UPDATE_AND_SUBMIT";
@@ -190,6 +191,17 @@ public class CouponAssistantService {
     private record FollowUp(String token, Selection selection, Long target, Intent intent, String type, String question,
                             List<Candidate> candidates, long expires, String fieldKey) {}
     public Reply chat(Long actor, boolean platform, Chat input) {
+        require(actor, platform, "view");
+        if(input==null || input.text()==null || input.text().isBlank() || input.text().length()>1500)
+            throw new CoolException("请输入1至1500字的需求");
+        if(featureControl!=null)featureControl.consume("admin",actor);
+        return chatWithinAdmittedRequest(actor, platform, input);
+    }
+
+    /** 仅供已通过统一工作台计额的内部桥接复用，避免一次对话重复扣额。 */
+    public Reply chatWithinAdmittedRequest(Long actor, boolean platform, Chat input) {
+        require(actor, platform, "view");
+        if(featureControl!=null)featureControl.check("admin");
         Reply result = processChat(actor, platform, input);
         if (result.text() == null || result.text().isBlank()) return result;
         String text;
@@ -934,6 +946,7 @@ public class CouponAssistantService {
 
     @Transactional(rollbackFor = Exception.class)
     public String confirm(Long actor, boolean platform, String token) {
+        if(featureControl!=null)featureControl.check("admin");
         if (token == null || !token.matches("[a-f0-9-]{36}")) throw new CoolException("请先生成操作预览");
         String key = key(actor, platform, token);
         Object raw = cache.get(key);

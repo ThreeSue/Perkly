@@ -24,7 +24,7 @@ public class ManagementCouponBridge {
     public CouponAssistantService.Reply chat(Actor actor,String text,List<CouponAssistantService.Turn> history,
         CouponAssistantService.Reply previous,Long selectedId) {
         Long target=selectedId!=null?selectedId:previous!=null && previous.detail()!=null?previous.detail().getId():null;
-        return coupons.chat(actor.id(),actor.platform(),new CouponAssistantService.Chat(text,List.copyOf(history),null,null,target,null,
+        return coupons.chatWithinAdmittedRequest(actor.id(),actor.platform(),new CouponAssistantService.Chat(text,List.copyOf(history),null,null,target,null,
             previous!=null && previous.clarification()!=null?new CouponAssistantService.Answer(previous.clarification().token(),null):null,
             previous==null?null:previous.token(),previous==null?null:previous.queryToken()));
     }

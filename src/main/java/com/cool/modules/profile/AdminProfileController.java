@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/admin/profile")
 public class AdminProfileController {
     private final ProfileService profiles;
+    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.ai.service.AiFeatureControl featureControl;
     private final SupportAccess access;
     private final AiSettingsService audit;
     private final com.cool.modules.recommendation.RecommendationService recommendations;
@@ -37,7 +38,7 @@ public class AdminProfileController {
     public R<?> refresh(@RequestBody Refresh request) {
         access.platform("profile:update");
         if(!enabled)throw new com.cool.core.exception.CoolException("画像更新服务尚未启用，请完成数据库迁移并开启后台任务",503);
-        if(!Boolean.TRUE.equals(audit.current().getEnabled()))throw new com.cool.core.exception.CoolException("AI分析已暂停，请先在AI控制台开启",503);
+        featureControl.check("profile");
         profiles.request(request.customerId(), true);
         audit.audit(CoolSecurityUtil.getCurrentUserId(), null, null, "PROFILE_REQUESTED",
             "customerId=" + request.customerId());

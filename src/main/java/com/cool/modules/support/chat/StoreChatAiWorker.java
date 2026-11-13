@@ -16,6 +16,7 @@ import jakarta.annotation.PreDestroy;import java.util.*;import java.util.concurr
  */
 @Service
 public class StoreChatAiWorker {
+ @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.ai.service.AiFeatureControl featureControl;
  @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
  private final StoreChatAiJobMapper jobs;private final StoreChatMapper chats;private final StoreChatMessageMapper messages;
  private final StoreChatSettingsService settings;private final StoreChatKnowledge knowledge;private final StoreChatAiModel model;
@@ -46,6 +47,7 @@ public class StoreChatAiWorker {
    var chat=chats.selectOneById(job.getChatId());if(!matches(chat,job)){finish(id,null,null);return;}
    var setting=settings.read(chat.getStoreId(),false);settingVersion=setting.version();if(!setting.aiEnabled()){finish(id,null,settingVersion);return;}
    var question=messages.selectOneById(job.getMessageId());
+   if(featureControl!=null)featureControl.consume("support",chat.getStoreId());
    source=knowledge.collect(chat,question==null?"":question.getContent(),false);reply=model.reply(source,false);
   }catch(Exception unavailable){ /* A real fallback is persisted under the same version fence. */ }
   finish(id,reply,settingVersion,source);
@@ -66,7 +68,7 @@ public class StoreChatAiWorker {
    Settings setting;
    try{setting=settings.read(chat.getStoreId(),true);}
    catch(CoolException invalidConfiguration){setting=new Settings(null,false,List.of());}
-   boolean reliable=reply!=null && source!=null && setting.aiEnabled() && Objects.equals(setting.version(),settingVersion);
+   boolean reliable=(featureControl==null || featureControl.policy("support").enabled()) && reply!=null && source!=null && setting.aiEnabled() && Objects.equals(setting.version(),settingVersion);
    if(reliable){
     var expected=new HashMap<CardRef,CardData>();if(source.store()!=null)expected.put(new CardRef(source.store().type(),source.store().id()),source.store().current());
     source.cards().forEach(c->expected.put(new CardRef(c.type(),c.id()),c.current()));
@@ -99,6 +101,7 @@ public class StoreChatAiWorker {
   var chat=access.own("WORKSPACE",actor,p.chatId(),"chat:reply",false);
   if(!"HUMAN".equals(chat.getState()) || !actor.equals(chat.getAssigneeId()))throw new CoolException("仅当前接待员工可生成建议",409);
   var source=knowledge.collect(chat,"员工要求："+p.instruction()+"\n上一候选草稿："+Objects.toString(p.previous(),""),true);
+  if(featureControl!=null)featureControl.consume("support",chat.getStoreId());
   var result=model.reply(source,true);
   var latest=access.own("WORKSPACE",actor,p.chatId(),"chat:reply",false);
   if(!"HUMAN".equals(latest.getState()) || !actor.equals(latest.getAssigneeId()) || !Objects.equals(chat.getVersion(),latest.getVersion()))throw new CoolException("会话已变化，请重新生成建议",409);

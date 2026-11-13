@@ -24,6 +24,9 @@ import lombok.RequiredArgsConstructor;
 @RestController @RequiredArgsConstructor @RequestMapping("/admin/ai/console")
 public class AiConsoleController {
     private final AiSettingsService settings;
+ private final AiFeatureControl features;
+ @GetMapping("/features") public R<?> features(){return R.ok(features.list());}
+ @PostMapping("/features") public R<?> features(@RequestBody AiFeatureControl.Policy input){features.save(input);return R.ok();}
     private final AiTaskService tasks;
     private final AiDailyUsageMapper usages;
     private final AiImageTaskMapper taskRows;
@@ -72,9 +75,10 @@ public class AiConsoleController {
         access.platform("ai:manage");SupportAccess.page(pageNumber,pageSize);
         var rows=audits.paginate(pageNumber,pageSize,QueryWrapper.create().orderBy(AiAuditEntity::getId,false));
         var list=rows.getRecords().stream().map(row->{
-            var actor=row.getActorId()==null?null:users.selectOneById(row.getActorId());
+            boolean usage=row.getAction()!=null && row.getAction().startsWith("USE_");
+            var actor=usage || row.getActorId()==null?null:users.selectOneById(row.getActorId());
             var merchant=row.getMerchantId()==null?null:merchants.selectOneById(row.getMerchantId());
-            return new AuditView(row.getId(),row.getActorId(),actor==null?"历史人员":Objects.toString(actor.getName(),actor.getUsername()),
+            return new AuditView(row.getId(),row.getActorId(),usage?"用量主体（按功能计额）":actor==null?"历史人员":Objects.toString(actor.getName(),actor.getUsername()),
                 row.getMerchantId(),row.getMerchantId()==null?"全平台":merchant==null?"历史商家":merchant.getName(),
                 row.getTaskId(),row.getAction(),row.getDetail(),row.getCreateTime());
         }).toList();

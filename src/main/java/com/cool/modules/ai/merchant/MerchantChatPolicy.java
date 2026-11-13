@@ -17,6 +17,7 @@ import java.util.*;
 
 @Component
 public class MerchantChatPolicy {
+ @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.ai.service.AiFeatureControl featureControl;
  private final boolean enabled;
  private final int dailyLimit;
  private final Map<Long,Integer> usage=new HashMap<>();
@@ -24,6 +25,7 @@ public class MerchantChatPolicy {
  public MerchantChatPolicy(@Value("${perkly.ai.merchant-chat.enabled:false}") boolean enabled,
    @Value("${perkly.ai.merchant-chat.daily-limit:0}") int dailyLimit){this.enabled=enabled;this.dailyLimit=dailyLimit;}
  public synchronized void consume(Long actor){
+  if(featureControl!=null){featureControl.consume("merchant",actor);return;}
   if(!enabled || dailyLimit<=0)throw new CoolException("核销端AI尚未开通，请联系管理员配置开关和额度",503);
   var now=LocalDate.now(ZoneId.of("Asia/Shanghai"));if(!now.equals(day)){usage.clear();day=now;}
   int used=usage.getOrDefault(actor,0);if(used>=dailyLimit)throw new CoolException("今日AI请求额度已用完",429);
