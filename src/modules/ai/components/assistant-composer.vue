@@ -1,7 +1,7 @@
 <template>
   <form class="assistant-composer" @submit.prevent="submit">
     <el-input v-model="value" type="textarea" resize="none" :rows="2" :maxlength="1500"
-      :placeholder="placeholder" aria-label="发送给AI助手的消息" @keydown.enter.exact="enter" />
+      :placeholder="placeholder" aria-label="发送给 PerPilot 的消息" @keydown.enter.exact="enter" />
     <div class="composer-actions"><span>Enter 发送 · Shift + Enter 换行</span>
       <el-button native-type="submit" type="primary" :loading="busy" :disabled="!value.trim()">发送</el-button>
     </div>

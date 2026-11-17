@@ -58,6 +58,7 @@
 </template>
 
 <script lang="ts" setup>
+import { passwordError, PASSWORD_HINT } from '/@/utils/password-policy';
 defineOptions({
 	name: 'platform-users'
 });
@@ -217,14 +218,12 @@ const Upsert = useUpsert({
 					props: {
 						type: 'password',
 						showPassword: true,
-						autocomplete: 'new-password'
+						autocomplete: 'new-password', placeholder: PASSWORD_HINT, maxlength: 64
 					}
 				},
 				rules: [
 					{
-						min: 6,
-						max: 16,
-						message: t('密码长度在 6 到 16 个字符')
+						validator: (_rule: any, value: string, callback: any) => { const error = value ? passwordError(value) : ''; callback(error ? new Error(error) : undefined); }
 					}
 				]
 			};

@@ -8,6 +8,7 @@ import { isArray, isEmpty } from 'lodash-es';
 import { router, service } from '/@/cool';
 import { revisePath } from '../utils';
 import { config } from '/@/config';
+import { riskRecordRoutes } from '../../user/risk-navigation';
 
 // 本地缓存
 const data = storage.info();
@@ -109,7 +110,10 @@ export const useMenuStore = defineStore('menu', function () {
 
 	// 设置菜单组
 	function setGroup(list: Menu.List) {
-		group.value = buildNavigation(list, identity) as Menu.List;
+		const hasPermission = (permission: string) =>
+			perms.value.some(value => typeof value === 'string' && value.split(',').map(part => part.trim()).includes(permission));
+		group.value = buildNavigation(list, identity, hasPermission('search:risk:view'),
+			hasPermission('search:risk:manage'), hasPermission('ai:manage')) as Menu.List;
 		storage.set('base.menuGroup', group.value);
 	}
 
@@ -137,8 +141,7 @@ export const useMenuStore = defineStore('menu', function () {
 					const path = revisePath(e.router || String(e.id));
 					const isShow = e.isShow === undefined ? true : e.isShow;
 					// 兼容旧菜单名称，保留路由、节点 ID 和授权关系。
-					const label = ['/user/search-risk', '/workspace-admin/search-risk'].includes(path)
-						? '内容风险管控' : e.name;
+					const label = riskRecordRoutes.includes(path) ? '风险记录' : e.name;
 
 					return {
 						...e,

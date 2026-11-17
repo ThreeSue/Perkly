@@ -224,6 +224,11 @@ const Table = useTable({
 
 // cl-upsert
 const Upsert = useUpsert({
+	onSubmit(data, { next }) {
+		// 详情还包含时间、绑定状态等只读字段，不能原样作为更新参数提交。
+		const { id, avatarUrl, nickName, gender, status } = data;
+		return next({ id, avatarUrl, nickName, gender, status });
+	},
 	items: [
 		{
 			prop: 'avatarUrl',

@@ -22,8 +22,8 @@
 
 		<div class="app-slider__container">
 			<el-scrollbar>
-				<el-button class="app-slider__assistant" text @click="$router.push('/my/assistant')" aria-label="打开AI助手">
-					<span v-if="!app.isFold || browser.isMini">AI 助手</span>
+				<el-button class="app-slider__assistant" text @click="$router.push('/my/assistant')" aria-label="打开 PerPilot 管理助手">
+					<span v-if="!app.isFold || browser.isMini">PerPilot</span>
 				</el-button>
 				<div class="app-slider__caption">工作空间</div>
 				<b-menu :keyWord="keyWord" />

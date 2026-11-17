@@ -47,6 +47,7 @@
 						show-password
 						maxlength="64"
 						autocomplete="new-password"
+                        :placeholder="PASSWORD_HINT"
 					/>
 				</el-form-item>
 				<el-form-item label="再次输入新密码" :error="passwordError">
@@ -56,6 +57,7 @@
 						show-password
 						maxlength="64"
 						autocomplete="new-password"
+                        :placeholder="PASSWORD_HINT"
 					/>
 				</el-form-item>
 				<el-button
@@ -72,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+import { passwordError as checkPassword, PASSWORD_HINT } from '/@/utils/password-policy';
 import { computed, onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useBase } from '/$/base';
@@ -110,7 +113,7 @@ const canSaveName = computed(() =>
 	Boolean(me.value && name.value.trim() && name.value.trim() !== me.value.name)
 );
 const passwordError = computed(() =>
-	repeat.value && repeat.value !== newPassword.value ? '两次新密码不一致' : ''
+	(newPassword.value ? checkPassword(newPassword.value) : '') || (repeat.value && repeat.value !== newPassword.value ? '两次新密码不一致' : '')
 );
 const canSavePassword = computed(() =>
 	Boolean(oldPassword.value && newPassword.value && repeat.value && !passwordError.value)

@@ -143,6 +143,7 @@
 						show-password
 						maxlength="64"
 						autocomplete="new-password"
+                        :placeholder="PASSWORD_HINT"
 				/></el-form-item>
 				</section><section class="workspace-editor-section"><h3 class="workspace-section-heading">账号归属与可查看数据</h3>
 				<el-form-item v-if="isPlatform" label="所属商家"
@@ -240,6 +241,7 @@
 	</ManagementShell>
 </template>
 <script setup lang="ts">
+import { passwordError as checkPassword, PASSWORD_HINT } from '/@/utils/password-policy';
 import { computed, ref, onMounted, watch, toRef, onBeforeUnmount } from 'vue';
 import ManagementShell from '../components/management-shell.vue';
 import {
@@ -507,6 +509,7 @@ async function open(row?: any) {
 	}
 }
 async function save() {
+    if ((!form.value.id || form.value.password) && checkPassword(form.value.password || '', form.value.username || '')) { ElMessage.warning(checkPassword(form.value.password || '', form.value.username || '')); return; }
 	if (
 		!form.value.name?.trim() ||
 		!form.value.username ||
@@ -524,9 +527,9 @@ async function save() {
 		!form.value.id &&
 		(!/^1\d{10}$/.test(form.value.username) ||
 			!form.value.password ||
-			form.value.password.length < 6)
+			form.value.password.length < 8)
 	) {
-		ElMessage.warning('新账号使用11位手机号，初始密码至少6位');
+		ElMessage.warning('新账号使用11位手机号，初始密码至少8位');
 		return;
 	}
 	try {

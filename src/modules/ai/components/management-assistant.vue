@@ -1,12 +1,12 @@
 <template>
-  <section class="management-assistant assistant-edge is-visible" :class="{ compact, 'is-workbench': !compact && scope === 'GLOBAL' }" aria-label="AI助手">
+  <section class="management-assistant assistant-edge is-visible" :class="{ compact, 'is-workbench': !compact && scope === 'GLOBAL' }" aria-label="PerPilot 管理助手">
     <header class="management-assistant__header">
-      <div class="assistant-heading"><cl-svg name="icon-ai" aria-hidden="true" /><div><strong>{{ scope === 'GLOBAL' ? 'AI 助手' : names[scope] + ' AI 助手' }}</strong>
-        <p>{{ scope === 'GLOBAL' ? '查询业务资料，核对后完成授权操作' : '仅服务当前模块，切换任务由你决定' }}</p></div></div>
+      <div class="assistant-heading"><cl-svg name="icon-ai" aria-hidden="true" /><div><strong>{{ scope === 'GLOBAL' ? 'PerPilot · 管理助手' : 'PerPilot' }}</strong>
+        <p>{{ scope === 'GLOBAL' ? '查询业务资料，核对后完成授权操作' : names[scope] + '助手 · 仅服务当前模块' }}</p></div></div>
       <el-button text @click="emit('close')">关闭</el-button>
     </header>
     <div ref="transcript" class="management-assistant__transcript" aria-live="polite" aria-relevant="additions">
-      <div v-if="!turns.length" class="assistant-welcome"><h2>今天需要处理什么？</h2><p>可以先查询，再告诉我需要调整的地方。</p>
+      <div v-if="!turns.length" class="assistant-welcome"><h2>今天需要处理什么？</h2><p>我是 PerPilot，可以帮你查数据、处理授权范围内的业务。</p>
         <div class="assistant-suggestions"><el-button v-for="text in suggestions" :key="text" @click="send(text)">{{ text }}</el-button></div>
       </div>
       <article v-for="(turn,index) in turns" :key="index" :class="['assistant-turn',turn.role]">
@@ -26,7 +26,7 @@
             </template>
             <details v-else-if="result.data" :open="result.state === 'COMPLETED'"><summary>查看真实结果</summary><AssistantFacts :value="result.data" :scope="result.module" /></details>
           </div>
-          <el-button v-if="turn.reply.handoffText" type="primary" @click="handoff(turn.reply.handoffText)">前往 AI 工作台继续</el-button>
+          <el-button v-if="turn.reply.handoffText" type="primary" @click="handoff(turn.reply.handoffText)">前往 PerPilot 工作台继续</el-button>
         </template>
       </article>
       <div v-if="busy" class="assistant-waiting" role="status"><span class="waiting-indicator" aria-hidden="true"><i></i><i></i><i></i></span><span>正在核对业务数据…</span></div>

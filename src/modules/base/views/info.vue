@@ -12,7 +12,7 @@
 			</section>
 			<section class="workbench-panel personal-section platform-password">
 				<h2>{{ $t('修改密码') }}</h2>
-				<p>只修改头像或昵称时，密码字段可留空。</p>
+				<p>只修改头像或昵称时，密码字段可留空。{{ PASSWORD_HINT }}</p>
 				<el-form-item :label="$t('原密码')">
 					<el-input v-model="form.oldPassword" type="password" autocomplete="current-password" show-password />
 				</el-form-item>
@@ -25,6 +25,7 @@
 	</PersonalWorkbench>
 </template>
 <script lang="ts" setup>
+import { passwordError as checkPassword, PASSWORD_HINT } from '/@/utils/password-policy';
 defineOptions({
 	name: 'my-info'
 });
@@ -53,6 +54,7 @@ const loading = ref(false);
 
 // 保存
 async function save() {
+    if (form.password && checkPassword(form.password)) { ElMessage.warning(checkPassword(form.password)); return; }
 	loading.value = true;
 
 	await service.base.comm

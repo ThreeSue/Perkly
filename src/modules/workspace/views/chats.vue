@@ -5,12 +5,22 @@
 		class="chat-workbench"
 	>
 		<template #actions>
-			<el-button v-if="identity === 'STORE'" @click="settingsOpen = true"
+			<el-button v-if="identity === 'STORE' && canManageSettings" @click="settingsOpen = true"
 				>AI 客服设置</el-button
 			>
 			<el-button class="workbench-refresh" :loading="busy" @click="load">刷新会话</el-button>
 		</template>
 
+		<div v-if="canReceive" class="chat-presence" role="status">
+			<strong>{{ presenceOnline ? '接待在线' : '接待状态待确认' }}</strong>
+			<span>{{
+				presenceError ||
+				'仅在此页面保持前台时在线。离开后按本店设置交接，重新在线不会自动接管会话。'
+			}}</span>
+			<el-button v-if="presenceError" link type="primary" @click="resumeReception"
+				>重试连接</el-button
+			>
+		</div>
 		<div class="chat-layout">
 			<section class="workbench-panel chat-list" aria-labelledby="chat-list-heading">
 				<header class="chat-pane-head">
@@ -19,6 +29,8 @@
 				</header>
 				<el-select v-model="sessionFilter" aria-label="筛选本页会话状态"
 					><el-option label="本页全部会话" value="" /><el-option
+						label="本页人工待办"
+						value="PENDING" /><el-option
 						v-for="(label, value) in stateNames"
 						:key="value"
 						:label="label"
@@ -55,7 +67,9 @@
 								<span class="chat-session-label">
 									<strong>{{ item.customerName || '顾客' }}</strong>
 									<span v-if="item.state">{{
-										stateNames[item.state] || item.state
+										item.receptionText ||
+										(item.humanRequested ? '等待人工跟进 · ' : '') +
+											(stateNames[item.state] || item.state)
 									}}</span>
 									<span>{{ item.storeName || '门店未记录' }}</span>
 								</span>
@@ -103,6 +117,12 @@
 							<p>{{ selected.storeName || '门店未记录' }}</p>
 						</div>
 						<span class="chat-live">{{ stateLabel }}</span>
+						<el-button
+							v-if="detail?.canReturnToAi"
+							:loading="transitioning"
+							@click="transition('return-to-ai')"
+							>交回 AI</el-button
+						>
 						<el-button
 							v-if="detail?.canTakeover"
 							:loading="transitioning"
@@ -273,12 +293,21 @@
 				</template>
 			</section>
 		</div>
-		<ChatSettings v-model="settingsOpen" />
+		<ChatSettings v-if="canManageSettings" v-model="settingsOpen" />
 	</WorkbenchLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, nextTick, onMounted, onBeforeUnmount } from 'vue';
+import {
+	computed,
+	ref,
+	nextTick,
+	onMounted,
+	onBeforeUnmount,
+	onActivated,
+	onDeactivated,
+	watch
+} from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { featureApi } from '../feature-api';
 import WorkbenchLayout from '../components/workbench-layout.vue';
@@ -286,6 +315,14 @@ import ManagementState from '../components/management-state.vue';
 import ChatSettings from '../components/chat-settings.vue';
 import ChatMessageCard, { type MessageCard } from '../components/chat-message-card.vue';
 import { identity } from '/@/workspace';
+import { useBase } from '/$/base';
+const { menu } = useBase();
+const canReceive = computed(
+	() => identity === 'STORE' && ['chat:view', 'chat:reply'].every(p => menu.perms.includes(p))
+);
+const canManageSettings = computed(
+	() => identity === 'STORE' && menu.perms.includes('chat:manage')
+);
 const settingsOpen = ref(false);
 const advice = ref(''),
 	adviceError = ref(''),
@@ -311,6 +348,8 @@ async function suggest(polish = false) {
 }
 
 interface ChatSession {
+	humanRequested?: boolean;
+	receptionText?: string;
 	state?: string;
 	id: number;
 	customerName?: string;
@@ -326,6 +365,10 @@ interface ChatMessage {
 	images?: string[];
 }
 interface ChatDetail {
+	humanRequested?: boolean;
+	receptionText?: string;
+	canReturnToAi?: boolean;
+
 	state: 'AI' | 'WAITING' | 'HUMAN' | 'CLOSED';
 	version: number;
 	canTakeover: boolean;
@@ -334,46 +377,72 @@ interface ChatDetail {
 	canSuggest: boolean;
 	summary?: string;
 }
+
 const detail = ref<ChatDetail>();
 const detailError = ref('');
 const transitioning = ref(false);
 const stateLabel = computed(() =>
 	detail.value
-		? { AI: 'AI 接待', WAITING: '等待人工', HUMAN: '人工接待', CLOSED: '已结束' }[
+		? detail.value.receptionText ||
+			{ AI: 'AI 接待', WAITING: '等待人工', HUMAN: '人工接待', CLOSED: '已结束' }[
 				detail.value.state
 			]
 		: '正在确认接待权限'
 );
+let detailSequence = 0;
 async function loadDetail() {
 	const id = selected.value?.id;
 	if (!id) return;
+	const sequence = ++detailSequence;
 	try {
 		const result = await featureApi(`chats/detail?chatId=${id}`);
-		if (selected.value?.id === id && !stopped) {
-			detail.value = result;
+		if (selected.value?.id === id && !stopped && sequence === detailSequence) {
+			if (!detail.value || result.version >= detail.value.version) detail.value = result;
+
 			detailError.value = '';
 		}
 	} catch (e: any) {
-		if (selected.value?.id === id && !stopped) {
+		if (selected.value?.id === id && !stopped && sequence === detailSequence) {
 			detail.value = undefined;
 			detailError.value = e?.message || '无法确认接待权限，暂不可回复';
 		}
 	}
 }
 let pendingTransition:
-	| { action: 'takeover' | 'close'; chatId: number; version: number; requestId: string }
+	| {
+			action: 'takeover' | 'close' | 'return-to-ai';
+			chatId: number;
+			version: number;
+			requestId: string;
+	  }
 	| undefined;
-async function transition(action: 'takeover' | 'close') {
+async function transition(action: 'takeover' | 'close' | 'return-to-ai') {
 	if (!selected.value || !detail.value || transitioning.value || sending.value) return;
 	const chatId = selected.value.id;
 	transitioning.value = true;
 	try {
-		if (action === 'close') {
+		if (action === 'close' || action === 'return-to-ai') {
 			try {
-				await ElMessageBox.confirm('结束本轮接待后将保留全部历史消息。', '结束接待');
+				await ElMessageBox.confirm(
+					action === 'close'
+						? '结束本轮接待后将保留全部历史消息。'
+						: '交接成功后由 AI 接待，历史消息保留。需要人工回复时可重新接管。',
+					action === 'close' ? '结束接待' : '交回 AI'
+				);
 			} catch {
 				return;
 			}
+		}
+		await loadDetail();
+		const allowed =
+			action === 'takeover'
+				? detail.value?.canTakeover
+				: action === 'close'
+					? detail.value?.canClose
+					: detail.value?.canReturnToAi;
+		if (!allowed) {
+			ElMessage.warning('接待状态或权限已变化，请查看最新状态');
+			return;
 		}
 		if (
 			!pendingTransition ||
@@ -383,16 +452,32 @@ async function transition(action: 'takeover' | 'close') {
 			pendingTransition = {
 				action,
 				chatId,
-				version: detail.value.version,
+				version: detail.value!.version,
 				requestId: crypto.randomUUID()
 			};
+		if (action === 'takeover') {
+			if (!canReceive.value || !pageActive || document.visibilityState !== 'visible') return;
+			await reportPresence(true);
+		}
 		const { action: _, ...payload } = pendingTransition;
-		await featureApi(`chats/${action}`, payload);
+		const updated = await featureApi(`chats/${action}`, payload);
+		detailSequence++; // Invalidate reads started before this transition.
+		if (
+			updated?.state &&
+			selected.value?.id === chatId &&
+			(!detail.value || updated.version >= detail.value.version)
+		)
+			detail.value = updated;
 		pendingTransition = undefined;
 		await loadDetail();
 		await fetchMessages();
+		await load();
 	} catch (e: any) {
-		ElMessage.error(e?.message || '接待状态更新失败');
+		ElMessage.error(
+			Number(e?.code) === 409
+				? '接待状态已变化，已刷新，请确认后重新操作'
+				: e?.message || '接待状态更新失败'
+		);
 		if (e?.code === 409 || e?.response?.status === 409) pendingTransition = undefined;
 		await loadDetail();
 	} finally {
@@ -407,7 +492,13 @@ const stateNames: Record<string, string> = {
 };
 const sessionFilter = ref('');
 const visibleSessions = computed(() =>
-	sessions.value.filter(s => !sessionFilter.value || s.state === sessionFilter.value)
+	sessions.value.filter(
+		s =>
+			!sessionFilter.value ||
+			(sessionFilter.value === 'PENDING'
+				? s.state === 'WAITING' || s.humanRequested
+				: s.state === sessionFilter.value)
+	)
 );
 const cardOptions = ref<MessageCard[]>([]),
 	selectedCard = ref<MessageCard>(),
@@ -601,6 +692,11 @@ async function send() {
 	if (!canSend.value) return ElMessage.warning('请输入文字或上传图片');
 	sending.value = true;
 	try {
+		await loadDetail();
+		if (!detail.value?.canReply) {
+			ElMessage.warning('接待状态已变化，当前不可回复；草稿已保留');
+			return;
+		}
 		const payload = {
 			chatId: selected.value.id,
 			requestId,
@@ -626,31 +722,157 @@ async function send() {
 		requestId = crypto.randomUUID();
 		await fetchMessages();
 	} catch (e: any) {
-		ElMessage.error((e.message || '发送失败') + '，重试保留原请求标识');
+		if (Number(e?.code) === 409 || Number(e?.code) === 403) {
+			lastSendPayload = '';
+			requestId = crypto.randomUUID();
+			ElMessage.warning('接待状态或权限已变化，草稿已保留，请确认后重试');
+			await loadDetail();
+		} else ElMessage.error((e.message || '发送失败') + '，重试保留原请求标识');
 	} finally {
 		sending.value = false;
 	}
 }
-onMounted(async () => {
-	await load();
-	if (stopped) return;
+// One UUID per mounted reception page; never shared between tabs or devices.
+const presenceId = crypto.randomUUID();
+let presenceTimer: ReturnType<typeof setTimeout> | undefined;
+let pageActive = false;
+let lifecycle = 0;
+let heartbeatSeconds = 30;
+let presenceSequence = Promise.resolve();
+let presenceAttempted = false;
+const presenceError = ref('');
+const presenceOnline = ref(false);
+function clearPresenceTimer() {
+	if (presenceTimer) clearTimeout(presenceTimer);
+	presenceTimer = undefined;
+}
+function availableNow() {
+	return canReceive.value && pageActive && !stopped && navigator.onLine && document.visibilityState === 'visible';
+}
+function reportPresence(available: boolean): Promise<void> {
+	const operation = presenceSequence
+		.catch(() => {})
+		.then(async () => {
+			// A queued online request must not outlive a hidden/deactivated page.
+			if (available && !availableNow()) return;
+			if (!available && !presenceAttempted) return;
+			presenceAttempted = available;
+			const result = await featureApi('chats/presence', { sessionId: presenceId, available });
+			presenceOnline.value = available && availableNow() && result.available === true;
+			presenceError.value = '';
+			if (
+				Number.isFinite(result.heartbeatIntervalSeconds) &&
+				result.heartbeatIntervalSeconds > 0
+			)
+				heartbeatSeconds = result.heartbeatIntervalSeconds;
+		});
+	presenceSequence = operation;
+	return operation;
+}
+async function refreshPresence() {
+	clearPresenceTimer();
+	if (!availableNow()) return;
+	try {
+		await reportPresence(true);
+	} catch (e: any) {
+		presenceOnline.value = false;
+		presenceError.value = e?.message || '在线状态上报失败，请检查连接。';
+		// Revoked permission must not keep generating forbidden requests.
+		if (Number(e?.code) === 403) return;
+	}
+	if (availableNow())
+		presenceTimer = setTimeout(() => void refreshPresence(), heartbeatSeconds * 1000);
+}
+function suspendReception() {
+	lifecycle++;
+	detailSequence++;
+	detail.value = undefined; // Never retain reply permission across a background interval.
+	presenceOnline.value = false;
+	clearPresenceTimer();
+	void reportPresence(false).catch(() => {}); // Lease expiration covers a failed leave report.
+}
+async function resumeReception() {
+	const epoch = ++lifecycle;
+	clearPresenceTimer();
+	if (!pageActive || stopped || !navigator.onLine || document.visibilityState !== 'visible') return;
+	detail.value = undefined;
+	await Promise.all([loadDetail(), fetchMessages(), load()]);
+	if (epoch === lifecycle && availableNow()) await refreshPresence();
+}
+function visibilityChanged() {
+	if (document.visibilityState === 'visible') void resumeReception();
+	else suspendReception();
+}
+function leavePage() {
+	pageActive = false;
+	suspendReception();
+}
+function activatePage() {
+	if (pageActive) return;
+	pageActive = true;
+	void resumeReception();
+}
+watch(canReceive, () => {
+	suspendReception();
+	if (canReceive.value) void resumeReception();
+});
+watch(canManageSettings, allowed => {
+	if (!allowed) settingsOpen.value = false;
+});
+onActivated(activatePage);
+onDeactivated(leavePage);
+onMounted(() => {
+	document.addEventListener('visibilitychange', visibilityChanged);
+	window.addEventListener('pagehide', suspendReception);
+	window.addEventListener('pageshow', visibilityChanged);
+	window.addEventListener('online', visibilityChanged);
+	window.addEventListener('offline', suspendReception);
+	activatePage();
 	let tick = 0;
 	timer = setInterval(() => {
-		if (document.visibilityState === 'visible' && !sending.value) {
-			fetchMessages();
+		if (
+			pageActive &&
+			navigator.onLine &&
+			document.visibilityState === 'visible' &&
+			!sending.value &&
+			!transitioning.value
+		) {
+			void fetchMessages();
 			void loadDetail();
-			if (++tick % 4 === 0 && !sessionError.value) load();
+			if (++tick % 4 === 0 && !sessionError.value) void load();
 		}
 	}, 3000);
 });
 onBeforeUnmount(() => {
 	stopped = true;
+	leavePage();
+	document.removeEventListener('visibilitychange', visibilityChanged);
+	window.removeEventListener('pagehide', suspendReception);
+	window.removeEventListener('pageshow', visibilityChanged);
+	window.removeEventListener('online', visibilityChanged);
+	window.removeEventListener('offline', suspendReception);
 	generation++;
 	if (timer) clearInterval(timer);
 });
 </script>
 
 <style scoped>
+.chat-presence {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	font-size: 13px;
+	color: var(--el-text-color-regular);
+	background: var(--workspace-neutral);
+}
+.chat-presence strong {
+	color: var(--workspace-accent-text);
+}
+.chat-person {
+	flex-wrap: wrap;
+}
 .chat-advice {
 	padding: 12px;
 	background: var(--workspace-accent-soft);

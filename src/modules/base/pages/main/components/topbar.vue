@@ -20,7 +20,7 @@
 
 		<!-- 用户信息 -->
 		<el-button v-if="user.info" text class="app-topbar__shortcut" @click="router.push('/my/assistant')">
-			<cl-svg name="icon-ai" /> AI 工作台
+			<cl-svg name="icon-ai" /> PerPilot
 		</el-button>
 		<el-badge v-if="user.info" is-dot :hidden="notices.unread === 0">
 			<el-button text class="app-topbar__shortcut" aria-label="站内通知" title="站内通知" @click="router.push('/my/notices')">

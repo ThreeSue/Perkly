@@ -237,6 +237,10 @@ async function retryStorage(item: ImageTask) {
 	catch (cause: any) { error.value = cause?.message || '素材保存失败，请稍后重试'; }
 	finally { submitting.value = false; }
 }
+// 手动选图后，主图立即显示所选封面，不再被上一张 AI 候选图覆盖。
+watch(() => props.cover, () => {
+	if (!working.value) activeId.value = undefined;
+});
 watch(merchantId, () => { visible.value = false; prompt.value = ''; rows.value = []; quota.value = undefined; parent.value = undefined; activeId.value = undefined; stopPolling(); });
 watch(visible, value => { if (!value && !props.compact) { stopPolling(); loading.value = false; } });
 onBeforeUnmount(stopPolling);

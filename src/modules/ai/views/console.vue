@@ -1,126 +1,101 @@
 <template>
-	<ManagementShell title="AI图片管理" description="管理优惠券封面的生成开关、商家额度及调用记录；费用为按配置单价计算的估算，不是云端实际账单。">
-		<el-alert v-if="error" :title="error" type="error" :closable="false" show-icon><el-button link type="primary" @click="loadTab">重试</el-button></el-alert>
-		<el-tabs v-model="tab" @tab-change="search">
-			<el-tab-pane label="功能设置" name="settings">
-				<el-form v-if="settings" label-position="top" class="settings" :disabled="saving">
-					<el-form-item label="图片生成功能"><el-switch v-model="settings.enabled" active-text="开启" inactive-text="暂停新请求和排队任务" /></el-form-item>
-					<el-form-item label="允许的图片模型"><el-checkbox-group v-model="settings.allowedModels"><el-checkbox v-for="model in settings.supportedModels" :key="model" :value="model">{{ model }}</el-checkbox></el-checkbox-group></el-form-item>
-					<el-form-item label="默认商家每日额度（0为不允许新请求）"><el-input-number v-model="settings.defaultDailyLimit" :min="0" :max="10000" :precision="0" /></el-form-item>
-					<el-form-item label="每张图片估算单价（元）"><el-input-number v-model="settings.estimatedUnitPrice" :min="0" :max="10000" :precision="6" :step="0.01" /><span class="hint">留空表示未配置；新任务记录当时单价，不改写历史费用。</span></el-form-item>
-					<el-form-item label="服务状态"><el-tag :type="settings.keyConfigured ? 'success' : 'danger'">{{ settings.keyConfigured ? '密钥已配置' : '密钥未配置' }}</el-tag></el-form-item>
-					<el-alert title="每日按北京时间重置。已受理请求预占一次额度，失败、超时或结果未知也计入；提交前校验不通过不计入。已生成但保存失败只补存素材，不再次调用模型。" type="info" :closable="false" />
-					<el-button type="primary" :loading="saving" class="save" @click="saveSettings">保存设置</el-button>
-				</el-form>
-			</el-tab-pane>
-			<el-tab-pane label="商家额度" name="policies">
-				<div class="toolbar"><el-input v-model="keyword" placeholder="搜索商家名称" clearable style="max-width: 260px" /><el-button @click="loadTab">刷新</el-button></div>
-				<el-table v-loading="loading" :data="filteredPolicies">
-					<el-table-column prop="merchantName" label="商家" min-width="200" />
-					<el-table-column label="允许新请求" width="160"><template #default="{ row }"><el-switch v-model="row.enabled" /></template></el-table-column>
-					<el-table-column label="独立每日额度" min-width="240"><template #default="{ row }"><el-input-number v-model="row.dailyLimit" :min="0" :max="10000" :precision="0" placeholder="继承默认额度" /><el-button link @click="row.dailyLimit = null">恢复继承</el-button></template></el-table-column>
-					<el-table-column label="操作" width="100"><template #default="{ row }"><el-button type="primary" link :disabled="saving" @click="savePolicy(row)">保存</el-button></template></el-table-column>
-				</el-table>
-			</el-tab-pane>
-			<el-tab-pane label="生成任务" name="tasks">
-				<div class="toolbar">
-					<el-select v-model="merchantId" clearable filterable placeholder="全部商家" style="width: 220px"><el-option v-for="m in policies" :key="m.merchantId" :value="m.merchantId" :label="m.merchantName" /></el-select>
-					<el-select v-model="status" clearable placeholder="全部状态" style="width: 200px"><el-option v-for="(label, value) in statusNames" :key="value" :value="value" :label="label" /></el-select>
-					<el-button :loading="loading" @click="search">查询</el-button>
-				</div>
-				<el-table v-loading="loading" :data="tasks">
-					<el-table-column label="图片" width="100"><template #default="{ row }"><el-image v-if="row.url" :src="row.url" :preview-src-list="[row.url]" preview-teleported fit="cover" style="width: 64px; height: 64px" /><span v-else>—</span></template></el-table-column>
-					<el-table-column prop="merchantName" label="商家" min-width="160" /><el-table-column prop="actorName" label="操作人" min-width="120" />
-					<el-table-column label="状态" min-width="180"><template #default="{ row }">{{ statusNames[row.status] || row.status }}<small v-if="row.archived">（素材已归档）</small></template></el-table-column>
-					<el-table-column label="调用方式" width="110"><template #default="{ row }">{{ row.mode === 'EDIT' ? '原图完善' : '重新生成' }}</template></el-table-column>
-					<el-table-column label="耗时" width="100"><template #default="{ row }">{{ row.durationMs == null ? '—' : (row.durationMs / 1000).toFixed(1) + '秒' }}</template></el-table-column>
-					<el-table-column label="估算费用" width="120"><template #default="{ row }">{{ row.estimatedCost == null ? '未估算' : '¥' + row.estimatedCost }}</template></el-table-column>
-					<el-table-column prop="createTime" label="创建时间" width="175" /><el-table-column label="详情" width="90"><template #default="{ row }"><el-button link @click="detail = row">查看</el-button></template></el-table-column>
-				</el-table>
-			</el-tab-pane>
-			<el-tab-pane label="用量与估算" name="usage">
-				<el-alert title="仅统计已知成功生成的图片费用，未配置单价的图片单独列出；未知结果可能已在云端计费，请以云端账单核对。" type="warning" :closable="false" />
-				<div class="toolbar"><el-select v-model="merchantId" clearable filterable placeholder="全部商家" style="width: 220px"><el-option v-for="m in policies" :key="m.merchantId" :value="m.merchantId" :label="m.merchantName" /></el-select><el-date-picker v-model="range" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" style="max-width: 300px" /><el-button :loading="loading" @click="search">查询（最多31天）</el-button></div>
-				<el-table v-loading="loading" :data="usage"><el-table-column prop="merchantName" label="商家" min-width="180" /><el-table-column prop="day" label="日期" width="130" /><el-table-column prop="requests" label="受理次数" /><el-table-column prop="success" label="生成成功" /><el-table-column prop="failed" label="失败" /><el-table-column prop="uncertain" label="结果未知" /><el-table-column label="已知估算费用（元）" min-width="160"><template #default="{ row }">{{ row.estimatedCost }}</template></el-table-column><el-table-column prop="unpricedImages" label="未定价图片数" min-width="120" /></el-table>
-			</el-tab-pane>
-			<el-tab-pane label="操作审计" name="audit"><el-button :loading="loading" @click="search">刷新</el-button><el-table v-loading="loading" :data="audits"><el-table-column prop="createTime" label="时间" width="175" /><el-table-column prop="actorName" label="操作人" min-width="120" /><el-table-column prop="merchantName" label="商家" min-width="160" /><el-table-column label="操作" width="130"><template #default="{ row }">{{ actionNames[row.action] || row.action }}</template></el-table-column><el-table-column prop="detail" label="内容" show-overflow-tooltip min-width="300" /></el-table></el-tab-pane>
-		</el-tabs>
-		<el-pagination v-if="['tasks', 'usage', 'audit'].includes(tab)" v-model:current-page="page" :page-size="20" :total="total" layout="total, prev, pager, next" @current-change="loadTab" />
-		<el-drawer :model-value="!!detail" title="生成任务详情" size="min(650px, 100vw)" @update:model-value="detail = undefined">
-			<template v-if="detail"><p>{{ detail.merchantName }} · {{ detail.actorName }} · {{ statusNames[detail.status] }}</p><p>模型：{{ detail.model }} · 请求编号：{{ detail.requestId }}</p><p v-if="detail.parentTaskId">原图完善版本，原图与当前图均独立保留。</p><p class="saved-prompt">{{ detail.prompt }}</p><el-alert v-if="detail.errorMessage" :title="detail.errorMessage" type="warning" :closable="false" /><el-image v-if="detail.url" :src="detail.url" fit="contain" style="width: 100%; max-height: 360px" /></template>
-		</el-drawer>
-	</ManagementShell>
+ <ManagementShell class="ai-control-page" title="AI 功能管理" description="统一管理各端 AI 的使用状态与每日额度。业务权限仍按原有授权执行。">
+  <div class="heading"><span>功能总览 <small>6 项能力</small></span><el-button :loading="loading" @click="load">刷新状态</el-button></div>
+  <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
+  <p class="note">开关独立生效；额度每日按北京时间重置。关闭 AI 不会关闭原有人工操作。</p>
+  <el-table :data="rows" v-loading="loading" class="feature-table">
+   <el-table-column label="AI 功能" min-width="240"><template #default="{ row }"><strong>{{ row.name }}</strong><div class="secondary">{{ row.description }}</div></template></el-table-column>
+   <el-table-column label="启用状态" width="145"><template #default="{ row }"><el-tag v-if="row.id === 'image' && settings" :type="settings.enabled ? 'success' : 'info'">{{ settings.enabled ? '已开启' : '已关闭' }}</el-tag><el-tag v-else-if="controls[row.id]" :type="controls[row.id].enabled ? 'success' : 'info'">{{ controls[row.id].enabled ? '已开启' : '已关闭' }}</el-tag><span v-else>读取失败</span></template></el-table-column>
+   <el-table-column prop="scope" label="开放范围" min-width="180" />
+   <el-table-column label="每日额度" min-width="155"><template #default="{ row }"><span v-if="row.id === 'image' && settings">{{ settings.defaultDailyLimit }} 张 / 商家</span><span v-else-if="controls[row.id]">{{ controls[row.id].dailyLimit == null ? '不限' : controls[row.id].dailyLimit + (row.id === 'support' ? ' 次 / 门店' : row.id === 'profile' ? ' 次 / 平台' : ' 次 / 账号') }}</span><span v-else>—</span></template></el-table-column>
+   <el-table-column label="今日用量" width="145"><template #default="{ row }">{{ row.id === 'image' ? imageUsed : controls[row.id]?.todayUsed ?? '—' }}</template></el-table-column>
+   <el-table-column label="操作" width="100" fixed="right"><template #default="{ row }"><el-button link type="primary" :disabled="loading || (row.id === 'image' ? !settings : !controls[row.id])" @click="select(row)">设置</el-button></template></el-table-column>
+  </el-table>
+  <p class="footnote">额度指平台内部限制。聊天按账号、客服按门店、生图按商家、画像按平台计额。受理后失败也计次；不会扩大原有业务权限。</p>
+  <el-drawer v-model="visible" :title="selected?.name" size="min(480px, 100vw)">
+   <template v-if="selected?.id === 'image' && settings">
+    <el-form label-position="top" :disabled="saving">
+     <el-form-item label="允许生成封面"><el-switch v-model="draft.enabled" active-text="开启" inactive-text="关闭" /></el-form-item>
+     <el-form-item label="默认商家每日额度"><el-input-number v-model="draft.limit" :min="0" :max="10000" :precision="0" /><span class="unit">张 / 天</span></el-form-item>
+     <p class="note">0 表示不允许新请求。已有商家独立额度优先；关闭将暂停新请求和排队任务。</p>
+     <el-button type="primary" :loading="saving" @click="save">保存设置</el-button>
+    </el-form>
+    <el-divider />
+    <el-button @click="advanced = true">商家独立额度与高级管理</el-button>
+   </template>
+   <template v-else-if="selected && controls[selected.id]">
+    <el-alert v-if="controls[selected.id].runtimeNote" :title="controls[selected.id].runtimeNote" type="warning" :closable="false" />
+    <el-form label-position="top" :disabled="saving">
+     <el-form-item label="允许使用"><el-switch v-model="draft.enabled" active-text="开启" inactive-text="关闭" /></el-form-item>
+     <el-form-item label="每日额度"><el-switch v-model="unlimited" aria-label="不限次数" active-text="不限次数" inactive-text="指定次数" /><el-input-number v-if="!unlimited" v-model="draft.limit" :min="0" :max="100000" :precision="0" /></el-form-item>
+     <p class="note">0 次表示不受理新请求。保存后对新请求生效，已开始的任务不强行中断。</p>
+     <el-button type="primary" :loading="saving" @click="saveFeature">保存设置</el-button>
+    </el-form>
+   </template>
+  </el-drawer>
+  <el-drawer v-model="advanced" title="AI 生图高级管理" size="min(1200px, 100vw)" destroy-on-close @closed="load"><ImageConsole /></el-drawer>
+ </ManagementShell>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { ref, onMounted, onActivated } from 'vue';
+import { useProcessStore } from '/$/base/store/process';
 import { ElMessage } from 'element-plus';
 import ManagementShell from '/$/workspace/components/management-shell.vue';
 import { featureApi } from '/$/workspace/feature-api';
-import { statusNames, type ImageTask } from '../api';
-interface Settings { enabled: boolean; allowedModels: string[]; supportedModels: string[]; defaultDailyLimit: number; estimatedUnitPrice: number | null; keyConfigured: boolean }
-interface Policy { merchantId: number; merchantName: string; enabled: boolean; dailyLimit: number | null }
-const settings = ref<Settings>(), policies = ref<Policy[]>([]), tasks = ref<ImageTask[]>([]), usage = ref<any[]>([]), audits = ref<any[]>([]), detail = ref<ImageTask>();
-const tab = ref('settings'), keyword = ref(''), status = ref(''), merchantId = ref<number>(), range = ref<string[]>();
-const loading = ref(false), saving = ref(false), error = ref(''), page = ref(1), total = ref(0);
-const actionNames: Record<string, string> = { SETTINGS: '修改全局设置', POLICY: '修改商家额度', CREATE: '提交图片任务', SELECT: '选用图片' };
-const filteredPolicies = computed(() => policies.value.filter(p => p.merchantName.includes(keyword.value.trim())));
-const api = (path: string, data?: unknown) => featureApi('ai/console/' + path, data);
-async function loadPolicies() { policies.value = await api('policies'); }
-let revision = 0;
-async function loadTab() {
-	const current = ++revision;
-	const view = tab.value;
-	loading.value = true;
-	error.value = '';
-	try {
-		if (view === 'settings') {
-			const data = await api('settings');
-			if (current === revision) settings.value = data;
-		} else if (view === 'policies') {
-			const data = await api('policies');
-			if (current === revision) policies.value = data;
-		} else {
-			const params = new URLSearchParams({ pageNumber: String(page.value), pageSize: '20' });
-			if (merchantId.value && view !== 'audit') params.set('merchantId', String(merchantId.value));
-			if (view === 'tasks' && status.value) params.set('status', status.value);
-			if (view === 'usage' && range.value?.length === 2) {
-				params.set('startDay', range.value[0]);
-				params.set('endDay', range.value[1]);
-			}
-			const result = await api(view + '?' + params);
-			if (current !== revision) return;
-			total.value = result.total;
-			if (view === 'tasks') tasks.value = result.list;
-			else if (view === 'usage') usage.value = result.list;
-			else audits.value = result.list;
-		}
-	} catch (cause: any) {
-		if (current === revision) error.value = cause?.message || 'AI管理数据加载失败';
-	} finally {
-		if (current === revision) loading.value = false;
-	}
+import ImageConsole from '../components/image-console.vue';
+type Feature = { id: string; name: string; description: string; scope: string };
+type Settings = { enabled: boolean; defaultDailyLimit: number; allowedModels: string[]; estimatedUnitPrice: number | null };
+const rows: Feature[] = [
+ {id:'user',name:'用户端助手',description:'找门店、找优惠，解释券与订单',scope:'登录用户'},
+ {id:'merchant',name:'核销端助手',description:'协助门店人员查询业务数据',scope:'授权商家与门店员工'},
+ {id:'support',name:'门店 AI 客服',description:'自动接待咨询，必要时转人工',scope:'按门店接待配置与授权'},
+ {id:'admin',name:'管理端 AI 助手',description:'查询数据，协助完成管理操作',scope:'已授权管理账号'},
+ {id:'image',name:'AI 生图',description:'生成优惠券封面，完善已有图片',scope:'已授权账号及商家策略'},
+ {id:'profile',name:'用户画像分析',description:'分析消费偏好，辅助个性化推荐',scope:'平台任务'}
+];
+const settings = ref<Settings>(), selected = ref<Feature>();
+const loading=ref(false), saving=ref(false), visible=ref(false), advanced=ref(false), error=ref('');
+const controls=ref<Record<string,{enabled:boolean;dailyLimit:number|null;todayUsed:number;runtimeNote?:string}>>({});
+const unlimited=ref(true), imageUsed=ref<number|string>('—');
+const draft=ref({enabled:false,limit:0});
+async function load() {
+ loading.value=true; error.value=''; settings.value=undefined; controls.value={}; imageUsed.value='—';
+ const results=await Promise.allSettled([featureApi('ai/console/settings'),featureApi('ai/console/features')]);
+ if(results[0].status==='fulfilled') settings.value=results[0].value;
+ if(results[1].status==='fulfilled') controls.value=Object.fromEntries(results[1].value.map((r:any)=>[r.id,r]));
+ const failures=results.filter(r=>r.status==='rejected');
+ if(failures.length) error.value='部分 AI 配置读取失败，请确认后端已更新并启动，再点刷新状态重试。';
+ try {
+  const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai'}).format(new Date());
+  let total=0;
+  for(let page=1;;page++) {
+   const u=await featureApi(`ai/console/usage?startDay=${day}&endDay=${day}&pageNumber=${page}&pageSize=100`);
+   total+=u.list.reduce((n:number,r:any)=>n+(r.requests||0),0);
+   if(page*100>=u.total) break;
+  }
+  imageUsed.value=total;
+ } catch { error.value ||= '生图用量暂时读取失败，可刷新重试；设置仍可使用。'; }
+ finally {loading.value=false;}
 }
-async function search() { page.value = 1; await loadTab(); }
-async function saveSettings() {
-	if (!settings.value || saving.value) return;
-	saving.value = true;
-	try { const s = settings.value; await api('settings', { enabled: s.enabled, allowedModels: s.allowedModels, defaultDailyLimit: s.defaultDailyLimit, estimatedUnitPrice: s.estimatedUnitPrice ?? null }); ElMessage.success('AI设置已保存'); await loadTab(); }
-	catch (cause: any) { error.value = cause?.message || '保存失败'; }
-	finally { saving.value = false; }
-}
-async function savePolicy(row: Policy) {
-	if (saving.value) return;
-	saving.value = true;
-	try { await api('policy', { merchantId: row.merchantId, enabled: row.enabled, dailyLimit: row.dailyLimit ?? null }); ElMessage.success('商家额度已保存'); }
-	catch (cause: any) { error.value = cause?.message || '保存失败'; }
-	finally { saving.value = false; }
-}
-onMounted(async () => { await loadTab(); try { await loadPolicies(); } catch (cause: any) { error.value = cause?.message || '商家列表加载失败'; } });
+function select(row:Feature){selected.value=row;if(settings.value)draft.value={enabled:settings.value.enabled,limit:settings.value.defaultDailyLimit};if(row.id!=='image' && controls.value[row.id]){const c=controls.value[row.id];draft.value={enabled:c.enabled,limit:c.dailyLimit??100};unlimited.value=c.dailyLimit==null;}visible.value=true;}
+async function save(){if(!settings.value||saving.value)return;saving.value=true;try{await featureApi('ai/console/settings',{enabled:draft.value.enabled,defaultDailyLimit:draft.value.limit,allowedModels:settings.value.allowedModels,estimatedUnitPrice:settings.value.estimatedUnitPrice??null});ElMessage.success('生图设置已保存');visible.value=false;await load();}catch(e:any){ElMessage.error(e?.message||'保存失败，请重试');}finally{saving.value=false;}}
+async function saveFeature(){if(!selected.value||saving.value)return;saving.value=true;try{await featureApi('ai/console/features',{id:selected.value.id,enabled:draft.value.enabled,dailyLimit:unlimited.value?null:draft.value.limit});ElMessage.success('设置已保存');visible.value=false;await load();}catch(e:any){ElMessage.error(e?.message||'保存失败');}finally{saving.value=false;}}
+const process = useProcessStore();
+onMounted(() => { process.setTitle('AI 功能管理'); load(); });
+onActivated(() => process.setTitle('AI 功能管理'));
 </script>
 <style scoped>
-.settings { max-width: 680px; padding: 12px 0; }
-.hint { margin-left: 12px; color: var(--el-text-color-secondary); font-size: 12px; }
-.toolbar { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
-.save, .el-pagination { margin-top: 20px; }
-.saved-prompt { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; background: var(--el-fill-color-light); }
+.heading { display:flex; justify-content:space-between; align-items:center; margin:8px 0 20px; font-size:18px; font-weight:600; }
+.heading small { font-size:13px; font-weight:400; color:var(--el-text-color-secondary); margin-left:12px; }
+.note,.footnote,.secondary { color:var(--el-text-color-secondary); font-size:13px; line-height:1.7; }
+.note { margin:16px 0; max-width:75ch; }
+.feature-table strong { font-size:15px; color:var(--el-text-color-primary); font-weight:600; }
+.feature-table :deep(.el-table__cell) { padding:12px 0; }
+.secondary { margin-top:3px; }
+.footnote { margin-top:20px; }
+.description { margin-top:24px; line-height:1.7; }
+.unit { margin-left:10px; color:var(--el-text-color-secondary); }
+.ai-control-page :deep(.management-body) { display:block; }
+.ai-control-page :deep(.management-heading) { padding:14px 18px; }
+.feature-table { width:100%; height:auto; }
 </style>

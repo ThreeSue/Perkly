@@ -13,12 +13,22 @@
 			@retry="load"
 		/>
 		<div v-else v-loading="loading" class="settings">
-			<p>AI 仅自动接待尚未转人工的咨询。开启后不会给任何账号增加查看或回复权限。</p>
+			<p>设置仅对本店生效，与核销端同步。AI 开关不改变账号的查看和回复权限。</p>
 			<el-switch
 				v-model="enabled"
 				active-text="开启本店 AI 客服"
 				:disabled="loading || saving"
 			/>
+			<el-switch
+				v-model="autoTakeover"
+				active-text="人工离线后自动交给 AI"
+				:disabled="loading || saving"
+			/>
+			<p>
+				仅在本店 AI
+				已开启且可用时生效。关闭后，人工离线保留留言和待办，不影响新会话或已经开始的 AI
+				接待。
+			</p>
 			<h3>
 				常见问题 <small>{{ faqs.length }}/30</small>
 			</h3>
@@ -50,14 +60,17 @@
 				@click="faqs.push({ question: '', answer: '' })"
 				>添加常见问题</el-button
 			>
-			<p role="status">{{ saveError }}</p>
+			<p v-if="saveError" role="status">{{ saveError }}</p>
+			<el-button v-if="conflict" :disabled="saving || loading" @click="load"
+				>重新加载最新设置</el-button
+			>
 		</div>
 		<template #footer
 			><el-button :disabled="saving" @click="open = false">关闭</el-button
 			><el-button
 				type="primary"
 				:loading="saving"
-				:disabled="loading || !!error"
+				:disabled="loading || !!error || conflict"
 				@click="save"
 				>保存设置</el-button
 			></template
@@ -74,6 +87,8 @@ const loading = ref(false),
 	saving = ref(false),
 	error = ref(''),
 	saveError = ref('');
+const autoTakeover = ref(true);
+const conflict = ref(false);
 const enabled = ref(false),
 	version = ref(0),
 	faqs = ref<{ question: string; answer: string }[]>([]);
@@ -83,8 +98,11 @@ async function load() {
 	try {
 		const r = await featureApi('chats/settings');
 		enabled.value = r.aiEnabled;
+		autoTakeover.value = r.autoTakeoverEnabled ?? true;
 		version.value = r.version;
 		faqs.value = r.faqs || [];
+		conflict.value = false;
+		saveError.value = '';
 	} catch (e: any) {
 		error.value = e.message || '请确认拥有本店客服配置权限后重试';
 	} finally {
@@ -92,7 +110,7 @@ async function load() {
 	}
 }
 async function save() {
-	if (saving.value || loading.value || error.value) return;
+	if (saving.value || loading.value || error.value || conflict.value) return;
 	if (faqs.value.some(f => !f.question.trim() || !f.answer.trim())) {
 		saveError.value = '请填写每条问题和回答，或移除空白条目。';
 		return;
@@ -103,12 +121,16 @@ async function save() {
 		await featureApi('chats/settings', {
 			version: version.value,
 			aiEnabled: enabled.value,
+			autoTakeoverEnabled: autoTakeover.value,
 			faqs: faqs.value
 		});
 		ElMessage.success('客服设置已保存');
 		await load();
 	} catch (e: any) {
-		saveError.value = e.message || '保存失败，请重试；版本冲突时请重新打开设置。';
+		conflict.value = Number(e?.code) === 409;
+		saveError.value = conflict.value
+			? '设置已被其他人员修改。本次未保存，请重新加载最新设置后调整。'
+			: e.message || '保存失败，请重试';
 	} finally {
 		saving.value = false;
 	}

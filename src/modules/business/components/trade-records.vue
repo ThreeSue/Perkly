@@ -166,7 +166,7 @@
 						</ManagementState>
 					</template>
 				</el-table>
-				<div class="management-pagination" v-if="!error && total > 0">
+				<div class="management-pagination" v-if="!error">
 					<el-pagination
 						:current-page="page"
 						:page-size="size"

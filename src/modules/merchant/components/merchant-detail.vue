@@ -94,6 +94,7 @@
 </template>
 
 <script lang="ts" setup>
+import { passwordError, PASSWORD_HINT } from '/@/utils/password-policy';
 import { computed, ref } from 'vue';
 import { ElMessage, ElMessageBox, type CascaderOption, type FormInstance } from 'element-plus';
 import { phoneRule } from './validation';
@@ -237,18 +238,14 @@ async function resetPassword() {
 	const row = merchant.value;
 	if (!row || resetting.value) return;
 	try {
-		await ElMessageBox.confirm(
-			`确认将“${row.name}”的商家管理员密码重置为123456？该账号将需要重新登录。`,
-			'重置商家密码',
-			{ type: 'warning', confirmButtonText: '确认重置' }
-		);
+		const { value: password } = await ElMessageBox.prompt(PASSWORD_HINT, '重置商家密码', { inputType: 'password', inputValidator: value => passwordError(value || '') || true });
 		resetting.value = true;
 		const count = await service.request({
 			url: 'admin/merchant/account/resetPassword',
 			method: 'POST',
-			data: { merchantId: row.id }
+			data: { merchantId: row.id, password }
 		});
-		ElMessage.success(`已重置${count}个商家账号，密码为123456`);
+		ElMessage.success(`已重置${count}个商家账号`);
 	} catch (error: any) {
 		if (error?.message) ElMessage.error(error.message);
 	} finally {

@@ -27,15 +27,14 @@ watch(open,value=>{if(value)visited.value=true;});
 const main=ref<HTMLElement>();
 const toolbar=shallowRef<HTMLElement>();
 let observer: MutationObserver | undefined;
-let frame=0;
 // Pages share a small set of toolbar layouts. Teleport keeps the control in normal
 // flow, including wrapped filters, without changing each page's business markup.
 const toolbarSelectors=['.management-toolbar','.record-filters','.record-toolbar','.queue-controls',
  '.filter-panel > .el-form','.cl-crud > .cl-row','.store-toolbar','.grant-heading',
  '.workbench-banner-actions','.management-heading','.workbench-banner'];
 function locateToolbar() {
-  cancelAnimationFrame(frame);
-  frame=requestAnimationFrame(()=>{
+  // MutationObserver runs before paint. Do not defer this to an animation frame:
+  // the late Teleport otherwise grows a 32px toolbar to 38px after it is visible.
     let target:HTMLElement | undefined;
     if(scope.value)for(const selector of toolbarSelectors){
       target=Array.from(main.value?.querySelectorAll<HTMLElement>(selector) || [])
@@ -46,7 +45,6 @@ function locateToolbar() {
     toolbar.value?.classList.remove('ai-entry-toolbar');
     target?.classList.add('ai-entry-toolbar');
     toolbar.value=target;
-  });
 }
 onMounted(()=>{
   observer=new MutationObserver(locateToolbar);
@@ -54,7 +52,7 @@ onMounted(()=>{
   window.addEventListener('resize',locateToolbar);
   locateToolbar();
 });
-onBeforeUnmount(()=>{observer?.disconnect();cancelAnimationFrame(frame);window.removeEventListener('resize',locateToolbar);toolbar.value?.classList.remove('ai-entry-toolbar');});
+onBeforeUnmount(()=>{observer?.disconnect();window.removeEventListener('resize',locateToolbar);toolbar.value?.classList.remove('ai-entry-toolbar');});
 const accountKey=computed(()=>identity+':'+user.info?.id);
 const modules:Record<string,string> = {
  '/merchant/category':'CATEGORY','/merchant/storeCategory':'STORE_TYPE',

@@ -123,8 +123,8 @@
 							type="password"
 							show-password
 							maxlength="64"
-							placeholder="8至64位，不含空白"
 							autocomplete="new-password"
+                        :placeholder="PASSWORD_HINT"
 					/></el-form-item>
 					<el-form-item label="确认密码"
 						><el-input
@@ -134,6 +134,7 @@
 							show-password
 							maxlength="64"
 							autocomplete="new-password"
+                        :placeholder="PASSWORD_HINT"
 					/></el-form-item>
 					<el-button type="primary" :loading="busy" @click="activate"
 						>确认开通商家账号</el-button
@@ -174,6 +175,7 @@
 	</el-dialog>
 </template>
 <script setup lang="ts">
+import { passwordError as checkPassword, PASSWORD_HINT } from '/@/utils/password-policy';
 import { computed, onBeforeUnmount, ref } from 'vue';
 import {
 	activationApi as api,
@@ -390,15 +392,7 @@ async function activate() {
 		error.value = '账号需4至40位字母、数字或下划线，不能使用admin';
 		return;
 	}
-	if (
-		password.value.length < 8 ||
-		password.value.length > 64 ||
-		/\s/.test(password.value) ||
-		new TextEncoder().encode(password.value).length > 72
-	) {
-		error.value = '密码需8至64位，不含空白且UTF-8编码不超过72字节';
-		return;
-	}
+	if (checkPassword(password.value, account)) { error.value = checkPassword(password.value, account); return; }
 	if (confirmation.value !== password.value) {
 		error.value = '两次输入的密码不一致';
 		return;

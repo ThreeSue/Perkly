@@ -11,7 +11,12 @@
 	<component v-else :is="aiDraft ? AiCoverPicker : 'div'"
 		v-bind="aiDraft ? { compact: true, draft: aiDraft, cover: value, onSelect: selectMerchantMaterial } : {}">
 	<div class="cover-field">
-		<cl-upload v-model="value" :material-library="false" type="image" accept="image/*" :limit="1" :limit-size="5" text="上传新图" />
+		<cl-upload v-if="aiDraft" :model-value="value" @update:model-value="selectCover"
+			:material-library="false" type="file" :show-file-list="false"
+			accept="image/*" :limit="1" :limit-size="5">
+			<el-button>{{ value ? '更换图片' : '上传图片' }}</el-button>
+		</cl-upload>
+		<cl-upload v-else :model-value="value" @update:model-value="selectCover" :material-library="false" type="image" accept="image/*" :limit="1" :limit-size="5" text="上传新图" />
 		<Space
 			v-if="canBrowse"
 			:model-value="value || undefined"
@@ -25,6 +30,7 @@
 		/>
 		<el-button v-if="!canBrowse" disabled title="请管理员开放文件空间查看权限">从素材库选择</el-button>
 		<MerchantMaterialPicker v-if="aiDraft?.merchantId && canAi" :merchant-id="aiDraft.merchantId" :current-url="value" :current-id="materialId" label="本商家素材库" @select="selectMerchantMaterial" />
+		<el-button v-if="aiDraft && value" @click="selectCover('')">移除图片</el-button>
 	</div>
 	</component>
 </template>
@@ -62,4 +68,5 @@ const canBrowse = computed(() => isPlatform && (
 	flex-wrap: wrap;
 	gap: 12px;
 }
+.cover-field :deep(.el-button + .el-button) { margin-left: 0; }
 </style>

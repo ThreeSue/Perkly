@@ -9,10 +9,14 @@ import { config } from '/@/config';
 export const useTheme = defineStore('theme', () => {
 	const { app } = useBase();
 	const isDark = useDark();
-	const saved = storage.get('theme') as Theme | undefined;
+	const saved = storage.get('theme') as (Theme & { motionVersion?: number }) | undefined;
 	const theme = reactive({
 		isGroup: saved?.isGroup ?? config.app.menu.isGroup,
-		transition: saved?.transition ?? config.app.router.transition
+		// Restore entrance motion after the temporary no-motion fix, once only.
+		transition: saved?.motionVersion === 2
+			? saved.transition ?? config.app.router.transition
+			: config.app.router.transition,
+		motionVersion: 2
 	});
 
 	function setTheme({ isGroup, transition, dark }: Theme) {

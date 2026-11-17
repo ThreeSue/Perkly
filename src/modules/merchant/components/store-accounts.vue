@@ -2,7 +2,7 @@
 	<cl-crud ref="Crud">
 		<cl-row
 			><el-alert
-				title="每个店长/员工账号只能绑定一家门店。停用、转店、变更角色或重置密码后，原登录立即失效。重置密码为123456。"
+				title="每个店长/员工账号只能绑定一家门店。停用、转店、变更角色或重置密码后，原登录立即失效。重置时需设置符合规则的新密码。"
 				type="info"
 				:closable="false"
 				show-icon
@@ -57,6 +57,7 @@
 	</cl-crud>
 </template>
 <script setup lang="ts">
+import { passwordError, PASSWORD_HINT } from '/@/utils/password-policy';
 import { ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useCrud, useTable, useSearch, useUpsert } from '@cool-vue/crud';
@@ -172,14 +173,14 @@ const Upsert = useUpsert({
 		{
 			label: '初始密码',
 			prop: 'password',
-			value: '123456',
+			value: '',
 			required: true,
 			hidden: ({ scope }: any) => !!scope.id,
 			component: {
 				name: 'el-input',
-				props: { type: 'password', showPassword: true, maxlength: 64 }
+				props: { type: 'password', showPassword: true, maxlength: 64, placeholder: PASSWORD_HINT }
 			},
-			rules: [{ min: 6, max: 64, message: '密码需6至64位' }]
+			rules: [{ required: true, validator: (_rule: any, value: string, callback: any) => { const error = passwordError(value || ''); callback(error ? new Error(error) : undefined); } }]
 		}
 	],
 	onOpened(data) {
@@ -219,20 +220,23 @@ const Crud = useCrud(
 async function action(row: any, operation: 'status' | 'resetPassword') {
 	if (busy.value) return;
 	try {
-		await ElMessageBox.confirm(
-			operation === 'resetPassword'
-				? `确认将“${row.name}（${row.username}）”的密码重置为123456？原登录立即失效。`
-				: `确认${row.status === 1 ? '停用' : '启用'}“${row.name}（${row.username}）”？原登录将失效。`,
-			'门店账号管理',
-			{ type: 'warning' }
-		);
+		let password = '';
+        if (operation === 'resetPassword') {
+            const result = await ElMessageBox.prompt(PASSWORD_HINT, '设置新密码（原登录将失效）', {
+                inputType: 'password', inputValidator: value => passwordError(value || '', row.username) || true
+            });
+            password = result.value;
+        } else {
+            await ElMessageBox.confirm(`确认${row.status === 1 ? '停用' : '启用'}“${row.name}”？`, '门店账号管理');
+        }
 		busy.value = true;
 		await api(operation, {
 			id: row.id,
+            ...(operation === 'resetPassword' ? { password } : {}),
 			storeId: props.storeId,
 			...(operation === 'status' ? { status: row.status === 1 ? 0 : 1 } : {})
 		});
-		ElMessage.success(operation === 'resetPassword' ? '密码已重置为123456' : '账号状态已更新');
+		ElMessage.success(operation === 'resetPassword' ? '密码已重置' : '账号状态已更新');
 		await Crud.value?.refresh();
 	} catch (error: any) {
 		if (error?.message) ElMessage.error(error.message);

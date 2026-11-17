@@ -1,6 +1,6 @@
 <template>
   <button type="button" class="assistant-entry" :class="{ 'is-active': active }"
-    aria-label="AI 助手" :aria-expanded="active" @click="$emit('click')">
+    aria-label="PerPilot 管理助手" title="PerPilot 管理助手" :aria-expanded="active" @click="$emit('click')">
     <cl-svg name="icon-ai" aria-hidden="true" />
   </button>
 </template>

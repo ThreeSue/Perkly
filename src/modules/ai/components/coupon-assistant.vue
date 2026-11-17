@@ -1,9 +1,9 @@
 <template>
-	<section class="coupon-assistant assistant-edge" :class="{ fullscreen, 'is-visible': visible }" aria-label="优惠券 AI 助手">
+	<section class="coupon-assistant assistant-edge" :class="{ fullscreen, 'is-visible': visible }" aria-label="PerPilot 优惠券助手">
 		<header class="assistant-header">
 			<div class="assistant-title">
 				<span class="assistant-mark" aria-hidden="true"><cl-svg name="icon-ai" /></span>
-				<div><strong>{{ editing ? '核对优惠券草稿' : reviewing ? '核对优惠券操作' : '优惠券 AI 助手' }}</strong><p>{{ editing ? '核对后保存草稿' : '查询、起草与管理优惠券' }}</p></div>
+				<div><strong>{{ editing ? '核对优惠券草稿' : reviewing ? '核对优惠券操作' : 'PerPilot' }}</strong><p>{{ editing ? '核对后保存草稿' : '优惠券助手 · 查询、起草与管理' }}</p></div>
 			</div>
 			<el-button text size="small" @click="returnOrClose">{{ editing || reviewing ? '返回对话' : '关闭' }}</el-button>
 		</header>

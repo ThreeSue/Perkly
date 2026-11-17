@@ -1,7 +1,10 @@
 <template>
 	<div class="app-views">
 		<router-view v-slot="{ Component }">
-			<transition :name="app.info.router.transition || 'none'">
+			<transition
+				:name="app.info.router.transition || 'none'"
+				:css="!!app.info.router.transition && app.info.router.transition !== 'none'"
+			>
 				<keep-alive :key="key" :include="caches">
 					<component :is="Component" />
 				</keep-alive>
@@ -61,22 +64,13 @@ onUnmounted(() => {
 	border-radius: 6px;
 	position: relative;
 
-	.none-enter-active {
-		position: absolute;
-	}
-
 	.slide-enter-active {
-		position: absolute;
-		top: 0;
-		width: 100%;
-		transition: all 0.4s ease-in-out 0.2s;
+		transition: opacity 320ms ease-out, transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1);
 	}
 
 	.slide-leave-active {
-		position: absolute;
-		top: 0;
-		width: 100%;
-		transition: all 0.4s ease-in-out;
+		// Only the incoming page participates in layout and toolbar discovery.
+		display: none;
 	}
 
 	.slide-enter-to {
@@ -85,18 +79,13 @@ onUnmounted(() => {
 	}
 
 	.slide-enter-from {
-		transform: translate3d(-5%, 0, 0);
+		transform: translate3d(-16px, 0, 0);
 		opacity: 0;
 	}
 
-	.slide-leave-to {
-		transform: translate3d(5%, 0, 0);
-		opacity: 0;
-	}
-
-	.slide-leave-from {
-		transform: translate3d(0, 0, 0);
-		opacity: 1;
+	@media (prefers-reduced-motion: reduce) {
+		.slide-enter-active { transition: none; }
+		.slide-enter-from { transform: none; opacity: 1; }
 	}
 }
 </style>

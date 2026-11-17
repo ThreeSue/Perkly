@@ -206,6 +206,7 @@
 	</div>
 </template>
 <script setup lang="ts">
+import { passwordError, PASSWORD_HINT } from '/@/utils/password-policy';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { Shop, OfficeBuilding, FolderOpened } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox, type ElTree } from 'element-plus';
@@ -414,14 +415,10 @@ async function saveOwner() {
 async function resetOwner(row: Account) {
 	if (busy.value) return;
 	try {
-		await ElMessageBox.confirm(
-			`确认将“${row.name}（${row.username}）”的密码重置为123456？原登录立即失效。`,
-			'重置商家管理员密码',
-			{ type: 'warning' }
-		);
+		const { value: password } = await ElMessageBox.prompt(PASSWORD_HINT, '重置商家管理员密码', { inputType: 'password', inputValidator: value => passwordError(value || '') || true });
 		busy.value = true;
-		await api('resetOwner', { id: row.id });
-		ElMessage.success('密码已重置为123456');
+		await api('resetOwner', { id: row.id, password });
+		ElMessage.success('密码已重置');
 	} catch (e: any) {
 		if (e?.message) ElMessage.error(e.message);
 	} finally {

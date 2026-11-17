@@ -1,7 +1,7 @@
 <template>
 	<ManagementShell register
 		:title="isPlatform ? '平台储值账务' : '储值消费账单'"
-		description="先开消费账单，可选用券，再由顾客确认普通模拟支付或储值支付"
+		description="查看门店开单、扫码收款和储值流水，核对用券优惠与实付金额"
 	>
 		<div class="management-toolbar">
 			<el-radio-group
@@ -41,7 +41,7 @@
 				label="门店"
 				min-width="140" /><el-table-column label="类型" width="100"
 				><template #default="{ row }">{{
-					types[row.type] || row.type
+					row.paymentChannel === 'PAYMENT_CODE' ? '扫码收款' : types[row.type] || row.type
 				}}</template></el-table-column
 			><el-table-column label="状态" width="90"
 				><template #default="{ row }"><el-tag :type="row.status === 'SUCCESS' ? 'success' : 'danger'">{{ row.status === 'SUCCESS' ? '成功' : '失败' }}</el-tag></template></el-table-column
@@ -77,7 +77,9 @@
 				<template #default="{ row }">{{ money(row.couponDiscount) }}</template>
 			</el-table-column><el-table-column label="实付" width="110">
 				<template #default="{ row }">{{ row.status === 'PAID' ? money(row.paidAmount) : '待付款' }}</template>
-			</el-table-column><el-table-column
+			</el-table-column><el-table-column label="付款方式" min-width="130">
+				<template #default="{ row }">{{ row.status === 'PAID' ? paymentLabel(row.paymentMode, row.paymentChannel) : '—' }}</template>
+			</el-table-column><el-table-column prop="paidAt" label="结清时间" width="180" /><el-table-column
 				prop="remark"
 				label="备注"
 				min-width="150"
@@ -86,7 +88,7 @@
 				label="操作"
 				width="180" fixed="right" align="right"
 				><template #default="{ row }"
-					><el-button link type="primary" @click="show(row)">出示账单</el-button
+					><el-button link type="primary" @click="show(row)">账单详情</el-button
 					><el-button
 						v-if="row.status === 'PENDING' && canCreate"
 						link
@@ -147,9 +149,11 @@
 					<el-descriptions-item label="消费金额">{{ money(bill.amount) }} 元</el-descriptions-item>
 					<el-descriptions-item label="券优惠">{{ money(bill.couponDiscount) }} 元</el-descriptions-item>
 				</el-descriptions>
-				<p v-if="bill.status === 'PAID'">实付 {{ money(bill.paidAmount) }} 元 · {{ bill.paymentMode === 'SIMULATED' ? '普通模拟支付' : '储值支付' }}</p>
+				<p v-if="bill.status === 'PAID'">实付 {{ money(bill.paidAmount) }} 元 · {{ paymentLabel(bill.paymentMode, bill.paymentChannel) }}</p>
+				<p v-if="bill.paidAt">结清时间 {{ bill.paidAt }}</p>
 				<el-alert
-					title="将账单编号交给顾客确认付款。储值支付先用券，再对剩余金额应用一个最优惠活动。"
+					v-if="bill.status === 'PENDING'"
+					title="核销端可扫描顾客付款码收款，也可将账单编号交给顾客自助付款。"
 					type="info"
 					:closable="false"
 				/>
@@ -201,6 +205,13 @@ const registerHeight = useRegisterHeight();
 const { menu } = useBase();
 const route = useRoute();
 const couponCode = ref('');
+function paymentLabel(mode?: string, channel?: string) {
+	if (channel === 'PAYMENT_CODE') return '模拟储值扫码收款';
+	if (channel === 'ZERO_COUPON') return '零元核销';
+	if (mode === 'SIMULATED') return '普通模拟支付';
+	if (mode === 'WALLET') return '储值支付';
+	return '未记录';
+}
 async function refreshBill() {
 	try {
 		bill.value = await featureApi('wallet/bills/info?id=' + bill.value.id);

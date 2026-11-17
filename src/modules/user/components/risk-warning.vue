@@ -12,7 +12,9 @@
    <small>{{ item.noticeType==='STRONG'?'强提醒':'轻通知' }} · {{ item.createTime }} · {{ item.confirmedAt?'已确认收到':item.readAt?'已读':'未读' }}</small>
   </article>
   <el-dialog v-model="open" title="预览并发送平台警告" append-to-body width="min(600px, 94vw)">
-   <el-alert :title="`接收账号：${form.subjectType==='APP'?'普通用户':'商家账号'} ${form.subjectId}`" :closable="false" />
+   <el-alert :title="`接收人：${form.subjectName || '姓名未记录'} · ${form.subjectType==='APP'?'普通用户':'商家账号'}`" :closable="false">
+    <small>账号编号 {{ form.subjectId }}</small>
+   </el-alert>
    <el-form label-position="top">
     <el-form-item label="标题"><el-input v-model="form.title" maxlength="100" show-word-limit /></el-form-item>
     <el-form-item label="正文（接收人将看到以下内容）"><el-input v-model="form.content" type="textarea" :rows="7" maxlength="5000" show-word-limit /></el-form-item>
@@ -31,7 +33,7 @@ import { riskApi } from '../api/content-risk';
 const props=defineProps<{risk:{id:number;subjectType?:string;subjectId?:number;status:string}}>();
 interface Warning {id:number;title:string;content:string;noticeType:string;createTime:string;readAt?:string;confirmedAt?:string}
 const receipts=ref<Warning[]>([]),loading=ref(false),sending=ref(false),open=ref(false),error=ref(''),sendError=ref('');
-const form=ref({subjectType:'',subjectId:0,title:'',content:'',noticeType:'LIGHT'});
+const form=ref({subjectType:'',subjectId:0,subjectName:'',title:'',content:'',noticeType:'LIGHT'});
 let requestId='',sequence=0,previewSequence=0,previewRiskId=0;
 const canSend=computed(()=>checkPerm('search:risk:manage')&&checkPerm('notice:send'));
 const eligible=computed(()=>!!props.risk.subjectId&&['APP','MERCHANT'].includes(props.risk.subjectType||'')&&!['IGNORED','FALSE_POSITIVE'].includes(props.risk.status));
