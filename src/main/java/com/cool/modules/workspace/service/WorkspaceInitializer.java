@@ -90,6 +90,9 @@ public class WorkspaceInitializer implements ApplicationRunner {
         featurePage("内容风险管控","search-risk","search:risk:view","modules/workspace/views/search-risk.vue",70);
         var searchRiskPage=menus.selectOneByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getRouter,"/workspace-admin/search-risk"));
         if(searchRiskPage!=null)action(searchRiskPage,"管理内容词库与复核","search:risk:manage",1);
+        featurePage("短信验证码","sms-usage","sms:usage:view","modules/user/views/sms-usage.vue",71);
+        var smsPage = menus.selectOneByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getRouter,"/workspace-admin/sms-usage"));
+        action(smsPage,"配置短信日限额","sms:usage:manage",1);
         materialPermission("AI生成与完善优惠券封面","ai:image:generate",16);
         featurePage("AI功能管理","ai-images","ai:manage","modules/ai/views/console.vue",69);
         var aiPage=menus.selectOneByQuery(QueryWrapper.create().eq(BaseSysMenuEntity::getRouter,"/workspace-admin/ai-images"));

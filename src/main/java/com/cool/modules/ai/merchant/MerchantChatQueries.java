@@ -48,8 +48,9 @@ public class MerchantChatQueries {
     if(c.orderId()==null)throw new CoolException("请先选择消费账单",400);
     var o=orders.info(actor,c.orderId());
     if(scope.operatorId()!=null && !scope.operatorId().equals(o.operatorId()))throw new CoolException("订单不在所选人员范围",403);
-    var node=json.createObjectNode();node.put("id",o.id());node.put("statusText",o.statusText());node.put("couponName",redact(o.couponName()));
-    node.set("consumptionAmountCents",json.valueToTree(o.consumptionAmount()));node.set("discountAmountCents",json.valueToTree(o.discountAmount()));yield node;
+    var node=json.createObjectNode();node.put("id",o.id());node.put("status",o.status());node.put("statusText",o.statusText());node.put("couponName",redact(o.couponName()));
+    node.set("consumptionAmountCents",json.valueToTree(o.consumptionAmount()));node.set("discountAmountCents",json.valueToTree(o.discountAmount()));
+    node.set("payableAmountCents",json.valueToTree(o.payableAmount()));node.set("receivedAmountCents",json.valueToTree(o.receivedAmount()));yield node;
    }
    case RECORDS -> {
     var d=MerchantAiStatistics.dates(new MerchantAiStatistics.Input(c.period(),c.startDate(),c.endDate(),c.operatorId()),LocalDate.now(ZoneId.of("Asia/Shanghai")));

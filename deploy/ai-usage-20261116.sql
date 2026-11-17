@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS ai_usage_event (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    create_time DATETIME NULL,
+    update_time DATETIME NULL,
+    occurred_at DATETIME NOT NULL,
+    day_key VARCHAR(10) NOT NULL,
+    feature VARCHAR(40) NOT NULL,
+    actor_type VARCHAR(20) NOT NULL,
+    actor_id BIGINT NULL,
+    actor_name VARCHAR(255) NULL,
+    account_name VARCHAR(100) NULL,
+    model_name VARCHAR(100) NULL,
+    requests INT NULL,
+    calls INT NULL,
+    failures INT NULL,
+    input_tokens INT NULL,
+    output_tokens INT NULL,
+    missing_usage INT NULL,
+    images INT NULL,
+    PRIMARY KEY (id),
+    KEY idx_ai_usage_day (day_key, feature)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

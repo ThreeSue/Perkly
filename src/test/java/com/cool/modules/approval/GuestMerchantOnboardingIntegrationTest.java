@@ -174,7 +174,7 @@ class GuestMerchantOnboardingIntegrationTest {
         mvc.perform(post("/merchant/workspace/store/page").contentType("application/json").content("{}")).andExpect(status().isUnauthorized());
     }
     @Test void invalidSmsDoesNotIssueAnOnboardingGrant() {
-        doThrow(new CoolException("验证码错误")).when(sms).checkVerifyCode(phone,"000000",UserSmsUtil.SendSceneEnum.ALL);
+        doThrow(new CoolException("验证码错误")).when(sms).checkVerifyCode(phone,"000000",UserSmsUtil.SendSceneEnum.ALL, com.cool.modules.user.sms.SmsScene.MERCHANT_ONBOARDING);
         assertThrows(CoolException.class,()->onboarding.verify(phone,"000000"));
     }
     @Test void accountCollisionDoesNotConsumeCodeOrCreateMerchant() {

@@ -74,6 +74,8 @@ public class PlatformWalletService {
     }
     public record ApplyCoupon(Long id, Integer version, String code) {}
     public record ImportConsumption(Long orderId) {}
+    public record CollectionQuote(Long id, int version, long amount, long walletDiscount) {}
+    public record PaymentCodeReceipt(String storeName, Long paidAmount, Long balance) {}
 
     @Transactional(rollbackFor=Exception.class,isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public WalletBillEntity importConsumption(Long actor, Long orderId) {
@@ -107,7 +109,7 @@ public class PlatformWalletService {
                                   String merchantName, String storeName,
                                   Long originalAmount, Long amount, Long discountAmount, String activityTitle,
                                   BigDecimal discountRate, Long balanceAfter, Long purchaseOrderId, Long billId,
-                                  Date createTime) {
+                                  Date createTime, String paymentChannel) {
     }
 
     private void money(Long amount) {
@@ -147,7 +149,7 @@ public class PlatformWalletService {
     private TransactionView view(WalletTransactionEntity r, boolean exposeBalance) {
         if (r.getCreateTime() == null && r.getId() != null) r = transactions.selectOneById(r.getId());
         var c = customers.selectOneById(r.getCustomerId());
-        return new TransactionView(r.getId(), r.getRequestId(), r.getType(), r.getStatus(), c == null ? "历史用户" : Objects.toString(c.getNickName(), "顾客"), r.getMerchantName(), r.getStoreName(), r.getOriginalAmount(), r.getAmount(), r.getDiscountAmount(), r.getActivityTitle(), r.getDiscountRate(), exposeBalance ? r.getBalanceAfter() : null, r.getPurchaseOrderId(), r.getBillId(), r.getCreateTime());
+        return new TransactionView(r.getId(), r.getRequestId(), r.getType(), r.getStatus(), c == null ? "历史用户" : Objects.toString(c.getNickName(), "顾客"), r.getMerchantName(), r.getStoreName(), r.getOriginalAmount(), r.getAmount(), r.getDiscountAmount(), r.getActivityTitle(), r.getDiscountRate(), exposeBalance ? r.getBalanceAfter() : null, r.getPurchaseOrderId(), r.getBillId(), r.getCreateTime(), r.getPaymentChannel());
     }
 
     @Transactional(rollbackFor = Exception.class, isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
@@ -329,6 +331,7 @@ public class PlatformWalletService {
         b.setPaymentMode(mode);
         b.setPaymentRequestId(requestId);
         b.setPaidAmount(quote.amount());
+        b.setPaidAt(new Date());
         b.setVersion(version(b)+1);
         var snapshot=cn.hutool.json.JSONUtil.createObj()
             .set("remainingAmount",quote.originalAmount()).set("paidAmount",quote.amount())
@@ -384,6 +387,67 @@ public class PlatformWalletService {
         if(b==null || !allowed.contains(b.getStoreId())
             || auth.ownRecordsOnly(auth.user(actor)) && !actor.equals(b.getOperatorId()))
             throw new CoolException("账单不存在或无权访问",403);
+        return decorate(b);
+    }
+
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    public WalletBillEntity collectionResult(Long actor, Long id) {
+        String permission = auth.permissions(actor).contains("bill:view") ? "bill:view" : "redeem:use";
+        var bill = bills.selectOneByQuery(staffBillsQuery(actor, permission).eq(WalletBillEntity::getId, id).forUpdate());
+        if (bill == null) throw new CoolException("账单不存在或无权访问", 403);
+        return decorate(bill);
+    }
+
+    public CollectionQuote collectionQuote(Long actor, Long id) {
+        var allowed = staffStores(actor, "redeem:use");
+        var b = bills.selectOneById(id);
+        if (b == null || !allowed.contains(b.getStoreId())
+            || auth.ownRecordsOnly(auth.user(actor)) && !actor.equals(b.getOperatorId()))
+            throw new CoolException("账单不存在或无权处理", 403);
+        if (!"PENDING".equals(b.getStatus())) throw new CoolException("账单已处理", 409);
+        var quote = activities.quote(b.getStoreId(), remaining(b));
+        return new CollectionQuote(b.getId(), version(b), quote.amount(), quote.discountAmount());
+    }
+
+    public PaymentCodeReceipt paymentCodeReceipt(Long customer, Long id) {
+        var b = bills.selectOneById(id);
+        if (b == null || !customer.equals(b.getCustomerId()) || !"PAID".equals(b.getStatus())
+            || !"PAYMENT_CODE".equals(b.getPaymentChannel()) || b.getTransactionId() == null)
+            throw new CoolException("付款结果尚未确认", 409);
+        var txn = transactions.selectOneById(b.getTransactionId());
+        if (txn == null) throw new CoolException("付款结果尚未确认", 409);
+        return new PaymentCodeReceipt(txn.getStoreName(), b.getPaidAmount(), txn.getBalanceAfter());
+    }
+
+    @Transactional(rollbackFor = Exception.class, isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    public WalletBillEntity collectByPaymentCode(Long actor, Long customer, Long id, Integer expectedVersion,
+                                                  Long expectedAmount, String requestId) {
+        staffStores(actor, "redeem:use");
+        lock(customer);
+        var b = staffBill(actor, id);
+        if ("PAID".equals(b.getStatus()) && customer.equals(b.getCustomerId())
+            && "PAYMENT_CODE".equals(b.getPaymentChannel()) && requestId.equals(b.getPaymentRequestId())
+            && Objects.equals(expectedAmount, b.getPaidAmount())) return decorate(b);
+        if (!"PENDING".equals(b.getStatus()) || !Objects.equals(version(b), expectedVersion))
+            throw new CoolException("账单状态或金额已变化，请刷新", 409);
+        if (b.getCustomerId() != null && !customer.equals(b.getCustomerId()))
+            throw new CoolException("请使用优惠券所属顾客的付款码", 403);
+        if (expectedAmount == null || expectedAmount <= 0) throw new CoolException("扫码收款金额须大于零", 400);
+        pay(customer, new Pay(requestId, b.getBillNo(), null, null, expectedAmount), "PAYMENT_CODE");
+        return decorate(bills.selectOneById(id));
+    }
+
+    @Transactional(rollbackFor = Exception.class, isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    public WalletBillEntity confirmZeroCoupon(Long actor, Long id, Integer expectedVersion) {
+        var b = staffBill(actor, id);
+        if ("PAID".equals(b.getStatus()) && "ZERO_COUPON".equals(b.getPaymentChannel())) return decorate(b);
+        if (!"PENDING".equals(b.getStatus()) || !Objects.equals(version(b), expectedVersion)
+            || b.getConsumptionOrderId() == null || b.getCustomerId() == null || remaining(b) != 0)
+            throw new CoolException("仅券后应付为零的待付款账单可直接核销", 409);
+        activities.normalStore(b.getStoreId());
+        b.setPaymentChannel("ZERO_COUPON");
+        completeBill(b, b.getCustomerId(), "zero_coupon_" + id, "SIMULATED",
+            new WalletActivityService.Quote(0L, 0L, 0L, null, null, BigDecimal.TEN));
         return decorate(b);
     }
 
@@ -443,6 +507,10 @@ public class PlatformWalletService {
 
     @Transactional(rollbackFor = Exception.class, isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public TransactionView pay(Long customer, Pay p) {
+        return pay(customer, p, null);
+    }
+
+    private TransactionView pay(Long customer, Pay p, String paymentChannel) {
         if (p == null) throw new CoolException("支付参数缺失");
         SupportAccess.request(p.requestId());
         if ((p.billNo() == null) == (p.purchaseOrderId() == null)) throw new CoolException("请选择一种支付业务");
@@ -487,6 +555,7 @@ public class PlatformWalletService {
         row.setBillId(b == null ? null : b.getId());
         row.setMerchantId(s.getMerchantId());
         row.setStoreId(storeId);
+        row.setPaymentChannel(paymentChannel);
         row.setStoreName(s.getName());
         row.setMerchantName(merchants.selectOneById(s.getMerchantId()).getName());
         row.setOriginalAmount(original);
@@ -499,6 +568,7 @@ public class PlatformWalletService {
         transactions.insert(row);
         if (b != null) {
             b.setTransactionId(row.getId());
+            b.setPaymentChannel(paymentChannel);
             completeBill(b,customer,p.requestId(),"WALLET",quote);
         }
         return view(row);
@@ -540,12 +610,21 @@ public class PlatformWalletService {
 
     public UserFeedbackService.PageResult<WalletBillEntity> bills(Long actor, int page, int size) {
         SupportAccess.page(page, size);
-        var allowed = staffStores(actor, "bill:view");
-        var q = QueryWrapper.create();
+        var result = bills.paginate(page, size, staffBillsQuery(actor, "bill:view").orderBy(WalletBillEntity::getId, false));
+        return new UserFeedbackService.PageResult<>(result.getRecords().stream().map(this::decorate).toList(), result.getTotalRow(), page, size);
+    }
+
+    public WalletBillEntity staffBillByNumber(Long actor, String billNo) {
+        var bill = bills.selectOneByQuery(staffBillsQuery(actor, "bill:view").eq(WalletBillEntity::getBillNo, billNo));
+        return bill == null ? null : decorate(bill);
+    }
+
+    private QueryWrapper staffBillsQuery(Long actor, String permission) {
+        var allowed = staffStores(actor, permission);
+        var q = QueryWrapper.create().from(WalletBillEntity.class);
         if (allowed.isEmpty()) q.eq(WalletBillEntity::getId, -1L);
         else q.in(WalletBillEntity::getStoreId, allowed);
         if (auth.ownRecordsOnly(auth.user(actor))) q.eq(WalletBillEntity::getOperatorId, actor);
-        var result = bills.paginate(page, size, q.orderBy(WalletBillEntity::getId, false));
-        return new UserFeedbackService.PageResult<>(result.getRecords().stream().map(this::decorate).toList(), result.getTotalRow(), page, size);
+        return q;
     }
 }

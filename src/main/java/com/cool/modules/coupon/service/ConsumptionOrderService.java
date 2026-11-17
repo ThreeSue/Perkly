@@ -208,6 +208,11 @@ public class ConsumptionOrderService {
     @Transactional(readOnly=true) public PageResult<OrderView> page(Long userId, PageInput p) {
         return find(scope(userId),p);
     }
+    @Transactional(readOnly = true)
+    public OrderView findByOrderNo(Long userId, String orderNo) {
+        var order = orders.selectOneByQuery(scope(userId).eq(ConsumptionOrderEntity::getOrderNo, orderNo));
+        return order == null ? null : view(order);
+    }
     @Transactional(readOnly=true) public PageResult<OrderView> adminPage(PageInput p) {
         var q=QueryWrapper.create();
         if(p.merchantId()!=null) {require(p.merchantId()>0,"商家筛选无效");q.eq(ConsumptionOrderEntity::getMerchantId,p.merchantId());}

@@ -30,7 +30,7 @@ public class MerchantRedemptionController {
     public record InspectInput(Long storeId, String code) {
     }
 
-    public record PageInput(Integer page, Integer size, Long storeId, String scope) {
+    public record PageInput(Integer page, Integer size, Long storeId, String scope, Long staffId) {
     }
 
     private Long operator() {
@@ -56,6 +56,9 @@ public class MerchantRedemptionController {
 
     @PostMapping("/page")
     public R<?> page(@RequestBody PageInput input) {
+        if (input.staffId() != null) {
+            return R.ok(trade.redemptions(operator(), input.page(), input.size(), input.storeId(), input.scope(), input.staffId()));
+        }
         return R.ok(input.scope() == null ? trade.redemptions(operator(), input.page(), input.size(), input.storeId())
                 : trade.redemptions(operator(), input.page(), input.size(), input.storeId(), input.scope()));
     }

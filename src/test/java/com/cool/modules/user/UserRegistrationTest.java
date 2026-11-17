@@ -35,7 +35,7 @@ class UserRegistrationTest {
         when(tokens.generateToken(any(Dict.class))).thenReturn("test-token");
         when(tokens.generateRefreshToken(any(Dict.class))).thenReturn("test-refresh-token");
         Dict result = (Dict) login.register(PHONE, "123456", "TestPass123");
-        verify(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL);
+        verify(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL, com.cool.modules.user.sms.SmsScene.REGISTER);
         var user = ArgumentCaptor.forClass(UserInfoEntity.class);
         verify(users).save(user.capture());
         assertTrue(UserPasswordUtil.matches("TestPass123", user.getValue().getPassword()));
@@ -56,7 +56,7 @@ class UserRegistrationTest {
     }
 
     @Test void incorrectCodeNeverCreatesUserOrToken() {
-        doThrow(new CoolException("验证码错误")).when(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL);
+        doThrow(new CoolException("验证码错误")).when(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL, com.cool.modules.user.sms.SmsScene.REGISTER);
         assertThrows(CoolException.class, () -> login.register(PHONE, "123456", "TestPass123"));
         verify(users, never()).save(any(UserInfoEntity.class));
         verifyNoInteractions(tokens);

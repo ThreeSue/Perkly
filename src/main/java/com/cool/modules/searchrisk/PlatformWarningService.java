@@ -24,19 +24,34 @@ public class PlatformWarningService {
  private final SearchRiskMapper risks; private final PlatformWarningMapper warnings; private final SearchRiskAuditMapper audits;
  private final SupportAccess access; private final SearchRiskService detection; private final UserInfoMapper users;
  private final WorkspaceNoticeService workspace; private final WorkspaceNoticeMapper notices; private final WorkspaceNoticeRecipientMapper recipients;
+ private final com.cool.modules.base.mapper.sys.BaseSysUserMapper workspaceUsers;
  public record Send(Long riskId,String requestId,String title,String content,String noticeType){}
- public record Preview(Long riskId,String subjectType,Long subjectId,String title,String content,String noticeType){}
+ public record Preview(Long riskId,String subjectType,Long subjectId,String subjectName,String title,String content,String noticeType){}
  public record View(Long id,Long riskId,String title,String content,String noticeType,Date createTime,Date readAt,Date confirmedAt,Long workspaceNoticeId){}
  private SearchRisk target(Long id,boolean lock){
   if(id==null)throw new CoolException("缺少风险记录",400);
   var q=QueryWrapper.create().eq(SearchRisk::getId,id);if(lock)q.forUpdate();var r=risks.selectOneByQuery(q);
   if(r==null)throw new CoolException("风险记录不存在",404);
+  if(r.getDuplicateOfId()!=null)throw new CoolException("该风险已归并，请处理主记录",409);
+  if(r.getJobId()!=null&&r.getSubmittedById()==null)throw new CoolException("该记录提交者待核实",409);
   if(Set.of("IGNORED","FALSE_POSITIVE").contains(r.getStatus()))throw new CoolException("已忽略的记录不能发送警告",409);
   if(r.getSubjectId()==null||!Set.of("APP","MERCHANT").contains(Objects.toString(r.getSubjectType(),"")))throw new CoolException("该记录没有可接收站内通知的真实用户或商家账号",409);
   if("APP".equals(r.getSubjectType())&&users.selectOneById(r.getSubjectId())==null)throw new CoolException("接收用户不存在",404);
   return r;
  }
- public Preview preview(Long riskId){access.platform("search:risk:manage");var r=target(riskId,false);return new Preview(r.getId(),r.getSubjectType(),r.getSubjectId(),"平台内容提醒","您好，您提交的部分内容需要关注。请核对平台使用规则并及时调整。如有疑问，可联系平台反馈。本提醒不代表账号已被封禁；确认仅表示已知悉。","LIGHT");}
+ public Preview preview(Long riskId){
+  access.platform("search:risk:manage");var r=target(riskId,false);
+  String name=null;
+  if("APP".equals(r.getSubjectType())){
+   var account=users.selectOneById(r.getSubjectId());
+   if(account!=null)name=account.getNickName();
+  }else{
+   var account=workspaceUsers.selectOneById(r.getSubjectId());
+   if(account==null||account.getMerchantId()==null)throw new CoolException("接收商家账号不存在",404);
+   name=account.getName()==null||account.getName().isBlank()?account.getNickName():account.getName();
+  }
+  return new Preview(r.getId(),r.getSubjectType(),r.getSubjectId(),name,"平台内容提醒","您好，您提交的部分内容需要关注。请核对平台使用规则并及时调整。如有疑问，可联系平台反馈。本提醒不代表账号已被封禁；确认仅表示已知悉。","LIGHT");
+ }
  @org.springframework.transaction.annotation.Transactional(rollbackFor=Exception.class)
  public View send(Send p){
   access.platform("search:risk:manage");access.platform("notice:send");
@@ -45,13 +60,18 @@ public class PlatformWarningService {
   Long actor=CoolSecurityUtil.getCurrentUserId();var r=target(p.riskId(),true);
   var old=warnings.selectOneByQuery(QueryWrapper.create().eq(PlatformWarning::getSenderId,actor).eq(PlatformWarning::getRequestId,p.requestId()));
   if(old!=null){if(!Objects.equals(old.getRiskId(),p.riskId())||!old.getTitle().equals(p.title())||!old.getContent().equals(p.content())||!old.getNoticeType().equals(p.noticeType()))throw new CoolException("请求标识已用于其他警告",409);return view(old);}
-  detection.checkContent(p.title(),"NOTICE","RISK_WARNING_TITLE",r.getId());detection.checkContent(p.content(),"NOTICE","RISK_WARNING_CONTENT",r.getId());
+  if("APP".equals(r.getSubjectType())){
+   detection.checkContent(p.title(),"NOTICE","PLATFORM_WARNING_TITLE",null);
+   detection.checkContent(p.content(),"NOTICE","PLATFORM_WARNING_CONTENT",null);
+  }
   var n=new PlatformWarning();n.setRiskId(r.getId());n.setSenderId(actor);n.setRequestId(p.requestId());n.setSubjectType(r.getSubjectType());n.setSubjectId(r.getSubjectId());n.setTitle(p.title());n.setContent(p.content());n.setNoticeType(p.noticeType());
   if("MERCHANT".equals(r.getSubjectType())){
    Long noticeId=workspace.send(actor,new WorkspaceNoticeService.SendInput("risk_"+cn.hutool.crypto.digest.DigestUtil.sha256Hex(p.requestId()).substring(0,48),p.title(),p.content(),List.of(r.getSubjectId()),p.noticeType()));
    n.setWorkspaceNoticeId(noticeId);var notice=notices.selectOneById(noticeId);notice.setBusinessType("CONTENT_RISK");notice.setBusinessId(r.getId());notices.update(notice);
   }
-  try{warnings.insert(n);}catch(org.springframework.dao.DuplicateKeyException duplicate){throw new CoolException("请求标识已用于其他警告，请刷新核对",409);}audit(r.getId(),"WARNING_SEND",n.getId());return view(n);
+  try{warnings.insert(n);}catch(org.springframework.dao.DuplicateKeyException duplicate){throw new CoolException("请求标识已用于其他警告，请刷新核对",409);}
+  if("APP".equals(r.getSubjectType()))detection.bind("NOTICE",n.getId());
+  audit(r.getId(),"WARNING_SEND",Map.of("noticeId",n.getId(),"title",n.getTitle(),"content",n.getContent(),"noticeType",n.getNoticeType()));return view(n);
  }
  private void audit(Long id,String action,Object value){var a=new SearchRiskAudit();a.setTargetId(id);a.setOperatorId(CoolSecurityUtil.getCurrentUserId());a.setAction(action);a.setDetail(cn.hutool.json.JSONUtil.toJsonStr(value));audits.insert(a);}
  public View view(PlatformWarning n){

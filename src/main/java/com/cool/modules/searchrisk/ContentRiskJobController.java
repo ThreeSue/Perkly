@@ -16,6 +16,8 @@ public class ContentRiskJobController {
  private final ContentRiskJobs jobs;
  public record Id(Long id){}
  @PostMapping("/start") public R<?> start(@RequestBody ContentRiskJobs.Start p){return R.ok(jobs.start(p));}
+ @PostMapping("/preprocess") public R<?> preprocess(){return R.ok(jobs.startPreprocessing());}
+ @GetMapping("/preprocess") public R<?> preprocessingStatus(){return R.ok(jobs.preprocessingStatus());}
  @GetMapping("/status") public R<?> status(@RequestParam(required=false) Long id){return R.ok(jobs.status(id));}
  @PostMapping("/retry") public R<?> retry(@RequestBody Id p){return R.ok(jobs.retry(p.id()));}
 }

@@ -24,5 +24,6 @@ public class StoreChatEntity extends BaseEntity<StoreChatEntity>{
     @ColumnDefine(defaultValue="0") private Long version;
     private Long assigneeId;
     private Long latestQuestionId;
+    private Boolean humanRequested;
     @ColumnDefine(type="text") private String summary;
 }

@@ -1,5 +1,7 @@
 package com.cool.modules.merchant.report;
 import static com.cool.modules.merchant.report.MerchantReportModels.*;
+import cn.hutool.json.JSONException;
+import cn.hutool.json.JSONUtil;
 import com.cool.core.exception.CoolException;
 import com.cool.modules.coupon.entity.*;
 import com.cool.modules.coupon.mapper.*;
@@ -22,9 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service @RequiredArgsConstructor
 public class MerchantReportService {
+ private static final Set<String> COUPON_TYPES = Set.of("FULL_REDUCTION", "DISCOUNT", "CASH", "PACKAGE", "EXPERIENCE", "EXCHANGE");
  private final MerchantReportAccess access;
  private final CouponRedemptionMapper records;
  private final ConsumptionOrderMapper orders;
+ private final CustomerCouponMapper customerCoupons;
  private final BaseSysUserMapper users;
  private final com.cool.modules.merchant.mapper.MerchantUserStoreMapper memberships;
  public List<Person> operators(Long actor){
@@ -48,6 +52,54 @@ public class MerchantReportService {
   };
  }
  static class Amount {BigDecimal value;boolean unknown;void add(BigDecimal v){if(v==null)unknown=true;else if(value==null)value=v;else if(value.compareTo(v)!=0)unknown=true;}}
+
+ private record CouponIdentity(String name, String type) {
+  private static final CouponIdentity EMPTY = new CouponIdentity(null, null);
+ }
+
+ private static String knownType(String value) {
+  return value != null && COUPON_TYPES.contains(value) ? value : null;
+ }
+
+ private static CouponIdentity fromSnapshot(String encoded) {
+  if (encoded == null || encoded.isBlank()) return CouponIdentity.EMPTY;
+  try {
+   var snapshot = JSONUtil.parseObj(encoded);
+   return new CouponIdentity(snapshot.getStr("name"), knownType(snapshot.getStr("type")));
+  } catch (JSONException invalidHistoricalSnapshot) {
+   return CouponIdentity.EMPTY;
+  }
+ }
+
+ private static CouponIdentity fromOrder(ConsumptionOrderEntity order) {
+  String type = knownType(order.getCouponType());
+  String name = order.getCouponName();
+  if (type != null && name != null && !name.isBlank()) return new CouponIdentity(name, type);
+  var snapshot = fromSnapshot(order.getCouponSnapshot());
+  return new CouponIdentity(name == null || name.isBlank() ? snapshot.name() : name,
+   type == null ? snapshot.type() : type);
+ }
+
+ private Map<Long, CouponIdentity> historicalCoupons(Long merchantId, List<CouponRedemptionEntity> batch,
+                                                     Map<Long, CouponIdentity> orderCoupons) {
+  var ids = new HashSet<Long>();
+  for (var record : batch) {
+   var receipt = orderCoupons.get(record.getConsumptionOrderId());
+   if (record.getCustomerCouponId() != null && (receipt == null || receipt.type() == null || receipt.name() == null)) {
+    ids.add(record.getCustomerCouponId());
+   }
+  }
+  if (ids.isEmpty()) return Map.of();
+  var snapshots = new HashMap<Long, CouponIdentity>();
+  var query = QueryWrapper.create().select(CustomerCouponEntity::getId, CustomerCouponEntity::getRuleSnapshot)
+   .from(CustomerCouponEntity.class)
+   .eq(CustomerCouponEntity::getMerchantId, merchantId).in(CustomerCouponEntity::getId, ids);
+  for (var coupon : customerCoupons.selectListByQuery(query)) {
+   snapshots.put(coupon.getId(), fromSnapshot(coupon.getRuleSnapshot()));
+  }
+  return snapshots;
+ }
+
  @Transactional(readOnly=true,isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
  public Report query(Long actor,Filter f){
   if(f==null)throw new CoolException("缺少筛选条件",400);
@@ -65,9 +117,17 @@ public class MerchantReportService {
    var batch=records.selectListByQuery(q);if(batch.isEmpty())break;
    var ids=batch.stream().map(CouponRedemptionEntity::getConsumptionOrderId).filter(Objects::nonNull).distinct().toList();
    var bills=new HashMap<Long,ConsumptionOrderEntity>();if(!ids.isEmpty())for(var o:orders.selectListByQuery(QueryWrapper.create().in(ConsumptionOrderEntity::getId,ids).eq(ConsumptionOrderEntity::getMerchantId,scope.merchantId()).eq(ConsumptionOrderEntity::getStoreId,scope.storeId())))bills.put(o.getId(),o);
-   for(var r:batch){var o=bills.get(r.getConsumptionOrderId());String no=o==null?null:o.getOrderNo(),name=o==null?null:o.getCouponName();
+   var orderCoupons = new HashMap<Long, CouponIdentity>();
+   bills.forEach((id, bill) -> orderCoupons.put(id, fromOrder(bill)));
+   var historicalCoupons = historicalCoupons(scope.merchantId(), batch, orderCoupons);
+   for(var r:batch){var o=bills.get(r.getConsumptionOrderId());String no=o==null?null:o.getOrderNo();
+    var orderCoupon = orderCoupons.getOrDefault(r.getConsumptionOrderId(), CouponIdentity.EMPTY);
+    var historical = r.getCustomerCouponId() == null ? CouponIdentity.EMPTY
+     : historicalCoupons.getOrDefault(r.getCustomerCouponId(), CouponIdentity.EMPTY);
+    String name = orderCoupon.name() == null ? historical.name() : orderCoupon.name();
     if(!matches(no,f.orderNo())||!matches(name,f.couponName()))continue;
-    count++;String type=o==null||o.getCouponType()==null?"UNKNOWN":o.getCouponType();types.merge(type,1L,Long::sum);
+    String type = orderCoupon.type() == null ? Objects.toString(historical.type(), "UNKNOWN") : orderCoupon.type();
+    count++;types.merge(type,1L,Long::sum);
     var time=r.getRedeemedAt().toInstant().atZone(zone);String key=hourly?time.toLocalDate()+String.format("T%02d:00",time.getHour()):time.toLocalDate().toString();trend.merge(key,1L,Long::sum);
     Long person="MERCHANT".equals(r.getOperatorType())?r.getOperatorId():null;
     String personName="历史操作人未知";if(person!=null){people.merge(person,1L,Long::sum);personName=names.computeIfAbsent(person,id->{var u=users.selectOneById(id);return u==null?"历史员工（账号已删除）":Objects.toString(u.getName(),"未命名员工");});}
@@ -79,7 +139,7 @@ public class MerchantReportService {
   }
   long unknown=amounts.values().stream().filter(a->a.unknown||a.value==null).count();BigDecimal sum=amounts.values().stream().filter(a->!a.unknown&&a.value!=null).map(a->a.value).reduce(BigDecimal.ZERO,BigDecimal::add);
   long total=count;var distribution=types.entrySet().stream().map(e->new TypeCount(e.getKey(),e.getValue(),BigDecimal.valueOf(e.getValue()*100).divide(BigDecimal.valueOf(total),2,RoundingMode.HALF_UP))).toList();
-  return new Report(range,scope.storeId(),scope.operatorId(),new Summary(count,linked.size(),unknown>0&&unknown==amounts.size()?null:sum,unknown,count>0&&unknownDiscount==count?null:discount,unknownDiscount,null),trend.entrySet().stream().map(e->new Bucket(e.getKey(),e.getValue())).toList(),distribution,people.entrySet().stream().map(e->new Person(e.getKey(),names.get(e.getKey()),e.getValue())).toList(),details,count,page,size,"金额单位元；消费金额不是营业收入。类型来自消费单历史快照，缺失为UNKNOWN。优惠来自核销流水实际优惠，不推算票面额。搜索同时影响全部图表与明细。按流水ID倒序稳定分页。");
+  return new Report(range,scope.storeId(),scope.operatorId(),new Summary(count,linked.size(),unknown>0&&unknown==amounts.size()?null:sum,unknown,count>0&&unknownDiscount==count?null:discount,unknownDiscount,null),trend.entrySet().stream().map(e->new Bucket(e.getKey(),e.getValue())).toList(),distribution,people.entrySet().stream().map(e->new Person(e.getKey(),names.get(e.getKey()),e.getValue())).toList(),details,count,page,size,"金额单位元；消费金额不是营业收入。券种优先取账单历史信息，其次取发券快照。优惠为核销时实际优惠。按流水ID倒序分页。");
  }
  static boolean matches(String actual,String search){return search==null||search.isBlank()||actual!=null&&actual.contains(search.trim());}
 }

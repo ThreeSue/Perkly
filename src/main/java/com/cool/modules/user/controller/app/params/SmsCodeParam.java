@@ -12,4 +12,6 @@ public class SmsCodeParam {
     private String captchaId;
 
     private String code;
+
+    private String scene;
 }

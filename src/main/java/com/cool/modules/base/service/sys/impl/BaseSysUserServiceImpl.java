@@ -118,20 +118,25 @@ public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, B
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void personUpdate(Long userId, Dict body) {
         requirePlatformAccount(userId);
-        BaseSysUserEntity userEntity = getById(userId);
+        BaseSysUserEntity userEntity = mapper.selectOneByQuery(QueryWrapper.create()
+            .eq(BaseSysUserEntity::getId,userId).forUpdate());
         CoolPreconditions.checkEmpty(userEntity, "用户不存在");
-        risk.checkContent(body.getStr("nickName"),"PROFILE","WORKSPACE_NICKNAME",userId);
+        String previousName = userEntity.getNickName();
+        risk.checkChangedContent(previousName,body.getStr("nickName"),"PROFILE","WORKSPACE_NICKNAME",userId);
         userEntity.setNickName(body.getStr("nickName"));
         userEntity.setHeadImg(body.getStr("headImg"));
         // 修改密码
         if (StrUtil.isNotEmpty(body.getStr("password"))) {
+            com.cool.core.util.PasswordPolicy.validate(body.getStr("password"), userEntity.getUsername(), userEntity.getPhone());
             userEntity.setPassword(MD5.create().digestHex(body.getStr("password")));
             userEntity.setPasswordV(userEntity.getPasswordV() + 1);
             coolCache.set("admin:passwordVersion:" + userId, userEntity.getPasswordV());
         }
-        updateById(userEntity);
+        if(updateById(userEntity)&&userEntity.getNickName()!=null)
+            risk.recordSavedContent(previousName,userEntity.getNickName(),"WORKSPACE_NICKNAME",userId);
     }
 
     @Override
@@ -144,26 +149,35 @@ public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, B
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Long add(JSONObject requestParams, BaseSysUserEntity entity) {
         rejectMerchantIdentity(entity);
         BaseSysUserEntity check = getOne(
             QueryWrapper.create().eq(BaseSysUserEntity::getUsername, entity.getUsername()));
         CoolPreconditions.check(check != null, "用户名已存在");
+        com.cool.core.util.PasswordPolicy.validate(entity.getPassword(), entity.getUsername(), entity.getPhone());
         entity.setPassword(MD5.create().digestHex(entity.getPassword()));
+        risk.checkContent(entity.getNickName(),"PROFILE","WORKSPACE_NICKNAME",null);
         super.add(requestParams, entity);
+        risk.recordSavedContent(null,entity.getNickName(),"WORKSPACE_NICKNAME",entity.getId());
+        risk.bind("PROFILE",entity.getId());
         return entity.getId();
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean update(JSONObject requestParams, BaseSysUserEntity entity) {
         requirePlatformAccount(entity.getId());
         rejectMerchantIdentity(entity);
         CoolPreconditions.check(
             StrUtil.isNotEmpty(entity.getUsername()) && entity.getUsername().equals("admin"),
             "非法操作");
-        BaseSysUserEntity userEntity = getById(entity.getId());
+        BaseSysUserEntity userEntity = mapper.selectOneByQuery(QueryWrapper.create()
+            .eq(BaseSysUserEntity::getId,entity.getId()).forUpdate());
+        risk.checkChangedContent(userEntity.getNickName(),entity.getNickName(),"PROFILE","WORKSPACE_NICKNAME",entity.getId());
         if (StrUtil.isNotEmpty(entity.getPassword())) {
-            entity.setPasswordV(entity.getPasswordV() + 1);
+            entity.setPasswordV(userEntity.getPasswordV() == null ? 1 : userEntity.getPasswordV() + 1);
+            com.cool.core.util.PasswordPolicy.validate(entity.getPassword(), userEntity.getUsername(), userEntity.getPhone());
             entity.setPassword(MD5.create().digestHex(entity.getPassword()));
             coolCache.set("admin:passwordVersion:" + entity.getId(), entity.getPasswordV());
         } else {
@@ -174,7 +188,10 @@ public class BaseSysUserServiceImpl extends BaseServiceImpl<BaseSysUserMapper, B
         if (entity.getStatus() == 0) {
             CoolSecurityUtil.adminLogout(entity);
         }
-        return super.update(requestParams, entity);
+        boolean updated=super.update(requestParams, entity);
+        if(updated&&entity.getNickName()!=null)
+            risk.recordSavedContent(userEntity.getNickName(),entity.getNickName(),"WORKSPACE_NICKNAME",entity.getId());
+        return updated;
     }
 
     @Override

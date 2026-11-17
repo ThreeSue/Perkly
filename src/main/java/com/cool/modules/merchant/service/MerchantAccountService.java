@@ -208,8 +208,8 @@ public class MerchantAccountService {
     public Long provision(String username, String name, String password, Long merchantId) {
         if (username == null || !username.matches("[A-Za-z0-9_]{4,40}") || "admin".equals(username)
                 || name == null || name.isBlank() || name.length() > 50
-                || password == null || password.length() < 6 || password.length() > 64) {
-            throw new CoolException("账号需4至40位字母数字下划线，姓名必填，密码需6至64位");
+                || password == null || password.length() < 8 || password.length() > 64) {
+            throw new CoolException("账号需4至40位字母数字下划线，姓名必填，密码需8至64位");
         }
         var merchant = merchantId == null ? null : merchants.selectOneById(merchantId);
         if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) throw new CoolException("请选择已启用商家");
@@ -218,9 +218,12 @@ public class MerchantAccountService {
         user = new BaseSysUserEntity();
         risk.checkContent(name,"PROFILE","WORKSPACE_NICKNAME",null);
         user.setUsername(username); user.setName(name.trim()); user.setNickName(name.trim());
+        com.cool.core.util.PasswordPolicy.validate(password, username);
         user.setPassword(passwords.encode(password)); user.setPasswordV(1); user.setStatus(1);
         user.setMerchantId(merchantId); user.setMerchantRole("OWNER");
         users.insertSelective(user);
+        risk.recordSavedContent(null,user.getNickName(),"WORKSPACE_NICKNAME",user.getId());
+        risk.bind("PROFILE",user.getId());
         workspaceBridge.bind(user,"OWNER",false);
         return user.getId();
     }
@@ -236,25 +239,30 @@ public class MerchantAccountService {
         BaseSysUserEntity user = current(userId);
         if (oldPassword == null || !passwords.matches(oldPassword, user.getPassword()))
             throw new CoolException("原密码不正确");
-        if (newPassword == null || newPassword.length() < 6 || newPassword.length() > 64)
-            throw new CoolException("新密码需6至64位");
+        if (newPassword == null || newPassword.length() < 8 || newPassword.length() > 64)
+            throw new CoolException("新密码需8至64位");
         if (newPassword.equals(oldPassword)) throw new CoolException("新密码不能与原密码相同");
         replacePassword(user, newPassword);
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public int resetMerchantPassword(Long merchantId) {
+    public int resetMerchantPassword(Long merchantId) { return resetMerchantPassword(merchantId, null); }
+
+    @Transactional(rollbackFor = Exception.class)
+    public int resetMerchantPassword(Long merchantId, String password) {
+        com.cool.core.util.PasswordPolicy.validate(password);
         if (merchantId == null || merchants.selectOneById(merchantId) == null)
             throw new CoolException("商家不存在");
         List<BaseSysUserEntity> owners = users.selectListByQuery(QueryWrapper.create()
                 .eq(BaseSysUserEntity::getMerchantId, merchantId)
                 .eq(BaseSysUserEntity::getMerchantRole, "OWNER"));
         if (owners.isEmpty()) throw new CoolException("该商家尚未开通账号");
-        for (BaseSysUserEntity user : owners) replacePassword(user, "123456");
+        for (BaseSysUserEntity user : owners) replacePassword(user, password);
         return owners.size();
     }
 
     private void replacePassword(BaseSysUserEntity user, String password) {
+        com.cool.core.util.PasswordPolicy.validate(password, user.getUsername(), user.getPhone());
         BaseSysUserEntity changes = new BaseSysUserEntity();
         changes.setPassword(passwords.encode(password));
         changes.setPasswordV(user.getPasswordV() == null ? 1 : user.getPasswordV() + 1);

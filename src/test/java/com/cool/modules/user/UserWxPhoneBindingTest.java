@@ -81,7 +81,7 @@ class UserWxPhoneBindingTest {
         verifyNoInteractions(tokens);
         Dict result = (Dict) login.confirmWechatBinding(preview.getStr("confirmationToken"), "phone");
         assertEquals("test-token", result.getStr("token"));
-        verify(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL);
+        verify(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL, com.cool.modules.user.sms.SmsScene.WECHAT_BIND);
         var link = ArgumentCaptor.forClass(UserWxEntity.class);
         verify(wxUsers).updateById(link.capture());
         assertEquals(42L, link.getValue().getUserId());
@@ -155,7 +155,7 @@ class UserWxPhoneBindingTest {
 
     @Test void invalidSmsCannotCreateAccountOrLinkWechat() {
         String ticket = ticket();
-        doThrow(new CoolException("验证码错误")).when(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL);
+        doThrow(new CoolException("验证码错误")).when(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL, com.cool.modules.user.sms.SmsScene.WECHAT_BIND);
         assertThrows(CoolException.class, () -> login.bindWechatPhone(ticket, PHONE, "123456"));
         verify(users, never()).save(any(UserInfoEntity.class));
         verify(wxUsers, never()).updateById(any(UserWxEntity.class));

@@ -74,13 +74,13 @@ class UserPasswordResetPersistenceTest {
         assertEquals(target.getNickName(), jdbc.queryForObject("SELECT nick_name FROM user_info WHERE id=?", String.class, target.getId()));
         assertEquals(target.getPhone(), jdbc.queryForObject("SELECT phone FROM user_info WHERE id=?", String.class, target.getId()));
         assertEquals(1, jdbc.queryForObject("SELECT status FROM user_info WHERE id=?", Integer.class, target.getId()));
-        verify(sms).checkVerifyCode(target.getPhone(), "123456", UserSmsUtil.SendSceneEnum.ALL);
+        verify(sms).checkVerifyCode(target.getPhone(), "123456", UserSmsUtil.SendSceneEnum.ALL, com.cool.modules.user.sms.SmsScene.RESET_PASSWORD);
     }
 
     @Test void invalidSmsNeverChangesDatabasePassword() throws Exception {
         var target = account();
         doThrow(new CoolException("验证码错误")).when(sms)
-                .checkVerifyCode(target.getPhone(), "654321", UserSmsUtil.SendSceneEnum.ALL);
+                .checkVerifyCode(target.getPhone(), "654321", UserSmsUtil.SendSceneEnum.ALL, com.cool.modules.user.sms.SmsScene.RESET_PASSWORD);
         var mvc = MockMvcBuilders.webAppContextSetup(webContext)
                 .addFilters(new com.cool.core.request.RequestParamsFilter()).build();
         mvc.perform(post("/app/user/login/resetPassword").contentType("application/json")

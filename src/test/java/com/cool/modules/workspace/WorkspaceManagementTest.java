@@ -49,7 +49,15 @@ class WorkspaceManagementTest {
     @Test void revokedDormantPermissionCannotBeAddedBackWithoutParentGrant(){grantState(Set.of(1L));assertThrows(CoolException.class,()->service.saveGrant(10L,new GrantInput("STORE",30L,List.of(1L,2L))));verify(grants,never()).deleteByQuery(any(QueryWrapper.class));}
     @Test void cannotGrantFeaturesOutsideDelegationRange(){grantState(Set.of());assertThrows(CoolException.class,()->service.saveGrant(10L,new GrantInput("STORE",30L,List.of(2L))));verify(grants,never()).insert(any(com.cool.modules.workspace.entity.WorkspaceGrantEntity.class));}
     @Test void employeeLeavingDisablesInsteadOfDeletingAccount(){var u=new BaseSysUserEntity();u.setId(11L);u.setMerchantId(20L);u.setStatus(1);u.setPasswordV(3);u.setName("离职员工");when(users.selectOneByQuery(any(QueryWrapper.class))).thenReturn(u);service.accountState(10L,new StateInput(11L,0));assertEquals(0,u.getStatus());assertEquals(4,u.getPasswordV());verify(users).update(u);verify(users,never()).deleteById(11L);}
-    @Test void personalNameUpdateCannotAlterIdentityOrPermissions(){service.personal(10L,new PersonalInput(" 新姓名 "));var saved=org.mockito.ArgumentCaptor.forClass(BaseSysUserEntity.class);verify(users).update(saved.capture());assertEquals("新姓名",saved.getValue().getName());assertNull(saved.getValue().getMerchantId());assertNull(saved.getValue().getMerchantRole());assertNull(saved.getValue().getAccountType());assertNull(saved.getValue().getPassword());assertNull(saved.getValue().getStoreScope());}
+    @Test void personalNameUpdateCannotAlterIdentityOrPermissions(){
+        when(users.selectOneByQuery(any(QueryWrapper.class))).thenReturn(actor);
+        service.personal(10L,new PersonalInput(" 新姓名 "));
+        var saved=org.mockito.ArgumentCaptor.forClass(BaseSysUserEntity.class);
+        verify(users).update(saved.capture());
+        assertEquals("新姓名",saved.getValue().getName());assertNull(saved.getValue().getMerchantId());
+        assertNull(saved.getValue().getMerchantRole());assertNull(saved.getValue().getAccountType());
+        assertNull(saved.getValue().getPassword());assertNull(saved.getValue().getStoreScope());
+    }
     @Test void previewShowsOnlyEffectivePermissionsAndSuppressedOnes(){grantState(Set.of(1L,2L));var r=new BaseSysRoleEntity();r.setId(5L);r.setName("店员");r.setLabel("ws_staff");r.setAccountType("STORE");r.setStatus(1);r.setBuiltin(true);when(roles.selectListByQuery(any(QueryWrapper.class))).thenReturn(List.of(r));var a=new BaseSysRoleMenuEntity();a.setMenuId(1L);var b=new BaseSysRoleMenuEntity();b.setMenuId(2L);when(roleMenus.selectListByQuery(any(QueryWrapper.class))).thenReturn(List.of(a,b));var p=new AccountInput(null,20L,30L,"13800000000","测试",null,"STORE",5L,1,"SELF",List.of(),List.of(),List.of());var preview=service.previewAccount(10L,p);assertEquals(List.of(1L),preview.effectiveMenus().stream().map(BaseSysMenuEntity::getId).toList());assertEquals(List.of(2L),preview.suppressedMenus().stream().map(BaseSysMenuEntity::getId).toList());verifyNoInteractions(history);}
 
     private BaseSysUserRoleEntity assigned(long userId,long roleId){var link=new BaseSysUserRoleEntity();link.setUserId(userId);link.setRoleId(roleId);return link;}

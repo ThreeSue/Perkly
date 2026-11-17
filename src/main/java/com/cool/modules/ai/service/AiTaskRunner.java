@@ -1,4 +1,5 @@
 package com.cool.modules.ai.service;
+import com.cool.modules.ai.usage.AiUsageMeter;
 import com.cool.modules.ai.config.AiProperties;
 import com.cool.modules.ai.entity.*;
 import com.cool.modules.ai.mapper.*;
@@ -25,6 +26,9 @@ import java.util.*;
  */
 @Service
 public class AiTaskRunner {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiUsageMeter usageMeter;
+
     private final AiImageTaskMapper tasks;
     private final AiDailyUsageMapper usages;
     private final SpaceInfoMapper materials;
@@ -75,8 +79,18 @@ public class AiTaskRunner {
                 if(parent==null || !task.getMerchantId().equals(parent.getMerchantId()))throw new com.cool.core.exception.CoolException("参考图素材归属失效");
                 reference=files.reference(parent);
             }
-            var result=model.call(new ImagePrompt(task.getPrompt(),new BailianImageModel.Options(task.getModel(),reference)));
-            var image=result.getResult().getOutput();
+            var started = java.time.Instant.now();
+            ImageResponse result;
+            Image image;
+            boolean generated = false;
+            try {
+                result = model.call(new ImagePrompt(task.getPrompt(), new BailianImageModel.Options(task.getModel(), reference)));
+                image = result.getResult().getOutput();
+                generated = true;
+            } finally {
+                if (usageMeter != null) usageMeter.imageCall(
+                    new AiUsageMeter.Actor(task.getActorKind(), task.getActorId()), task.getModel(), started, generated);
+            }
             var saved=new ProviderResult(image.getUrl(),image.getB64Json(),
                 Objects.toString(result.getMetadata().get("providerRequestId"),""),Objects.toString(result.getMetadata().get("usage"),""));
             try{files.journal(task.getImageKey(),taskService.encode(saved));}catch(java.io.IOException ignored){/* 数据库仍作为首要持久化路径 */}

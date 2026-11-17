@@ -11,6 +11,18 @@ import com.mybatisflex.core.query.QueryWrapper;
 import org.junit.jupiter.api.Test;
 
 class UserAccountInfoTest {
+    @Test void bindingPhoneCannotReplaceExistingPhoneOrTakeAnotherAccount() {
+        UserSmsUtil sms = mock(UserSmsUtil.class);
+        UserInfoServiceImpl service = spy(new UserInfoServiceImpl(sms, mock(UserWxService.class)));
+        UserInfoEntity user = new UserInfoEntity(); user.setId(42L); user.setStatus(1); user.setPhone("13800000000");
+        doReturn(user).when(service).getById(42L);
+        assertThrows(com.cool.core.exception.CoolException.class, () -> service.bindPhone(42L, "13900000000", "123456"));
+        verifyNoInteractions(sms);
+        user.setPhone(null);
+        doReturn(1L).when(service).count(any(QueryWrapper.class));
+        assertThrows(com.cool.core.exception.CoolException.class, () -> service.bindPhone(42L, "13900000000", "123456"));
+        verifyNoInteractions(sms);
+    }
     @Test void accountResponseMasksPhoneAndNeverExposesPasswordHashOrWechatIdentity() {
         UserWxService wx = mock(UserWxService.class);
         UserInfoServiceImpl service = spy(new UserInfoServiceImpl(mock(UserSmsUtil.class), wx));

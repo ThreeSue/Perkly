@@ -3,6 +3,8 @@ package com.cool.modules.ai.merchant;
 import static com.cool.modules.ai.merchant.MerchantChatModels.*;
 import com.cool.core.exception.CoolException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
 import java.security.MessageDigest;
@@ -43,6 +45,7 @@ public class MerchantChatService {
  }
  public Reply chat(Long actor,String token,Chat input){
   if(input==null||input.message()==null||input.message().isBlank()||input.message().length()>1000)throw new CoolException("请输入1至1000字的问题",400);
+  if(input.orderSummary()&&(input.orderId()==null||input.orderId()<=0))throw new CoolException("请先选择消费账单",400);
   var scope=access.require(actor,null);String id=input.sessionId();Session s;
   synchronized(this){
    sessions.entrySet().removeIf(e->e.getValue().touched.plusSeconds(1800).isBefore(Instant.now()));
@@ -53,6 +56,12 @@ public class MerchantChatService {
   }
   synchronized(s){
    policy.consume(actor);
+   if(input.orderSummary()){
+    var conditions=new Conditions("TODAY",null,null,null,null,input.orderId(),null);
+    var facts=queries.query(actor,Action.ORDER,conditions,null);
+    s.conditions=conditions;s.touched=Instant.now();
+    return new Reply(id,summarizeOrder(facts),Action.ORDER,conditions,facts,List.of(),false,"READ_ONLY");
+   }
    String message=MerchantChatQueries.redact(input.message());
    if(input.code()!=null&&!input.code().isBlank())message=message.replace(input.code(),"[券码已隐藏]");
    var prev=s.conditions;
@@ -70,6 +79,15 @@ public class MerchantChatService {
    s.conditions=c;s.touched=Instant.now();
    return new Reply(id,answer,plan.action(),c,facts,List.of("改查近七天","改查今天"),degraded,"READ_ONLY");
   }
+ }
+ private String summarizeOrder(JsonNode facts){
+  var status=facts.path("status").asText();
+  var summary="这笔消费账单的状态是"+facts.path("statusText").asText("未知")+"。";
+  if("CANCELLED".equals(status))return summary;
+  var completed="COMPLETED".equals(status);
+  var amount=facts.path(completed?"receivedAmountCents":"payableAmountCents");
+  if(!amount.isIntegralNumber())return summary+"暂无补款金额记录。";
+  return summary+(completed?"本次实收补款":"本次应补款")+" ¥"+BigDecimal.valueOf(amount.longValue(),2).toPlainString()+"。";
  }
  public synchronized void clear(Long actor,String token,String id){
   var scope=access.require(actor,null);session(id,actor,scope.storeId(),token);sessions.remove(id);

@@ -1,4 +1,5 @@
 package com.cool.modules.ai.management;
+import com.cool.modules.ai.usage.AiUsageMeter;
 import com.cool.core.enums.UserTypeEnum;
 import com.cool.core.exception.CoolException;
 import com.cool.core.request.R;
@@ -20,6 +21,9 @@ import static com.cool.modules.ai.management.ManagementAssistantModels.*;
 @RestController @RequiredArgsConstructor
 @RequestMapping({"/admin/ai/assistant/workbench","/merchant/governance/ai/assistant/workbench"})
 public class ManagementAssistantController {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiUsageMeter usageMeter;
+
     private final ManagementAssistantService service;
     private final ManagementAssistantModel model;
     private final ManagementAssistantAccess access;
@@ -47,6 +51,7 @@ public class ManagementAssistantController {
             || input.previous()!=null && (input.previous().title()==null || input.previous().content()==null
                 || input.previous().title().length()>100 || input.previous().content().length()>5000))
             throw new CoolException("通知写作请求无效",400);
+        if (usageMeter != null) usageMeter.accepted("admin", AiUsageMeter.currentActor(), null);
         return R.ok(model.notice(input));
     }
     @PostMapping("/cancel") public R<?> cancel(HttpServletRequest request,@RequestBody SessionInput input) {

@@ -1,5 +1,6 @@
 package com.cool.modules.ai.management;
 
+import com.cool.modules.ai.usage.AiUsageMeter;
 import com.cool.core.exception.CoolException;
 import com.cool.modules.ai.config.AiProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,17 +27,21 @@ import static com.cool.modules.ai.management.ManagementAssistantModels.*;
  */
 @Service @RequiredArgsConstructor
 public class ManagementAssistantModel {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiUsageMeter usageMeter;
+
     private final AiProperties properties;
     private final ObjectMapper json;
+    private final com.cool.modules.searchrisk.SearchRiskService risk;
     private ChatClient client() {
         if(!properties.configured())throw new CoolException("AI服务尚未配置",503);
         var factory=new JdkClientHttpRequestFactory();factory.setReadTimeout(Duration.ofSeconds(45));
         var api=OpenAiApi.builder().apiKey(properties.getApiKey()).baseUrl(properties.getBaseUrl())
             .completionsPath("/chat/completions").restClientBuilder(RestClient.builder().requestFactory(factory)).build();
-        return ChatClient.create(OpenAiChatModel.builder().openAiApi(api)
+        return AiUsageMeter.client(usageMeter, OpenAiChatModel.builder().openAiApi(api)
             .defaultOptions(OpenAiChatOptions.builder().model(properties.getTextModel()).temperature(0.0).maxTokens(4096)
                 .extraBody(Map.of("enable_thinking",false)).build())
-            .retryTemplate(RetryTemplate.builder().maxAttempts(1).fixedBackoff(100).build()).build());
+            .retryTemplate(RetryTemplate.builder().maxAttempts(1).fixedBackoff(100).build()).build(), "admin");
     }
     private String encode(Object value) {try{return json.writeValueAsString(value);}catch(Exception e){throw new CoolException("对话上下文无法读取",400);}}
     public Plan plan(Object context) {
@@ -65,7 +70,7 @@ public class ManagementAssistantModel {
     }
     public String answer(Object facts) {
         try {
-            return client().prompt().system("""
+            String answer=client().prompt().system("""
                 用自然简洁的中文回答管理人员，仅依据提供的真实结果及状态。先说结论再给必要说明。
                 READ是查询；PREVIEW尚未执行；COMPLETED才可说完成；FAILED说明失败原因和剩余步骤。
                 COUPON_RESULT是现有券助手的查询、澄清、草稿或预览，引用其真实text和状态，不能说已保存或已修改。组合任务分别核对，不声称一次确认已完成另一份券任务。
@@ -79,6 +84,8 @@ public class ManagementAssistantModel {
                 以纯文本短段落回答，不使用Markdown星号、标题或表格。
                 默认只提业务名称，不输出数据库ID。门店类型只有名称、排序、启用状态，不描述上级分类、图标或前台展示。
                 """).user(encode(facts)).call().content();
+            risk.checkContent(answer,"AI_OUTPUT","MANAGEMENT_REPLY",null);
+            return answer;
         } catch(Exception e){throw new CoolException("结果已保留，AI回复暂时不可用",503);}
     }
     public NoticeDraft notice(Object context) {
@@ -90,6 +97,8 @@ public class ManagementAssistantModel {
                 """).user(encode(context)).call().entity(NoticeDraft.class);
             if(draft==null || draft.title()==null || draft.content()==null || draft.title().length()>100 || draft.content().length()>5000)
                 throw new IllegalStateException();
+            risk.checkContent(draft.title(),"AI_OUTPUT","MANAGEMENT_NOTICE_DRAFT_TITLE",null);
+            risk.checkContent(draft.content(),"AI_OUTPUT","MANAGEMENT_NOTICE_DRAFT_CONTENT",null);
             return draft;
         }catch(Exception e){throw new CoolException("候选稿生成失败，原表单未改变，请重试",503);}
     }

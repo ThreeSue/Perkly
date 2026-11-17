@@ -23,15 +23,26 @@ public class UserInfoServiceImpl extends BaseServiceImpl<UserInfoMapper, UserInf
     private final UserSmsUtil userSmsUtil;
     private final UserWxService userWxService;
     @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
-    @Override public Long add(UserInfoEntity input){risk.checkContent(input.getNickName(),"PROFILE","USER_NICKNAME",input.getId());return super.add(input);}
+    @Override @org.springframework.transaction.annotation.Transactional
+    public Long add(UserInfoEntity input){
+        risk.checkContent(input.getNickName(),"PROFILE","USER_NICKNAME",null);
+        Long id=super.add(input);
+        risk.recordSavedContent(null,input.getNickName(),"USER_NICKNAME",id);
+        risk.bind("PROFILE",id);
+        return id;
+    }
     @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.mapper.SearchRiskAuditMapper riskAudits;
     @Override @org.springframework.transaction.annotation.Transactional public boolean update(UserInfoEntity input){
-        risk.checkContent(input.getNickName(),"PROFILE","USER_NICKNAME",input.getId());
         if(input.getBanReason()!=null&&input.getBanReason().length()>200)throw new CoolException("停用原因最多200字");
-        var previous=input.getId()==null?null:mapper.selectOneById(input.getId());
+        var previous=input.getId()==null?null:mapper.selectOneByQuery(QueryWrapper.create()
+            .eq(UserInfoEntity::getId,input.getId()).forUpdate());
+        risk.checkChangedContent(previous==null?null:previous.getNickName(),input.getNickName(),
+            "PROFILE","USER_NICKNAME",input.getId());
         if(Integer.valueOf(0).equals(input.getStatus())&&(input.getBanReason()==null||input.getBanReason().isBlank()))input.setBanReason("平台已停用此账号，请联系平台反馈核查");
         if(Integer.valueOf(1).equals(input.getStatus()))input.setBanReason("");
         boolean changed=super.update(input);
+        if(changed&&input.getNickName()!=null)risk.recordSavedContent(previous==null?null:previous.getNickName(),
+            input.getNickName(),"USER_NICKNAME",input.getId());
         if(changed&&previous!=null&&input.getStatus()!=null&&!java.util.Objects.equals(previous.getStatus(),input.getStatus())){
             var a=new com.cool.modules.searchrisk.SearchRiskAudit();a.setTargetId(input.getId());a.setOperatorId(com.cool.core.util.CoolSecurityUtil.getCurrentUserId());a.setAction("USER_STATUS");
             a.setDetail(cn.hutool.json.JSONUtil.toJsonStr(java.util.Map.of("subjectType","APP","from",java.util.Objects.toString(previous.getStatus(),"UNKNOWN"),"to",input.getStatus(),"reason",java.util.Objects.toString(input.getBanReason(),""))));riskAudits.insert(a);
@@ -68,10 +79,11 @@ public class UserInfoServiceImpl extends BaseServiceImpl<UserInfoMapper, UserInf
         if (info == null || !Integer.valueOf(1).equals(info.getStatus())) {
             throw new CoolException("账号不可用");
         }
+        com.cool.core.util.PasswordPolicy.validate(password, info.getPhone());
         String encoded = UserPasswordUtil.encode(password);
-        userSmsUtil.checkVerifyCode(info.getPhone(), code, SendSceneEnum.ALL);
+        Long usageId=userSmsUtil.checkVerifyCode(info.getPhone(),code,SendSceneEnum.ALL,com.cool.modules.user.sms.SmsScene.CHANGE_PASSWORD);
         info.setPassword(encoded);
-        info.updateById();
+        if(info.updateById())userSmsUtil.linkAccount(usageId,userId);
     }
 
     @Override
@@ -85,10 +97,24 @@ public class UserInfoServiceImpl extends BaseServiceImpl<UserInfoMapper, UserInf
 
     @Override
     public void bindPhone(Long userId, String phone, String code) {
-        userSmsUtil.checkVerifyCode(phone, code, SendSceneEnum.ALL);
+        UserSmsUtil.validatePhone(phone);
+        UserInfoEntity current = getById(userId);
+        if (current == null || !Integer.valueOf(1).equals(current.getStatus())) throw new CoolException("账号不可用");
+        if (current.getPhone() != null && !current.getPhone().isBlank()) throw new CoolException("账号已有绑定手机号，不支持在此更换");
+        if (count(QueryWrapper.create().eq(UserInfoEntity::getPhone, phone)) > 0) throw new CoolException("该手机号已有账号，请从微信登录入口验证并确认绑定");
+        Long usageId=userSmsUtil.checkVerifyCode(phone,code,SendSceneEnum.ALL,com.cool.modules.user.sms.SmsScene.BIND_PHONE);
         UserInfoEntity info = new UserInfoEntity();
-        info.setId(userId);
         info.setPhone(phone);
-        info.updateById();
+        QueryWrapper condition = QueryWrapper.create().eq(UserInfoEntity::getId, userId).eq(UserInfoEntity::getStatus, 1);
+        if (current.getPhone() == null) condition.isNull(UserInfoEntity::getPhone);
+        else condition.eq(UserInfoEntity::getPhone, current.getPhone());
+        try {
+            if (!update(info, condition)) {
+                throw new CoolException("账号状态已变更，请重新验证");
+            }
+            userSmsUtil.linkAccount(usageId,userId);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            throw new CoolException("该手机号已被绑定，请使用原账号登录");
+        }
     }
 }

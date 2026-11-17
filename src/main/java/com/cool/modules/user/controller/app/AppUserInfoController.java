@@ -18,9 +18,15 @@ import org.springframework.web.bind.annotation.RequestAttribute;
 @Tag(name = "用户信息", description = "用户信息")
 @CoolRestController
 public class AppUserInfoController {
-    @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
-
     private final UserInfoService userInfoService;
+    private final com.cool.modules.user.service.UserLoginService userLoginService;
+
+    @Operation(summary = "为当前账号绑定微信")
+    @PostMapping("/bindWechat")
+    public R bindWechat(@RequestAttribute JSONObject params) {
+        userLoginService.bindCurrentWechat(CoolSecurityUtil.getCurrentUserId(), params.getStr("code"), params.getStr("smsCode"));
+        return R.ok();
+    }
 
     @Operation(summary = "账号绑定信息")
     @GetMapping("/account")
@@ -40,7 +46,6 @@ public class AppUserInfoController {
     @Operation(summary = "更新用户信息")
     @PostMapping("/updatePerson")
     public R updatePerson(@RequestAttribute JSONObject requestParams) {
-        risk.checkContent(requestParams.getStr("nickName"),"PROFILE","USER_NICKNAME",com.cool.core.util.CoolSecurityUtil.getCurrentUserId());
         // 个人资料接口不能直接改手机号、密码或账号状态。
         UserInfoEntity infoEntity = new UserInfoEntity();
         infoEntity.setNickName(requestParams.getStr("nickName"));
@@ -48,7 +53,7 @@ public class AppUserInfoController {
         infoEntity.setGender(requestParams.getInt("gender"));
         infoEntity.setId(CoolSecurityUtil.getCurrentUserId());
         return R.ok(
-            userInfoService.updateById(infoEntity)
+            userInfoService.update(infoEntity)
         );
     }
 

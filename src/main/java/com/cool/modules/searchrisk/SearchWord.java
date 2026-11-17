@@ -9,4 +9,6 @@ package com.cool.modules.searchrisk;
  * @Time: 11:00:23
  */
 @lombok.Getter @lombok.Setter @com.mybatisflex.annotation.Table("search_risk_word")
-public class SearchWord extends com.cool.core.base.BaseEntity<SearchWord> { private String word; private String mode; private Boolean enabled; }
+public class SearchWord extends com.cool.core.base.BaseEntity<SearchWord> { private String word; private String mode; private Boolean enabled;
+ private String source;private String sourceVersion;private String license;private String sourceKey;private Boolean deleted;
+}

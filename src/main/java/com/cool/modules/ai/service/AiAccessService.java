@@ -36,6 +36,7 @@ public class AiAccessService {
         Integer scopeType,List<Long> storeIds,List<Content> contentItems,
         BigDecimal minSpend,BigDecimal discountAmount,BigDecimal deductAmount,BigDecimal discountRate) {}
     public record Prepared(Context context,Draft draft,String merchantName,List<String> storeNames,String suggestedPrompt) {}
+    static final String COVER_SAFETY_TEXT = "不生成二维码、水印或联系方式。";
     public Context libraryContext(Long actor,boolean platform,Long merchant) {
         if(platform) {
             access.platform("ai:image:generate");
@@ -100,7 +101,7 @@ public class AiAccessService {
         String prompt="为优惠券制作一张1024×1024正方形封面。券名："+d.name()+"。类型："+typeName+"。商家："+shortText(merchantName,100)+"。"
             +"适用门店："+selectedStores.stream().limit(3).map(s->shortText(s.getName(),60)).collect(java.util.stream.Collectors.joining("、"))
             +(selectedStores.size()>3?"等已选门店":"")+"。"+elements
-            +"主视觉清晰，适合手机列表缩略图，主体居中，保留安全边距，画面干净；不编造价格、折扣或宣传承诺，不生成二维码、水印或联系方式。"
+            +"主视觉清晰，适合手机列表缩略图，主体居中，保留安全边距，画面干净；不编造价格、折扣或宣传承诺，"+COVER_SAFETY_TEXT
             +(d.description()==null?"":"使用说明仅作构图参考："+shortText(d.description(),400));
         return new Prepared(c,d,merchantName,selectedStores.stream().map(MerchantStoreEntity::getName).toList(),prompt);
     }

@@ -16,7 +16,7 @@ public interface UserLoginService {
      * @param captchaId
      * @param code
      */
-   void smsCode(String phone, String captchaId, String code);
+   void smsCode(String phone, String captchaId, String code, com.cool.modules.user.sms.SmsScene scene);
 
     /**
      * 手机号验证码登录
@@ -39,6 +39,8 @@ public interface UserLoginService {
     Object mini(String code, String encryptedData, String iv);
     Object bindWechatPhone(String bindingToken, String phone, String smsCode);
     Object confirmWechatBinding(String confirmationToken, String profileSource);
+    /** 已登录用户验证当前手机号后，将微信绑定到当前账号。 */
+    void bindCurrentWechat(Long userId, String code, String smsCode);
     /**
      * 公众号登录
      */

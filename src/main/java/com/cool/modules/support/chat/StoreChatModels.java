@@ -18,11 +18,16 @@ public final class StoreChatModels {
  public record CardData(String title,String image,String status,List<Fact> facts){}
  public record Card(CardType type,Long id,String title,String image,CardData snapshot,CardData current,boolean applicable,boolean available,String note){}
  public record Faq(String question,String answer){}
- public record SettingsInput(Integer version,Boolean aiEnabled,List<Faq> faqs){}
- public record Settings(Integer version,boolean aiEnabled,List<Faq> faqs){}
+ public record SettingsInput(Integer version,Boolean aiEnabled,List<Faq> faqs,Boolean autoTakeoverEnabled){
+  public SettingsInput(Integer version,Boolean aiEnabled,List<Faq> faqs){this(version,aiEnabled,faqs,null);}
+ }
+ public record Settings(Integer version,boolean aiEnabled,List<Faq> faqs,boolean autoTakeoverEnabled){
+  public Settings(Integer version,boolean aiEnabled,List<Faq> faqs){this(version,aiEnabled,faqs,true);}
+ }
  public record Transition(Long chatId,String requestId,Long version){}
  public record Detail(Long id,Long storeId,String storeName,String state,Integer round,Long version,Long assigneeId,String assigneeName,
-   boolean aiEnabled,boolean canTakeover,boolean canClose,boolean canReply,boolean canSuggest,String summary){}
+   boolean aiEnabled,boolean canTakeover,boolean canClose,boolean canReply,boolean canSuggest,String summary,
+   boolean humanRequested,Boolean assigneeOnline,boolean aiAvailable,String aiUnavailableReason,String receptionText,boolean canReturnToAi,boolean canManageSettings,String aiReplyStatus){}
  public record Message(Long id,Long chatId,String senderKind,Long senderId,String senderName,String requestId,String content,List<String> images,
    Date createTime,Date updateTime,Integer round,Card card,List<CardRef> references){}
  public record Options(List<Card> list,long total,int page,int size){}

@@ -24,11 +24,7 @@ public final class UserPasswordUtil {
     }
 
     public static String encode(String password) {
-        if (password == null || password.length() < 8 || password.length() > 32
-                || password.getBytes(StandardCharsets.UTF_8).length > 72
-                || password.chars().anyMatch(Character::isWhitespace)) {
-            throw new CoolException("密码须为8至32位且不能包含空白字符");
-        }
+        com.cool.core.util.PasswordPolicy.validate(password);
         return ENCODER.encode(password);
     }
 

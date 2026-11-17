@@ -40,12 +40,17 @@ public class MerchantInfoServiceImpl
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor=Exception.class)
     public Long add(MerchantInfoEntity entity) {
         if (entity.getStatus() == null) {
             entity.setStatus(1);
         }
         validate(entity, true);
-        Long id=super.add(entity);risk.bind("MERCHANT",id);return id;
+        checkChangedContent(entity, null);
+        Long id=super.add(entity);
+        recordSavedContent(entity,null);
+        risk.bind("MERCHANT",id);
+        return id;
     }
 
     @Override
@@ -61,7 +66,10 @@ public class MerchantInfoServiceImpl
         if(StrUtil.isNotBlank(existing.getLicenseNumber()) && !java.util.Objects.equals(existing.getLicenseNumber(),entity.getLicenseNumber())) throw new CoolException("营业执照号已锁定，不能修改");
         // 管理接口由框架合并原记录和提交字段后调用此方法。
         validate(entity, !java.util.Objects.equals(existing.getCategoryId(), entity.getCategoryId()));
-        return super.update(entity);
+        checkChangedContent(entity, existing);
+        boolean saved=super.update(entity);
+        if(saved)recordSavedContent(entity,existing);
+        return saved;
     }
 
     private void validate(MerchantInfoEntity entity, boolean requireEnabledCategory) {
@@ -91,9 +99,26 @@ public class MerchantInfoServiceImpl
         checkLength(entity.getAddress(), "详细地址", 500);
         checkLength(entity.getIntroduction(), "商家简介", 2000);
         checkLength(entity.getRemark(), "平台内部备注", 1000);
-        risk.checkContent(entity.getName(),"MERCHANT","MERCHANT_NAME",entity.getId());
-        risk.checkContent(entity.getIntroduction(),"MERCHANT","MERCHANT_INTRODUCTION",entity.getId());
-        risk.checkContent(entity.getAddress(),"MERCHANT","MERCHANT_ADDRESS",entity.getId());
+    }
+
+    private void checkChangedContent(MerchantInfoEntity entity, MerchantInfoEntity existing) {
+        risk.checkChangedContent(existing == null ? null : existing.getName(),
+                entity.getName(), "MERCHANT", "MERCHANT_NAME", entity.getId());
+        risk.checkChangedContent(existing == null ? null : existing.getIntroduction(),
+                entity.getIntroduction(), "MERCHANT", "MERCHANT_INTRODUCTION", entity.getId());
+        risk.checkChangedContent(existing == null ? null : existing.getAddress(),
+                entity.getAddress(), "MERCHANT", "MERCHANT_ADDRESS", entity.getId());
+    }
+
+    private void recordSavedContent(MerchantInfoEntity entity, MerchantInfoEntity existing) {
+        risk.recordSavedContent(existing == null ? null : existing.getName(),
+                entity.getName(), "MERCHANT_NAME", entity.getId());
+        if (entity.getIntroduction() != null)
+            risk.recordSavedContent(existing == null ? null : existing.getIntroduction(),
+                    entity.getIntroduction(), "MERCHANT_INTRODUCTION", entity.getId());
+        if (entity.getAddress() != null)
+            risk.recordSavedContent(existing == null ? null : existing.getAddress(),
+                    entity.getAddress(), "MERCHANT_ADDRESS", entity.getId());
     }
 
     private String required(String value, String label, int maxLength) {

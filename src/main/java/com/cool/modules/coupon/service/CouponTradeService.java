@@ -318,17 +318,32 @@ public class CouponTradeService {
     }
     @Transactional(readOnly=true)
     public PageResult<Map<String,Object>> redemptions(Long operatorId, Integer page, Integer size, Long storeId, String scope) {
+        return redemptions(operatorId, page, size, storeId, scope, null);
+    }
+
+    @Transactional(readOnly=true)
+    public PageResult<Map<String,Object>> redemptions(Long operatorId, Integer page, Integer size, Long storeId, String scope, Long staffId) {
         var operator = merchants.current(operatorId);
         Long merchantId = operator.getMerchantId();
         storeId = staff.requireStore(operator,storeId);
-        require(Set.of("self","store").contains(scope),"记录范围无效");
-        require(!"store".equals(scope) || !("SELF".equals(operator.getStoreScope()) || operator.getStoreScope()==null && "STAFF".equals(operator.getMerchantRole())),"当前岗位只能查看本人记录");
+        require(scope != null && Set.of("self","store","staff").contains(scope),"记录范围无效");
+        require("self".equals(scope) || !workspaceAuthorization.ownRecordsOnly(operator), "当前岗位只能查看本人记录");
+        boolean staffScope = "staff".equals(scope);
+        require(staffScope || staffId == null, "仅员工筛选可指定核销人");
+        if (staffScope) {
+            require(storeId != null && "STORE".equals(com.cool.modules.workspace.service.WorkspaceAuthorization.type(operator)),
+                    "仅可按员工筛选当前门店记录");
+            positive(staffId);
+        }
         QueryWrapper query = q().eq(CouponRedemptionEntity::getMerchantId,merchantId);
         if("MEMBER".equals(operator.getMerchantRole())) {
             var ids=workspaceAuthorization.storeIds(operator);
             if(ids.isEmpty())query.eq(CouponRedemptionEntity::getId,-1L);else query.in(CouponRedemptionEntity::getStoreId,ids);
         }
-        if ("self".equals(scope)) query.eq(CouponRedemptionEntity::getOperatorId,operatorId).eq(CouponRedemptionEntity::getOperatorType,"MERCHANT");
+        if ("self".equals(scope) || staffScope) {
+            query.eq(CouponRedemptionEntity::getOperatorId, staffId != null ? staffId : operatorId)
+                    .eq(CouponRedemptionEntity::getOperatorType, "MERCHANT");
+        }
         if (storeId != null) {
             require(mapper.one("store",q().eq("id",storeId).eq("merchant_id",merchantId)) != null,"门店不存在或无权访问");
             query.eq(CouponRedemptionEntity::getStoreId,storeId);

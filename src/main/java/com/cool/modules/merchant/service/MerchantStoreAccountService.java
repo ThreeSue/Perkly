@@ -37,7 +37,9 @@ public class MerchantStoreAccountService {
     private static final Set<String> ROLES = Set.of("MANAGER", "STAFF");
     public record SaveInput(Long id, Long storeId, Long targetStoreId, String username, String name, String role, Integer status, String password) {}
     public record PageInput(Long storeId, Integer page, Integer size, String keyWord) {}
-    public record ActionInput(Long storeId, Long id, Integer status) {}
+    public record ActionInput(Long storeId, Long id, Integer status, String password) {
+        public ActionInput(Long storeId, Long id, Integer status) { this(storeId, id, status, null); }
+    }
     public record AccountView(Long id, String username, String name, String role, Integer status, Long storeId, String storeName) {}
     public record Pagination(int page, int size, long total) {}
     public record AccountPage(List<AccountView> list, Pagination pagination) {}
@@ -108,8 +110,8 @@ public class MerchantStoreAccountService {
                 throw new CoolException("账号需4至40位字母、数字或下划线");
             if (users.selectCountByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getUsername, input.username())) > 0)
                 throw new CoolException("账号已存在，请更换账号，不能覆盖已有身份");
-            String password = input.password() == null || input.password().isEmpty() ? "123456" : input.password();
-            if (password.length() < 6 || password.length() > 64 || password.getBytes(StandardCharsets.UTF_8).length > 72) throw new CoolException("密码需6至64位且不超过72字节");
+            String password = input.password();
+            com.cool.core.util.PasswordPolicy.validate(password, input.username());
             var user = new BaseSysUserEntity(); user.setUsername(input.username()); user.setName(input.name().trim()); user.setNickName(input.name().trim());
             user.setPassword(passwords.encode(password)); user.setPasswordV(1); user.setStatus(input.status());
             user.setMerchantId(source.getMerchantId()); user.setMerchantRole(input.role());
@@ -141,7 +143,7 @@ public class MerchantStoreAccountService {
     }
     public void resetPassword(Long ownerId, ActionInput input) {
         var store = scope(ownerId, input.storeId()); var user = target(input.id(), store, true);
-        var change = new BaseSysUserEntity(); change.setId(user.getId()); change.setPassword(passwords.encode("123456")); change.setPasswordV(version(user)); users.update(change);
+        var change = new BaseSysUserEntity(); change.setId(user.getId()); com.cool.core.util.PasswordPolicy.validate(input.password(), user.getUsername(), user.getPhone()); change.setPassword(passwords.encode(input.password())); change.setPasswordV(version(user)); users.update(change);
     }
     private int version(BaseSysUserEntity user) { return user.getPasswordV() == null ? 1 : user.getPasswordV() + 1; }
 }

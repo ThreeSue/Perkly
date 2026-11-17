@@ -52,6 +52,26 @@ class MerchantChatServiceTest {
   when(model.plan(anyString(),any(),anyLong())).thenThrow(new IllegalStateException("timeout"));
   assertEquals(503,assertThrows(CoolException.class,this::start).getCode());verifyNoInteractions(queries);
  }
+ @Test void orderSummaryUsesAuthorizedFactsAndKeepsOrderInContext(){
+  var orderConditions=new Conditions("TODAY",null,null,null,null,31L,null);
+  var facts=json.createObjectNode().put("status","COMPLETED").put("statusText","已完成").put("receivedAmountCents",0);
+  when(queries.query(1L,Action.ORDER,orderConditions,null)).thenReturn(facts);
+  var reply=service.chat(1L,"login-a",new Chat(null,"请查询这笔消费账单",null,31L,null,true));
+  assertEquals(Action.ORDER,reply.action());
+  assertEquals(facts,reply.cards());
+  assertEquals("这笔消费账单的状态是已完成。本次实收补款 ¥0.00。",reply.message());
+  verifyNoInteractions(model);
+  service.chat(1L,"login-a",new Chat(reply.sessionId(),"继续",null,null,null));
+  verify(model).plan("继续",orderConditions,1L);
+ }
+ @Test void orderSummaryRejectsMissingAndOutOfScopeOrders(){
+  var invalid=new Chat(null,"请查询这笔消费账单",null,null,null,true);
+  assertEquals(400,assertThrows(CoolException.class,()->service.chat(1L,"login-a",invalid)).getCode());
+  when(queries.query(eq(1L),eq(Action.ORDER),any(),isNull())).thenThrow(new CoolException("无查看权限",403));
+  var restricted=new Chat(null,"请查询这笔消费账单",null,31L,null,true);
+  assertEquals(403,assertThrows(CoolException.class,()->service.chat(1L,"login-a",restricted)).getCode());
+  verifyNoInteractions(model);
+ }
  @Test void narrativeFailurePreservesRealData(){
   when(model.answer(any())).thenThrow(new IllegalStateException());var r=start();
   assertTrue(r.degraded());assertEquals(0,r.cards().get("successfulRedemptions").asInt());

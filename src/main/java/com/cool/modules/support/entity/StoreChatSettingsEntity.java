@@ -17,6 +17,7 @@ import lombok.Getter;import lombok.Setter;
 public class StoreChatSettingsEntity extends BaseEntity<StoreChatSettingsEntity>{
  @ColumnDefine(notNull=true) private Long storeId;
  @ColumnDefine(notNull=true,defaultValue="false") private Boolean aiEnabled;
+ @ColumnDefine(notNull=true,defaultValue="true",comment="人工离线后自动交给AI") private Boolean autoTakeoverEnabled;
  @ColumnDefine(notNull=true,defaultValue="0") private Integer version;
  @ColumnDefine(type="text") private String faqs;
 }

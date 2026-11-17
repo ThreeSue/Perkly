@@ -1,4 +1,5 @@
 package com.cool.modules.ai.service;
+import com.cool.modules.ai.usage.AiUsageMeter;
 import com.cool.core.exception.CoolException;
 import com.cool.modules.base.entity.sys.BaseSysParamEntity;
 import com.cool.modules.base.mapper.sys.BaseSysParamMapper;
@@ -24,6 +25,9 @@ import java.time.*;
 */
 @Service @RequiredArgsConstructor
 public class AiFeatureControl {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiUsageMeter usageMeter;
+
     private final BaseSysParamMapper params;
     private final AiSettingsMapper settings;
     private final AiAuditMapper audits;
@@ -124,5 +128,16 @@ public class AiFeatureControl {
         a.setAction("USE_"+id);
         a.setDetail("受理一次；北京时间每日计额");
         audits.insert(a);
+        if (usageMeter != null) {
+            var actor = switch (id) {
+                case "user" -> new AiUsageMeter.Actor("APP", subject);
+                case "merchant" -> new AiUsageMeter.Actor("WORKSPACE", subject);
+                case "profile" -> new AiUsageMeter.Actor("SYSTEM", null);
+                case "support" -> AiUsageMeter.currentActor();
+                default -> AiUsageMeter.currentActor();
+            };
+            String feature = id.equals("support") && !actor.type().equals("STORE") ? "supportDraft" : id;
+            usageMeter.accepted(feature, actor, null);
+        }
     }
 }

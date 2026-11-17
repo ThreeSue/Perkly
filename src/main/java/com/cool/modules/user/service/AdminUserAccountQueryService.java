@@ -4,6 +4,7 @@ import cn.hutool.json.JSONObject;
 import com.cool.core.exception.CoolException;
 import com.cool.core.request.PageResult;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import com.cool.modules.user.mapper.UserInfoMapper;
 import com.cool.modules.user.mapper.query.AdminUserAccountQueries;
@@ -63,7 +64,9 @@ public class AdminUserAccountQueryService {
             if (List.of("wechatBound", "passwordSet", "historyPending").contains(key)) {
                 value = value instanceof Boolean flag ? (flag ? 1 : 0) : ((Number) value).intValue();
             }
-            if (value instanceof Timestamp time) value = time.toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            // MySQL DATETIME 在不同驱动路径下可能返回 Timestamp 或 LocalDateTime。
+            if (value instanceof Timestamp time) value = time.toLocalDateTime();
+            if (value instanceof LocalDateTime time) value = time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             data.put(key, value);
         }
         return data;

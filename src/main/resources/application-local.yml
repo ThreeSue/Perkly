@@ -38,6 +38,8 @@ springdoc:
 
 # 设置日志级别
 logging:
+  charset:
+    console: UTF-8
   level:
     com.cool: debug
     com.cool.modules.ai.mapper: info
@@ -49,5 +51,9 @@ sms-auth:
   sign-name: 恒创联众
   template-code: "100001"
   scheme-name: quanguanjia
+  receipts:
+    enabled: ${PERKLY_SMS_RECEIPTS_ENABLED:false}
+    queue-name: ${PERKLY_SMS_RECEIPTS_QUEUE:}
+    region: ${PERKLY_SMS_RECEIPTS_REGION:cn-hangzhou}
   valid-time: 300
   interval: 60

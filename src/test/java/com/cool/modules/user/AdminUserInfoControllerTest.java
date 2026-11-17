@@ -22,6 +22,31 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class AdminUserInfoControllerTest {
+    @Test
+    void queryDatesCanBeReadBackByUpdateConverter() throws Exception {
+        var mapper = mock(com.cool.modules.user.mapper.UserInfoMapper.class);
+        var service = new AdminUserAccountQueryService(mapper);
+        var converter = new com.cool.core.config.JacksonConfig().jackson2HttpMessageConverter().getObjectMapper();
+        var time = java.time.LocalDateTime.of(2026, 10, 22, 10, 42, 39);
+        for (Object databaseTime : List.of(time, java.sql.Timestamp.valueOf(time))) {
+            var row = new com.mybatisflex.core.row.Row();
+            row.put("id", 293L);
+            row.put("createTime", databaseTime);
+            row.put("updateTime", databaseTime);
+            row.put("wechatBound", 0);
+            row.put("passwordSet", 1);
+            row.put("historyPending", 0);
+            when(mapper.selectRowsByQuery(any(com.mybatisflex.core.query.QueryWrapper.class)))
+                .thenReturn(List.of(row));
+            var result = service.list(new JSONObject()).get(0);
+            org.junit.jupiter.api.Assertions.assertEquals("2026-10-22 10:42:39", result.get("createTime"));
+            org.junit.jupiter.api.Assertions.assertEquals("2026-10-22 10:42:39", result.get("updateTime"));
+            var entity = converter.readValue(converter.writeValueAsString(result), com.cool.modules.user.entity.UserInfoEntity.class);
+            org.junit.jupiter.api.Assertions.assertNotNull(entity.getCreateTime());
+            org.junit.jupiter.api.Assertions.assertEquals(293L, entity.getId());
+        }
+    }
+
     private AdminUserAccountQueryService query;
     private MockMvc mvc;
 

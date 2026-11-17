@@ -17,5 +17,6 @@ public interface BackendAccountService {
     List<Group> groups();
     AccountPage page(PageInput input);
     void saveOwner(OwnerInput input);
-    void resetOwner(Long id);
+    default void resetOwner(Long id) { resetOwner(id, null); }
+    void resetOwner(Long id, String password);
 }

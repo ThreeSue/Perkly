@@ -22,7 +22,8 @@ public class CoolExceptionHandler {
         R r = new R();
         if (ObjUtil.isNotEmpty(e.getData())) {
             r.setData( e.getData() );
-        } else {
+        }
+        if (e.getMsg() != null || ObjUtil.isEmpty(e.getData())) {
             r.setCode( e.getCode() );
             r.setMessage( e.getMessage() );
         }

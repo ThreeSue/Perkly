@@ -21,6 +21,7 @@ import com.cool.modules.user.service.UserWxService;
 import com.cool.modules.user.util.UserSmsUtil;
 import com.cool.modules.user.util.UserPasswordUtil;
 import com.cool.modules.user.util.UserSmsUtil.SendSceneEnum;
+import com.cool.modules.user.sms.SmsScene;
 import com.mybatisflex.core.query.QueryWrapper;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,8 @@ public class UserLoginServiceImpl implements UserLoginService {
 
     private final WxProxy wxProxy;
     @Autowired
+    private com.cool.modules.searchrisk.SearchRiskService risk;
+    @Autowired
     private PlatformTransactionManager transactionManager;
     private static final String WX_BIND_PREFIX = "app:wx:binding:";
     private static final String WX_CONFIRM_PREFIX = "app:wx:confirm:";
@@ -63,11 +66,12 @@ public class UserLoginServiceImpl implements UserLoginService {
     public Object register(String phone, String smsCode, String password) {
         UserSmsUtil.validatePhone(phone);
         // 密码不符合规则时不消耗短信验证码。
+        com.cool.core.util.PasswordPolicy.validate(password, phone);
         String encodedPassword = UserPasswordUtil.encode(password);
         UserInfoEntity existing = userInfoService.getOne(
             QueryWrapper.create().eq(UserInfoEntity::getPhone, phone));
         if (existing != null) throw new CoolException("该手机号已注册，请直接登录");
-        userSmsUtil.checkVerifyCode(phone, smsCode, SendSceneEnum.ALL);
+        Long usageId=userSmsUtil.checkVerifyCode(phone, smsCode, SendSceneEnum.ALL,SmsScene.REGISTER);
         UserInfoEntity user = new UserInfoEntity();
         user.setPhone(phone);
         user.setPassword(encodedPassword);
@@ -78,23 +82,25 @@ public class UserLoginServiceImpl implements UserLoginService {
         } catch (DuplicateKeyException e) {
             throw new CoolException("该手机号已注册，请直接登录");
         }
-        return generateToken(user, null);
+        var token=generateToken(user, null);
+        userSmsUtil.linkAccount(usageId,user.getId());
+        return token;
     }
 
     @Override
-    public void smsCode(String phone, String captchaId, String code) {
+    public void smsCode(String phone, String captchaId, String code, SmsScene scene) {
         UserSmsUtil.validatePhone(phone);
         // 校验图片验证码，不通过直接抛异常
         baseSysLoginService.captchaCheck(captchaId, code);
-        userSmsUtil.sendVerifyCode(phone, SendSceneEnum.ALL);
+        userSmsUtil.sendVerifyCode(phone, SendSceneEnum.ALL,scene);
         coolCache.del("verify:img:" + captchaId);
     }
 
     @Override
     public Object phoneVerifyCode(String phone, String smsCode) {
         // 校验短信验证码，不通过直接抛异常
-        userSmsUtil.checkVerifyCode(phone, smsCode, SendSceneEnum.ALL);
-        return generateTokenByPhone(phone);
+        Long usageId=userSmsUtil.checkVerifyCode(phone,smsCode,SendSceneEnum.ALL,SmsScene.LOGIN);
+        return generateTokenByPhone(phone,usageId);
     }
 
     @Override
@@ -102,8 +108,9 @@ public class UserLoginServiceImpl implements UserLoginService {
     public void resetPassword(String phone, String smsCode, String password) {
         UserSmsUtil.validatePhone(phone);
         // 先校验密码规则，再消费一次性短信验证码；验证手机号前不暴露账号是否存在。
+        com.cool.core.util.PasswordPolicy.validate(password, phone);
         String encoded = UserPasswordUtil.encode(password);
-        userSmsUtil.checkVerifyCode(phone, smsCode, SendSceneEnum.ALL);
+        Long usageId=userSmsUtil.checkVerifyCode(phone, smsCode, SendSceneEnum.ALL,SmsScene.RESET_PASSWORD);
         UserInfoEntity user = userInfoService.getOne(QueryWrapper.create().eq(UserInfoEntity::getPhone, phone));
         if (user == null || !Integer.valueOf(1).equals(user.getStatus())) throw new CoolException("账号不存在或不可用");
         UserInfoEntity changes = new UserInfoEntity();
@@ -113,6 +120,7 @@ public class UserLoginServiceImpl implements UserLoginService {
                 .eq(UserInfoEntity::getPhone, phone).eq(UserInfoEntity::getStatus, 1);
         if (!userInfoService.update(changes, condition)) throw new CoolException("重设未成功，请重新验证手机号后重试");
         coolCache.del("app:userDetails:" + user.getId());
+        userSmsUtil.linkAccount(usageId,user.getId());
     }
 
 
@@ -150,6 +158,41 @@ public class UserLoginServiceImpl implements UserLoginService {
 
     private String wechatIdentity(UserWxEntity wx) {
         return ObjUtil.isNotEmpty(wx.getUnionid()) ? wx.getUnionid() : wx.getOpenid();
+    }
+
+    @Override
+    public synchronized void bindCurrentWechat(Long userId, String code, String smsCode) {
+        CoolPreconditions.checkEmpty(code);
+        UserInfoEntity current = userInfoService.getById(userId);
+        CoolPreconditions.check(current == null || !Integer.valueOf(1).equals(current.getStatus()), "账号不可用");
+        UserSmsUtil.validatePhone(current.getPhone());
+        UserWxEntity wx = userWxService.getMiniUserInfo(code, null, null);
+        try {
+            new TransactionTemplate(transactionManager).execute(status -> {
+                UserInfoEntity target = userInfoService.getById(userId);
+                CoolPreconditions.check(target == null || !Integer.valueOf(1).equals(target.getStatus())
+                    || !current.getPhone().equals(target.getPhone()), "账号状态已变更，请重新验证");
+                UserWxEntity lockedWx = userWxService.getOne(QueryWrapper.create()
+                    .eq(UserWxEntity::getId, wx.getId()).forUpdate());
+                CoolPreconditions.check(lockedWx == null, "微信凭证已失效，请重试");
+                UserInfoEntity owner = findWechatAccount(lockedWx);
+                CoolPreconditions.check(owner != null && !userId.equals(owner.getId()), "此微信已绑定其他账号，请使用原账号登录");
+                CoolPreconditions.check(ObjUtil.isNotEmpty(target.getUnionid()) && !wechatIdentity(wx).equals(target.getUnionid()),
+                    "当前账号已绑定其他微信");
+                CoolPreconditions.check(userWxService.count(QueryWrapper.create().eq(UserWxEntity::getUserId, userId)
+                    .ne(UserWxEntity::getId, wx.getId())) > 0, "当前账号已绑定其他微信");
+                Long usageId = userSmsUtil.checkVerifyCode(target.getPhone(), smsCode, SendSceneEnum.ALL,
+                    com.cool.modules.user.sms.SmsScene.WECHAT_BIND);
+                UserWxEntity link = new UserWxEntity();
+                link.setId(wx.getId());
+                link.setUserId(userId);
+                CoolPreconditions.check(!userWxService.updateById(link), "微信绑定失败，请重试");
+                userSmsUtil.linkAccount(usageId, userId);
+                return null;
+            });
+        } catch (DuplicateKeyException e) {
+            throw new CoolException("账号绑定发生冲突，请重新验证后重试");
+        }
     }
 
     private UserInfoEntity findWechatAccount(UserWxEntity wx) {
@@ -194,9 +237,9 @@ public class UserLoginServiceImpl implements UserLoginService {
                         .eq(UserWxEntity::getUserId, target.getId()).ne(UserWxEntity::getId, wx.getId())) > 0,
                         "该手机号已绑定其他微信");
                 }
-                userSmsUtil.checkVerifyCode(phone, smsCode, SendSceneEnum.ALL);
+                Long usageId=userSmsUtil.checkVerifyCode(phone, smsCode, SendSceneEnum.ALL,SmsScene.WECHAT_BIND);
                 if (target != null && (wxAccount == null || !target.getId().equals(wxAccount.getId()))) {
-                    return previewWechatBinding(wx, wxAccount, target);
+                    return previewWechatBinding(wx, wxAccount, target,usageId);
                 }
                 if (target == null) {
                     target = wxAccount != null ? wxAccount : new UserInfoEntity();
@@ -214,6 +257,7 @@ public class UserLoginServiceImpl implements UserLoginService {
                 link.setId(wx.getId());
                 link.setUserId(target.getId());
                 CoolPreconditions.check(!userWxService.updateById(link), "微信绑定失败，请重试");
+                userSmsUtil.linkAccount(usageId,target.getId());
                 return target;
             });
         } catch (DuplicateKeyException e) {
@@ -224,13 +268,13 @@ public class UserLoginServiceImpl implements UserLoginService {
         return generateToken((UserInfoEntity) result, null);
     }
 
-    private Dict previewWechatBinding(UserWxEntity wx, UserInfoEntity wxAccount, UserInfoEntity target) {
+    private Dict previewWechatBinding(UserWxEntity wx, UserInfoEntity wxAccount, UserInfoEntity target,Long usageId) {
         String token = UUID.randomUUID().toString();
         String sourceName = wxAccount != null ? wxAccount.getNickName() : wx.getNickName();
         String sourceAvatar = wxAccount != null ? wxAccount.getAvatarUrl() : wx.getAvatarUrl();
         boolean canUseWechatProfile = ObjUtil.isNotEmpty(sourceName) || ObjUtil.isNotEmpty(sourceAvatar);
         coolCache.set(WX_CONFIRM_PREFIX + token, Dict.create().set("wxId", wx.getId()).set("targetId", target.getId())
-            .set("phone", target.getPhone()).set("nickName", sourceName).set("avatarUrl", sourceAvatar)
+            .set("phone", target.getPhone()).set("nickName", sourceName).set("avatarUrl", sourceAvatar).set("smsUsageId",usageId)
             .set("canUseWechatProfile", canUseWechatProfile).set("expiresAt", System.currentTimeMillis() + 600_000L), 600);
         String phone = target.getPhone();
         return Dict.create().set("confirmationRequired", true).set("confirmationToken", token).set("confirmationExpire", 600)
@@ -272,16 +316,23 @@ public class UserLoginServiceImpl implements UserLoginService {
                 if ("wechat".equals(profileSource)) {
                     UserInfoEntity patch = new UserInfoEntity();
                     patch.setId(target.getId());
+                    String previousName = target.getNickName();
+                    var author = new com.cool.modules.searchrisk.SearchRiskService.Subject("APP", target.getId());
                     if (ObjUtil.isNotEmpty(ticket.getStr("nickName"))) {
                         patch.setNickName(ticket.getStr("nickName")); target.setNickName(patch.getNickName());
+                        if(risk!=null)risk.checkChangedContent(previousName,patch.getNickName(),"PROFILE",
+                            "USER_NICKNAME",target.getId(),author);
                     }
                     if (ObjUtil.isNotEmpty(ticket.getStr("avatarUrl"))) {
                         patch.setAvatarUrl(ticket.getStr("avatarUrl")); target.setAvatarUrl(patch.getAvatarUrl());
                     }
                     CoolPreconditions.check(!userInfoService.updateById(patch), "资料保存失败，请重试");
+                    if(risk!=null&&patch.getNickName()!=null)risk.recordSavedContent(previousName,patch.getNickName(),
+                        "USER_NICKNAME",target.getId(),author);
                 }
                 UserWxEntity link = new UserWxEntity(); link.setId(wx.getId()); link.setUserId(target.getId());
                 CoolPreconditions.check(!userWxService.updateById(link), "微信绑定失败，请重试");
+                userSmsUtil.linkAccount(ticket.getLong("smsUsageId"),target.getId());
                 return target;
             });
         } catch (DuplicateKeyException e) {
@@ -335,6 +386,10 @@ public class UserLoginServiceImpl implements UserLoginService {
      * 根据手机号找到用户生成token
      */
     private Object generateTokenByPhone(String phone) {
+        return generateTokenByPhone(phone,null);
+    }
+
+    private Object generateTokenByPhone(String phone,Long usageId) {
         UserInfoEntity userInfoEntity = userInfoService.getOne(
             QueryWrapper.create().eq(UserInfoEntity::getPhone, phone));
         if (ObjUtil.isEmpty(userInfoEntity)) {
@@ -345,7 +400,9 @@ public class UserLoginServiceImpl implements UserLoginService {
             userInfoEntity.setNickName(generateRandomNickname());
             userInfoEntity.save();
         }
-        return generateToken(userInfoEntity, null);
+        var token=generateToken(userInfoEntity, null);
+        userSmsUtil.linkAccount(usageId,userInfoEntity.getId());
+        return token;
     }
 
     /**

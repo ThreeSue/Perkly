@@ -51,6 +51,12 @@ class UserPasswordResetTest {
     private final UserLoginServiceImpl login = new UserLoginServiceImpl(cache, tokens, users, sms,
             mock(BaseSysLoginService.class), mock(UserWxService.class), mock(WxProxy.class));
 
+    @Test void weakNewPasswordsDoNotConsumeSmsOrWriteAccounts() {
+        assertThrows(CoolException.class, () -> login.register(PHONE, "123456", "Abc1234!"));
+        assertThrows(CoolException.class, () -> login.resetPassword(PHONE, "123456", "Password123!"));
+        verifyNoInteractions(sms, users, tokens);
+    }
+
     @AfterEach void clearContext() { SecurityContextHolder.clearContext(); }
 
     private UserInfoEntity account() {
@@ -65,7 +71,7 @@ class UserPasswordResetTest {
         UserInfoEntity user = account();
         when(users.update(any(UserInfoEntity.class), any(QueryWrapper.class))).thenReturn(true);
         login.resetPassword(PHONE, "123456", "NewPass456");
-        verify(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL);
+        verify(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL, com.cool.modules.user.sms.SmsScene.RESET_PASSWORD);
         var changes = ArgumentCaptor.forClass(UserInfoEntity.class);
         var condition = ArgumentCaptor.forClass(QueryWrapper.class);
         verify(users).update(changes.capture(), condition.capture());
@@ -90,7 +96,7 @@ class UserPasswordResetTest {
 
     @Test void wrongExpiredOrReplayedCodeCannotReadOrUpdateAccount() {
         for (String message : List.of("验证码错误", "验证码已过期，请重新获取", "验证码错误次数过多，请重新获取")) {
-            doThrow(new CoolException(message)).when(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL);
+            doThrow(new CoolException(message)).when(sms).checkVerifyCode(PHONE, "123456", SendSceneEnum.ALL, com.cool.modules.user.sms.SmsScene.RESET_PASSWORD);
             assertThrows(CoolException.class, () -> login.resetPassword(PHONE, "123456", "NewPass456"));
         }
         verifyNoInteractions(users, cache, tokens);

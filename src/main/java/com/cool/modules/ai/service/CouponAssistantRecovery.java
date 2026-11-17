@@ -1,5 +1,6 @@
 package com.cool.modules.ai.service;
 
+import com.cool.modules.ai.usage.AiUsageMeter;
 import com.cool.core.exception.CoolException;
 import com.cool.modules.ai.config.AiProperties;
 import com.cool.modules.coupon.entity.CouponTemplateEntity;
@@ -30,6 +31,9 @@ import static com.cool.modules.ai.service.CouponAssistantService.*;
 @Service
 @RequiredArgsConstructor
 public class CouponAssistantRecovery {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiUsageMeter usageMeter;
+
     private final AiProperties ai;
     private final ObjectMapper json;
     public record Proposal(String question, Fields fields, StockEdit stock, List<String> prerequisites) {}
@@ -56,10 +60,10 @@ public class CouponAssistantRecovery {
         var factory = new JdkClientHttpRequestFactory(); factory.setReadTimeout(Duration.ofSeconds(20));
         var api = OpenAiApi.builder().apiKey(ai.getApiKey()).baseUrl(ai.getBaseUrl()).completionsPath("/chat/completions")
             .restClientBuilder(RestClient.builder().requestFactory(factory)).build();
-        return ChatClient.create(OpenAiChatModel.builder().openAiApi(api)
+        return AiUsageMeter.client(usageMeter, OpenAiChatModel.builder().openAiApi(api)
             .defaultOptions(OpenAiChatOptions.builder().model(ai.getTextModel()).temperature(0.0).maxTokens(1600)
                 .extraBody(Map.of("enable_thinking", false)).build())
-            .retryTemplate(RetryTemplate.builder().maxAttempts(1).build()).build());
+            .retryTemplate(RetryTemplate.builder().maxAttempts(1).build()).build(), "admin");
     }
 
     public Proposal propose(Chat request, Intent original, CouponTemplateEntity current, String blocker, List<String> allowed) {
@@ -73,7 +77,7 @@ public class CouponAssistantRecovery {
                 .defaultOptions(OpenAiChatOptions.builder().model(ai.getTextModel()).temperature(0.0).maxTokens(1600)
                     .extraBody(Map.of("enable_thinking", false)).build())
                 .retryTemplate(RetryTemplate.builder().maxAttempts(1).build()).build();
-            return ChatClient.create(model).prompt().system("""
+            return AiUsageMeter.client(usageMeter, model, "admin").prompt().system("""
                 你为优惠券操作分析真实业务拦截，提出最小修复建议。你没有执行工具，所有建议还需服务端校验和用户确认。
                 输出question、fields、stock、prerequisites。fields仅填写建议替换的字段，其余原任务会保留，不能改变券型、目标或商家。
                 prerequisites只能从allowedPrerequisites选择，需要先做的步骤按顺序列出。没有合适步骤时不得编造；不得自动审核通过、提权、删除历史、修改已发放数量或更改其他对象。

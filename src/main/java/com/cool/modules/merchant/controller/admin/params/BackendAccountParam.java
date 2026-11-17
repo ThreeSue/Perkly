@@ -16,5 +16,7 @@ public final class BackendAccountParam {
             this(merchantId, storeId, role, status, keyWord, page, size, null);
         }
     }
-    public record OwnerInput(Long id, String name, Integer status) {}
+    public record OwnerInput(Long id, String name, Integer status, String password) {
+        public OwnerInput(Long id, String name, Integer status) { this(id, name, status, null); }
+    }
 }

@@ -1,4 +1,5 @@
 package com.cool.modules.support.chat;
+import com.cool.modules.ai.usage.AiUsageMeter;
 import static com.cool.modules.support.chat.StoreChatModels.*;
 import com.cool.core.exception.CoolException;import com.cool.modules.support.entity.*;import com.cool.modules.support.mapper.*;
 import com.mybatisflex.core.query.QueryWrapper;import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +19,7 @@ import jakarta.annotation.PreDestroy;import java.util.*;import java.util.concurr
 public class StoreChatAiWorker {
  @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.ai.service.AiFeatureControl featureControl;
  @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.SearchRiskService risk;
+ @org.springframework.beans.factory.annotation.Autowired private com.cool.modules.searchrisk.RiskChatContext riskChatContext;
  private final StoreChatAiJobMapper jobs;private final StoreChatMapper chats;private final StoreChatMessageMapper messages;
  private final StoreChatSettingsService settings;private final StoreChatKnowledge knowledge;private final StoreChatAiModel model;
  private final StoreChatReception reception;private final StoreChatCards cards;private final ObjectMapper json;private final TransactionTemplate tx;
@@ -47,8 +49,14 @@ public class StoreChatAiWorker {
    var chat=chats.selectOneById(job.getChatId());if(!matches(chat,job)){finish(id,null,null);return;}
    var setting=settings.read(chat.getStoreId(),false);settingVersion=setting.version();if(!setting.aiEnabled()){finish(id,null,settingVersion);return;}
    var question=messages.selectOneById(job.getMessageId());
-   if(featureControl!=null)featureControl.consume("support",chat.getStoreId());
-   source=knowledge.collect(chat,question==null?"":question.getContent(),false);reply=model.reply(source,false);
+   var actor = new AiUsageMeter.Actor("STORE", chat.getStoreId());
+   AiUsageMeter.as(actor, () -> {
+    if (featureControl != null) featureControl.consume("support", chat.getStoreId());
+    return null;
+   });
+   source=knowledge.collect(chat,question==null?"":question.getContent(),false);
+   Knowledge modelInput = source;
+   reply=AiUsageMeter.as(actor, () -> model.reply(modelInput, false));
   }catch(Exception unavailable){ /* A real fallback is persisted under the same version fence. */ }
   finish(id,reply,settingVersion,source);
  }
@@ -57,10 +65,16 @@ public class StoreChatAiWorker {
  }
  public void finish(Long id,ModelReply reply,Integer settingVersion,Knowledge source){
   tx.executeWithoutResult(status->{
+   var snapshot=jobs.selectOneById(id);if(snapshot==null)return;
+   // Same lock order as handoff/resume: chat first, job second.
+   var chat=chats.selectOneByQuery(QueryWrapper.create().eq(StoreChatEntity::getId,snapshot.getChatId()).forUpdate());
    var job=jobs.selectOneByQuery(QueryWrapper.create().eq(StoreChatAiJobEntity::getId,id).forUpdate());
    if(job==null || !"RUNNING".equals(job.getState()))return;
-   var chat=chats.selectOneByQuery(QueryWrapper.create().eq(StoreChatEntity::getId,job.getChatId()).forUpdate());
-   if(!matches(chat,job)){job.setState("CANCELLED");jobs.update(job);return;}
+   if(!matches(chat,job)){
+    job.setState("CANCELLED");jobs.update(job);
+    if(chat!=null && "AI".equals(chat.getState()) && chat.getLatestQuestionId()==null){reception.resume(chat);reception.save(chat);}
+    return;
+   }
    try{
     access.own("APP",chat.getCustomerId(),chat.getId(),"chat:view",false);
     cards.build(chat,"AI",new CardRef(CardType.STORE,chat.getStoreId()));
@@ -87,22 +101,26 @@ public class StoreChatAiWorker {
      catch(CoolException changed){row.setContent("关联资料已变化，暂时无法可靠回答，请留言等待门店工作人员。");reliable=false;row.setSenderKind("SYSTEM");row.setSenderName("接待提示");row.setReferenceJson("[]");}
     }
    }
-   try{risk.checkContent(row.getContent(),"AI_OUTPUT","CHAT",chat.getId());}
+   Long riskId=null;
+   try{if(reliable)riskId=risk.checkChatMessage(row.getContent(),new com.cool.modules.searchrisk.SearchRiskService.Subject("SYSTEM",null),()->riskChatContext.snapshot(chat));}
    catch(CoolException blocked){if(blocked.getCode()!=422)throw blocked;row.setContent("自动回复暂不可用，请等待门店工作人员处理。");row.setSenderKind("SYSTEM");row.setReferenceJson("[]");row.setCardSnapshot(null);reliable=false;}
    messages.insert(row);
-   if(!reliable || reply.handoff())chat.setState("WAITING");
+   risk.bindChatMessage(riskId,row.getId());
+   if(!reliable || reply.handoff()){chat.setState("WAITING");chat.setHumanRequested(true);}
    chat.setVersion(chat.getVersion()+1);chat.setLatestQuestionId(null);reception.save(chat);job.setState("DONE");jobs.update(job);
   });
  }
  private boolean matches(StoreChatEntity c,StoreChatAiJobEntity j){return c!=null && "AI".equals(c.getState()) && Objects.equals(c.getVersion(),j.getChatVersion()) && Objects.equals(c.getRound(),j.getRound()) && Objects.equals(c.getLatestQuestionId(),j.getMessageId());}
  public Advice suggest(Long actor,Suggest p,StoreChatAccess access){
-  if(p!=null)risk.checkContent(p.instruction(),"AI_INPUT","CHAT_SUGGEST",p.chatId());
+  if(p!=null)risk.checkContent(p.instruction(),"AI_INPUT","CHAT_SUGGEST:instruction",p.chatId());
   if(p==null || p.instruction()==null || p.instruction().isBlank() || p.instruction().length()>1000 || p.previous()!=null && p.previous().length()>2000)throw new CoolException("建议请求无效",400);
   var chat=access.own("WORKSPACE",actor,p.chatId(),"chat:reply",false);
   if(!"HUMAN".equals(chat.getState()) || !actor.equals(chat.getAssigneeId()))throw new CoolException("仅当前接待员工可生成建议",409);
   var source=knowledge.collect(chat,"员工要求："+p.instruction()+"\n上一候选草稿："+Objects.toString(p.previous(),""),true);
-  if(featureControl!=null)featureControl.consume("support",chat.getStoreId());
-  var result=model.reply(source,true);
+  var result=AiUsageMeter.as(new AiUsageMeter.Actor("WORKSPACE", actor), () -> {
+   if (featureControl != null) featureControl.consume("support", chat.getStoreId());
+   return model.reply(source, true);
+  });
   var latest=access.own("WORKSPACE",actor,p.chatId(),"chat:reply",false);
   if(!"HUMAN".equals(latest.getState()) || !actor.equals(latest.getAssigneeId()) || !Objects.equals(chat.getVersion(),latest.getVersion()))throw new CoolException("会话已变化，请重新生成建议",409);
   var expected=new HashMap<CardRef,CardData>();expected.put(new CardRef(source.store().type(),source.store().id()),source.store().current());

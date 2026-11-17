@@ -31,14 +31,14 @@ public class AdminMerchantAccountController {
         }
         return R.ok(accounts.provision(input.username(), input.name(), input.password(), input.merchantId()));
     }
-    public record ResetInput(Long merchantId) {}
+    public record ResetInput(Long merchantId, String password) {}
 
     @PostMapping("/resetPassword")
     public R<?> resetPassword(@RequestBody ResetInput input) {
         if (CoolSecurityUtil.getCurrentUserType() != UserTypeEnum.ADMIN || !CoolSecurityUtil.isSuperAdmin()) {
             throw new CoolException("仅平台超级管理员可重置商家密码", 403);
         }
-        return R.ok(accounts.resetMerchantPassword(input.merchantId()));
+        return R.ok(accounts.resetMerchantPassword(input.merchantId(), input.password()));
     }
 
 }

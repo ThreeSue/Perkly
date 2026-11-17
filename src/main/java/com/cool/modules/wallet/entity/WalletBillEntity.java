@@ -66,6 +66,10 @@ public class WalletBillEntity extends BaseEntity<WalletBillEntity> {
     private String paymentRequestId;
     @ColumnDefine(comment = "实付分")
     private Long paidAmount;
+    @ColumnDefine(length = 24, comment = "收款渠道 PAYMENT_CODE 或 ZERO_COUPON")
+    private String paymentChannel;
+    @ColumnDefine(comment = "结清时间")
+    private Date paidAt;
     @ColumnDefine(type = "mediumtext", comment = "结算券与活动金额快照")
     private String settlementSnapshot;
 }

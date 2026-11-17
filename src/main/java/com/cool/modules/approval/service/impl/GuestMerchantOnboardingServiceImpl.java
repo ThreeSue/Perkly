@@ -64,7 +64,7 @@ public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardi
 
     @Override public String verify(String phone, String smsCode) {
         UserSmsUtil.validatePhone(phone);
-        sms.checkVerifyCode(phone,smsCode,UserSmsUtil.SendSceneEnum.ALL);
+        sms.checkVerifyCode(phone,smsCode,UserSmsUtil.SendSceneEnum.ALL,com.cool.modules.user.sms.SmsScene.MERCHANT_ONBOARDING);
         String token = random(32);
         cache.set("onboarding:"+SecureUtil.sha256(token),Dict.create().set("phone",phone)
                 .set("expiresAt",System.currentTimeMillis()+SESSION_MS),1800);
@@ -78,8 +78,6 @@ public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardi
     }
     @Override public MerchantOnboardingResp submit(Submit input, boolean resubmit) {
         validate(input); String phone=phone(input.onboardingToken());
-        risk.checkContent(input.merchantName(),"MERCHANT","MERCHANT_APPLICATION_NAME",null);
-        risk.checkContent(input.introduction(),"MERCHANT","MERCHANT_APPLICATION_INTRODUCTION",null);
         var category=categories.selectOneById(input.categoryId());
         require(category != null && Integer.valueOf(1).equals(category.getStatus()),"请选择启用的商家分类");
         Map<String,Object> data=new LinkedHashMap<>();
@@ -100,6 +98,8 @@ public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardi
             }
         }
         MerchantActivationEntity credential;
+        risk.checkContent(input.merchantName(),"MERCHANT","MERCHANT_APPLICATION_NAME",null);
+        risk.checkContent(input.introduction(),"MERCHANT","MERCHANT_APPLICATION_INTRODUCTION",null);
         MerchantApplicationEntity old=null;
         if (resubmit) {
             old=current(input.applicationNo(),true);
@@ -120,6 +120,7 @@ public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardi
         application.setMerchantName(input.merchantName().trim());application.setSnapshot(JSONUtil.toJsonStr(data));
         application.setStatus(1);application.setCurrentFlag(1);application.setSubmittedBy(input.contactName().trim());
         application.setSubmittedAt(new Date());application.setCreateTime(new Date());applications.insertSelective(application);
+        risk.bind("MERCHANT",application.getId());
         history.append("MERCHANT_APPLICATION",application.getId(),null,application.getSubmissionNo(),application.getSubmissionNo(),"SUBMIT",null,application.getSnapshot(),application.getSubmittedBy());
         return response(application,credential,true);
     }
@@ -157,6 +158,7 @@ public class GuestMerchantOnboardingServiceImpl implements GuestMerchantOnboardi
     }
     @Override public MerchantOnboardingResp activate(Activate input) {
         validate(input);String phone=phone(input.onboardingToken());
+        com.cool.core.util.PasswordPolicy.validate(input.password(), input.username(), phone);
         require(input.password().getBytes(StandardCharsets.UTF_8).length<=72 && !input.password().matches(".*\\s.*"),"商家密码不可包含空白且不能超过72字节");
         String code=input.code().trim().toUpperCase(Locale.ROOT);
         require(code.matches("MK-[A-F0-9]{32}"),"营业码格式不正确");

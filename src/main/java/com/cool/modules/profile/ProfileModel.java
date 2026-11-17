@@ -1,10 +1,10 @@
 package com.cool.modules.profile;
+import com.cool.modules.ai.usage.AiUsageMeter;
 import com.cool.modules.ai.config.AiProperties;
 import com.cool.core.exception.CoolException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.*;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -23,6 +23,9 @@ import java.util.*;
  */
 @Service @RequiredArgsConstructor
 public class ProfileModel {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiUsageMeter usageMeter;
+
  public static final String VERSION="profile-grounded-v1";
  private final AiProperties ai;private final ObjectMapper json;
  public record Tag(String label,String contentKey,String quote,List<String> factKeys) {}
@@ -41,9 +44,9 @@ public class ProfileModel {
    var factory=new JdkClientHttpRequestFactory();factory.setReadTimeout(Duration.ofSeconds(45));
    var api=OpenAiApi.builder().apiKey(ai.getApiKey()).baseUrl(ai.getBaseUrl()).completionsPath("/chat/completions")
     .restClientBuilder(RestClient.builder().requestFactory(factory)).build();
-   var client=ChatClient.create(OpenAiChatModel.builder().openAiApi(api).defaultOptions(OpenAiChatOptions.builder()
+   var client=AiUsageMeter.client(usageMeter, OpenAiChatModel.builder().openAiApi(api).defaultOptions(OpenAiChatOptions.builder()
     .model(ai.getTextModel()).temperature(0.0).maxTokens(1800).extraBody(Map.of("enable_thinking",false)).build())
-    .retryTemplate(RetryTemplate.builder().maxAttempts(1).build()).build());
+    .retryTemplate(RetryTemplate.builder().maxAttempts(1).build()).build(), "profile");
    var result=client.prompt().system("""
     从提供的商家内容与聚合提取消费兴趣标签，返回JSON tags数组和sufficiency。
     每个tag含label、contentKey、quote、factKeys。最多8个标签，label是内容中逐字出现的2至12字品类词，例如咖啡、海鲜；quote是原文连续片段，必须包含label。

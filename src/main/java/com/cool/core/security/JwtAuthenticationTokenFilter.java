@@ -54,8 +54,10 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        if (PathUtils.isMatch(ignoredUrlsProperties.getAdminAuthUrls(), requestURI)
-                && !(requestURI.startsWith("/app/") && StrUtil.isNotBlank(request.getHeader("Authorization")))) {
+        boolean optionalAppToken = requestURI.startsWith("/app/")
+            && !requestURI.startsWith("/app/merchant/onboarding/")
+            && StrUtil.isNotBlank(request.getHeader("Authorization"));
+        if (PathUtils.isMatch(ignoredUrlsProperties.getAdminAuthUrls(), requestURI) && !optionalAppToken) {
             // 请求路径在忽略后台鉴权url里支持通配符，放行
             chain.doFilter(request, response);
             return;

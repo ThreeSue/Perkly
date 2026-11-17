@@ -59,11 +59,61 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
 
     private void validateInput(CouponTemplateEntity input, List<Long> previousStores) {
         CouponTemplateRules.validate(input);
-        risk.checkContent(input.getName(),"COUPON","COUPON_NAME",input.getId());
-        risk.checkContent(input.getDescription(),"COUPON","COUPON_DESCRIPTION",input.getId());
         validateMerchant(input);
         validateStores(input, previousStores);
         validateContents(input);
+    }
+
+    private Map<CouponContentParam, List<Long>> checkDraftContent(CouponTemplateEntity input, CouponTemplateEntity previous,
+                                   List<CouponContentParam> previousItems) {
+        var merchant=merchants.selectOneById(input.getMerchantId());
+        var context=new com.cool.modules.searchrisk.SearchRisk.CouponContext(
+            input.getMerchantId(),merchant==null?null:merchant.getName(),input.getName());
+        risk.checkCouponChange(previous == null ? null : previous.getName(),
+                input.getName(), "COUPON_NAME", input.getId(),context);
+        risk.checkCouponChange(previous == null ? null : previous.getDescription(),
+                input.getDescription(), "COUPON_DESCRIPTION", input.getId(),context);
+        Map<Long, CouponContentParam> previousByProduct = new HashMap<>();
+        Map<CouponContentParam, List<Long>> pendingItems = new IdentityHashMap<>();
+        for (var item : previousItems) if (item.getProductId() != null) previousByProduct.put(item.getProductId(), item);
+        for (var item : input.getContentItems()) {
+            var oldItem = previousByProduct.get(item.getProductId());
+            if (item.getProductId() == null) {
+                var ids = new ArrayList<Long>(2);
+                ids.add(risk.checkNewCouponItem(item.getName(),"COUPON_ITEM_NAME",context));
+                ids.add(risk.checkNewCouponItem(item.getItemDescription(),"COUPON_ITEM_DESCRIPTION",context));
+                pendingItems.put(item,ids);
+                continue;
+            }
+            String field = "COUPON_ITEM_DESCRIPTION:" + item.getProductId();
+            risk.checkCouponChange(oldItem == null ? null : oldItem.getItemDescription(),
+                    item.getItemDescription(), field, input.getId(), context);
+        }
+        return pendingItems;
+    }
+
+    private void recordSavedContent(CouponTemplateEntity input, CouponTemplateEntity previous,
+                                    List<CouponContentParam> previousItems, Map<CouponContentParam, List<Long>> newProducts) {
+        risk.recordSavedContent(previous == null ? null : previous.getName(),
+                input.getName(), "COUPON_NAME", input.getId());
+        risk.recordSavedContent(previous == null ? null : previous.getDescription(),
+                input.getDescription(), "COUPON_DESCRIPTION", input.getId());
+        Map<Long, CouponContentParam> previousByProduct = new HashMap<>();
+        for (var item : previousItems) previousByProduct.put(item.getProductId(), item);
+        for (var item : input.getContentItems()) {
+            var oldItem = previousByProduct.get(item.getProductId());
+            if (newProducts.containsKey(item)) {
+                risk.recordSavedContent(null, item.getName(),"COUPON_ITEM_NAME:" + item.getProductId(), input.getId());
+                for (Long riskId : newProducts.get(item)) risk.bindCouponItem(riskId,input.getId(),item.getProductId());
+            }
+            risk.recordSavedContent(oldItem == null ? null : oldItem.getItemDescription(),
+                    item.getItemDescription(), "COUPON_ITEM_DESCRIPTION:" + item.getProductId(), input.getId());
+        }
+        for (var item : previousItems) {
+            if(input.getContentItems().stream().noneMatch(current->Objects.equals(item.getProductId(),current.getProductId())))
+                risk.recordSavedContent(item.getItemDescription(),null,
+                        "COUPON_ITEM_DESCRIPTION:" + item.getProductId(),input.getId());
+        }
     }
 
     @Override
@@ -96,10 +146,12 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         e.setRuleVersion(1);
         e.setCover(materials.resolveCover(e.getMerchantId(), e.getCoverMaterialId(), e.getCover()));
         validateInput(e, List.of());
+        var newProducts = checkDraftContent(e, null, List.of());
         Long id = super.add(e);
         risk.bind("COUPON",id);
         saveStores(e);
         relations.replaceContents(e.getMerchantId(), id, e.getContentItems());
+        recordSavedContent(e, null, List.of(), newProducts);
         return id;
     }
 
@@ -129,12 +181,14 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         if (changed && relations.activePublications(e.getId()) > 0) {
             throw new CoolException("此券正在审核或已上架，请先撤回审核或下架后修改规则");
         }
+        var newProducts = checkDraftContent(e, old, oldContents);
         e.setRuleVersion(old.getRuleVersion() + (changed ? 1 : 0));
         // false表示把已清空的旧类型金额、旧有效期字段也写入NULL。
         boolean updated = mapper.update(e, false) > 0;
         if (updated) {
             saveStores(e);
             relations.replaceContents(e.getMerchantId(), e.getId(), e.getContentItems());
+            recordSavedContent(e, old, oldContents, newProducts);
         }
         return updated;
     }
@@ -218,8 +272,6 @@ public class CouponTemplateServiceImpl extends BaseServiceImpl<CouponTemplateMap
         for (CouponContentParam item : items) {
             if (item == null || item.getQuantity() == null || item.getQuantity() < 1) throw new CoolException("项目数量必须为正整数");
             String note = item.getItemDescription();
-            risk.checkContent(note,"COUPON","COUPON_ITEM_DESCRIPTION",e.getId());
-            if(item.getProductId()==null)risk.checkContent(item.getName(),"COUPON","COUPON_ITEM_NAME",e.getId());
             item.setItemDescription(note == null || note.isBlank() ? null : note.trim());
             if (item.getItemDescription() != null && item.getItemDescription().length() > 500) throw new CoolException("项目说明不能超过500字");
             if (item.getProductId() != null) {

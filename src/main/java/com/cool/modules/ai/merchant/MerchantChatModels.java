@@ -19,7 +19,11 @@ public final class MerchantChatModels {
  public record Conditions(String period,LocalDate startDate,LocalDate endDate,Long operatorId,Long couponId,Long orderId,String keyword) {
   public static Conditions empty(){return new Conditions("TODAY",null,null,null,null,null,null);}
  }
- public record Chat(String sessionId,String message,Long couponId,Long orderId,String code) {}
+ public record Chat(String sessionId,String message,Long couponId,Long orderId,String code,boolean orderSummary) {
+  public Chat(String sessionId,String message,Long couponId,Long orderId,String code){
+   this(sessionId,message,couponId,orderId,code,false);
+  }
+ }
  public record Plan(Action action,Conditions conditions,String question) {}
  public record Reply(String sessionId,String message,Action action,Conditions conditions,JsonNode cards,List<String> suggestions,boolean degraded,String operation) {}
 }

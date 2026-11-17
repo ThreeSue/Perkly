@@ -1,12 +1,12 @@
 package com.cool.modules.ai.service;
 
+import com.cool.modules.ai.usage.AiUsageMeter;
 import com.cool.core.exception.CoolException;
 import com.cool.modules.ai.config.AiProperties;
 import com.cool.modules.coupon.entity.*;
 import com.cool.modules.coupon.mapper.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
@@ -34,6 +34,9 @@ import static com.cool.modules.ai.service.CouponAssistantService.selected;
 @Service
 @RequiredArgsConstructor
 public class CouponAssistantInterpreter {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiUsageMeter usageMeter;
+
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
     private final AiProperties ai;
     private final ObjectMapper json;
@@ -52,7 +55,7 @@ public class CouponAssistantInterpreter {
                 .defaultOptions(OpenAiChatOptions.builder().model(ai.getTextModel()).maxTokens(4096).temperature(0.0)
                     .extraBody(Map.of("enable_thinking", false)).build())
                 .retryTemplate(RetryTemplate.builder().maxAttempts(1).build()).build();
-            Intent parsed = Objects.requireNonNull(ChatClient.create(model).prompt().system("""
+            Intent parsed = Objects.requireNonNull(AiUsageMeter.client(usageMeter, model, "admin").prompt().system("""
                 你是优惠券助手的意图解析器，只输出 JSON，不执行任何操作或编造统计。
                 action 只能为 CHAT、CANCEL、ASK、FIND、DETAIL、EDIT_FORM、EDIT_COVER、COUNT、REPORT、SALES、REDEEM、RANK_SALES、RANK_REDEEM、COMPARE_SALES、COMPARE_REDEEM、CREATE、UPDATE、UPDATE_AND_SUBMIT、DELETE、ENABLE、DISABLE、SUBMIT、WITHDRAW、PUBLISH、UNPUBLISH、APPROVE、REJECT。
                 请求生成、上传或更换封面时使用EDIT_COVER，提供原表单的生图与素材选择入口，不声称已生成或保存图片，不生成图片地址或素材ID。复杂编辑、修改券型、清空时间或优惠上限使用EDIT_FORM，继续复用原业务表单。上述动作仍须明确目标券。

@@ -70,12 +70,14 @@ public class MerchantRegistrationServiceImpl implements MerchantRegistrationServ
         application.setApplicationNo(old==null ? UUID.randomUUID().toString() : old.getApplicationNo());
         application.setSubmissionNo(old==null ? 1 : old.getSubmissionNo()+1);
         application.setUsername(input.getUsername()); application.setSubmittedBy(input.getContactName().trim());
+        if (old == null) com.cool.core.util.PasswordPolicy.validate(input.getPassword(), input.getUsername(), input.getContactPhone());
         application.setPasswordHash(old==null ? passwords.encode(input.getPassword()) : old.getPasswordHash());
         application.setMerchantName(input.getMerchantName().trim()); application.setSnapshot(JSONUtil.toJsonStr(snapshot));
         application.setStatus(1); application.setCurrentFlag(1); application.setSubmittedAt(new Date()); application.setCreateTime(new Date());
         if (old!=null) { old.setCurrentFlag(0); applications.update(old); }
         try { applications.insertSelective(application); }
         catch (org.springframework.dao.DuplicateKeyException duplicate) { throw new CoolException("申请已存在，请勿重复提交"); }
+        risk.bind("MERCHANT",application.getId());
         history.append("MERCHANT_APPLICATION",application.getId(),null,application.getSubmissionNo(),application.getSubmissionNo(),"SUBMIT",null,application.getSnapshot(),input.getContactName().trim());
         MerchantRegistrationResp result=new MerchantRegistrationResp();
         result.setApplicationNo(application.getApplicationNo()); result.setSubmissionNo(application.getSubmissionNo()); result.setStatus("待审核");

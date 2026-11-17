@@ -1,12 +1,12 @@
 package com.cool.modules.ai.service;
 
+import com.cool.modules.ai.usage.AiUsageMeter;
 import com.cool.core.exception.CoolException;
 import com.cool.modules.ai.config.AiProperties;
 import com.cool.modules.coupon.entity.*;
 import com.cool.modules.coupon.mapper.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
@@ -33,9 +33,13 @@ import com.cool.modules.ai.service.CouponAssistantService.*;
 @Service
 @RequiredArgsConstructor
 public class CouponAssistantNarrator {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiUsageMeter usageMeter;
+
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
     private final AiProperties ai;
     private final ObjectMapper json;
+    private final com.cool.modules.searchrisk.SearchRiskService risk;
     private record Narration(String reply) {}
 
     public String narrate(Chat input, Reply result) {
@@ -49,7 +53,7 @@ public class CouponAssistantNarrator {
                 .defaultOptions(OpenAiChatOptions.builder().model(ai.getTextModel()).maxTokens(900).temperature(0.7)
                     .extraBody(Map.of("enable_thinking", false)).build())
                 .retryTemplate(RetryTemplate.builder().maxAttempts(1).build()).build();
-            var client = ChatClient.create(model);
+            var client = AiUsageMeter.client(usageMeter, model, "admin");
             String validationFeedback = "";
             for (int attempt = 0; attempt < 2; attempt++) {
             Narration answer;
@@ -95,6 +99,7 @@ public class CouponAssistantNarrator {
                     + "；逐字包含requiredCouponNames和requiredQuestion；方案尚未执行，使用确认后再执行的措辞，不能宣称支持的字段不支持。";
                 continue;
             }
+            risk.checkContent(text,"AI_OUTPUT","COUPON_ASSISTANT_REPLY",null);
             return text;
             }
         } catch (Exception unavailable) {

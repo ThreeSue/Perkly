@@ -43,6 +43,9 @@ public class StoreChatController {
     @GetMapping("/read-state") public R<?> readState(@RequestParam Long chatId){return R.ok(readStates.state(kind(),actor(),chatId));}
     @GetMapping("/unread") public R<?> unread(){return R.ok(readStates.unread(kind(),actor()));}
     @GetMapping("/detail") public R<?> detail(@RequestParam Long chatId){return R.ok(reception.detail(kind(),actor(),chatId));}
+    @GetMapping("/card") public R<?> card(@RequestParam Long chatId,@RequestParam CardType type,@RequestParam Long id){
+        return R.ok(cards.build(access.own(kind(),actor(),chatId,"chat:view",false),kind(),new CardRef(type,id)));
+    }
     @GetMapping("/coupon-options") public R<?> couponOptions(@RequestParam Long chatId,@RequestParam(required=false) String keyword,
         @RequestParam(defaultValue="false") boolean all,@RequestParam(defaultValue="1") int pageNumber,@RequestParam(defaultValue="20") int pageSize){
         return R.ok(cards.coupons(access.own(kind(),actor(),chatId,"chat:view",false),kind(),keyword,all,pageNumber,pageSize));
@@ -52,8 +55,11 @@ public class StoreChatController {
     }
     @PostMapping("/handoff") public R<?> handoff(@RequestBody Transition p){return R.ok(reception.transition(kind(),actor(),"HANDOFF",p));}
     @PostMapping("/takeover") public R<?> takeover(@RequestBody Transition p){return R.ok(reception.transition(kind(),actor(),"TAKEOVER",p));}
+    @PostMapping("/return-to-ai") public R<?> returnToAi(@RequestBody Transition p){return R.ok(reception.transition(kind(),actor(),"RETURN_TO_AI",p));}
     @PostMapping("/close") public R<?> close(@RequestBody Transition p){return R.ok(reception.transition(kind(),actor(),"CLOSE",p));}
     private Long staff(){if(!"WORKSPACE".equals(kind()))throw new CoolException("仅门店员工可使用",403);return actor();}
+    @org.springframework.beans.factory.annotation.Autowired private StoreChatPresenceService presence;
+    @PostMapping("/presence") public R<?> presence(@RequestBody StoreChatPresenceService.Input input){return R.ok(presence.heartbeat(staff(),input));}
     @GetMapping("/settings") public R<?> settings(){return R.ok(settings.get(staff()));}
     @PostMapping("/settings") public R<?> saveSettings(@RequestBody SettingsInput p){return R.ok(settings.save(staff(),p));}
     @PostMapping("/suggest") public R<?> suggest(@RequestBody Suggest p){return R.ok(ai.suggest(staff(),p,access));}

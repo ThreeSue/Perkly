@@ -33,13 +33,13 @@ public class UserFeedbackService {
         access.customer(customer);
         if(p==null || p.content()==null || p.content().isBlank() || p.content().length()>2000)throw new CoolException("反馈内容需为1至2000字");
         SupportAccess.request(p.requestId());var urls=images.validate("APP",customer,p.images());
-        risk.checkContent(p.content(),"FEEDBACK","FEEDBACK",null);
         users.selectOneByQuery(QueryWrapper.create().eq(UserInfoEntity::getId,customer).forUpdate());
         var old=feedback.selectOneByQuery(QueryWrapper.create().eq(UserFeedbackEntity::getCustomerId,customer).eq(UserFeedbackEntity::getRequestId,p.requestId()));
         if(old!=null){
             if(!old.getContent().equals(p.content().trim()) || !Objects.equals(old.getImages(),urls))throw new CoolException("请求标识已用于其他反馈",409);
             return old.getId();
         }
+        risk.checkContent(p.content(),"FEEDBACK","FEEDBACK",null);
         var row=new UserFeedbackEntity();row.setCustomerId(customer);row.setRequestId(p.requestId());row.setContent(p.content().trim());row.setImages(urls);row.setStatus("PENDING");feedback.insert(row);risk.bind("FEEDBACK",row.getId());return row.getId();
     }
     public UserFeedbackEntity detail(Long customer,Long id){

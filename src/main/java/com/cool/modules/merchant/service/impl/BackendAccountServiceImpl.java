@@ -129,17 +129,17 @@ public class BackendAccountServiceImpl implements BackendAccountService {
         if (input.name() == null || input.name().isBlank() || input.name().trim().length() > 50) throw new CoolException("姓名必填且不超过50字");
         if (input.status() == null || (input.status() != 0 && input.status() != 1)) throw new CoolException("请选择启用或停用");
         var user = owner(input.id());
-        risk.checkContent(input.name(),"PROFILE","WORKSPACE_NICKNAME",user.getId());
+        risk.checkChangedContent(user.getNickName(),input.name(),"PROFILE","WORKSPACE_NICKNAME",user.getId());
         var change = new BaseSysUserEntity(); change.setId(user.getId()); change.setName(input.name().trim()); change.setNickName(input.name().trim());
         change.setStatus(input.status());
         if (!Objects.equals(user.getStatus(), input.status())) change.setPasswordV(user.getPasswordV() == null ? 1 : user.getPasswordV() + 1);
-        users.update(change);
+        if(users.update(change)>0)risk.recordSavedContent(user.getNickName(),change.getNickName(),"WORKSPACE_NICKNAME",user.getId());
     }
 
     @Override
-    public void resetOwner(Long id) {
+    public void resetOwner(Long id, String password) {
         var user = owner(id);
-        var change = new BaseSysUserEntity(); change.setId(user.getId()); change.setPassword(new BCryptPasswordEncoder().encode("123456"));
+        var change = new BaseSysUserEntity(); change.setId(user.getId()); com.cool.core.util.PasswordPolicy.validate(password, user.getUsername(), user.getPhone()); change.setPassword(new BCryptPasswordEncoder().encode(password));
         change.setPasswordV(user.getPasswordV() == null ? 1 : user.getPasswordV() + 1); users.update(change);
     }
 }

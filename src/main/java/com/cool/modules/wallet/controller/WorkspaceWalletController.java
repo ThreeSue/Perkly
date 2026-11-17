@@ -2,7 +2,10 @@ package com.cool.modules.wallet.controller;
 
 import com.cool.core.request.R;
 import com.cool.core.exception.CoolException;
+import com.cool.modules.coupon.service.ConsumptionOrderService;
+import com.cool.modules.wallet.entity.WalletBillEntity;
 import com.cool.modules.wallet.service.PlatformWalletService;
+import com.cool.modules.wallet.service.WalletPaymentCodeService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -21,10 +24,14 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/merchant/governance/wallet")
 public class WorkspaceWalletController {
     private final PlatformWalletService wallet;
+    private final WalletPaymentCodeService paymentCodes;
+    private final ConsumptionOrderService consumptions;
     private final HttpServletRequest request;
 
     public record Id(Long id) {
     }
+
+    public record BillSearch(ConsumptionOrderService.OrderView consumption, WalletBillEntity direct) {}
 
     @GetMapping("/bills/stores")
     public R<?> stores() {
@@ -60,6 +67,15 @@ public class WorkspaceWalletController {
         return R.ok(wallet.bills(actor(), pageNumber, pageSize));
     }
 
+    @GetMapping("/bills/search")
+    public R<?> search(@RequestParam String billNo) {
+        String number = billNo.trim();
+        if (number.isEmpty() || number.length() > 40) throw new CoolException("请输入有效的完整账单号", 400);
+        Long userId = actor();
+        var direct = wallet.staffBillByNumber(userId, number);
+        return R.ok(new BillSearch(consumptions.findByOrderNo(userId, number), direct));
+    }
+
     @GetMapping("/transactions")
     public R<?> transactions(@RequestParam(defaultValue = "1") int pageNumber, @RequestParam(defaultValue = "20") int pageSize) {
         return R.ok(wallet.transactions(actor(), "WORKSPACE", pageNumber, pageSize));
@@ -67,5 +83,21 @@ public class WorkspaceWalletController {
     @GetMapping("/bills/info")
     public R<?> billInfo(@RequestParam Long id) {
         return R.ok(wallet.staffBillInfo(actor(),id));
+    }
+    @GetMapping("/bills/collection-result")
+    public R<?> collectionResult(@RequestParam Long id) {
+        return R.ok(wallet.collectionResult(actor(), id));
+    }
+    @GetMapping("/bills/collection-quote")
+    public R<?> collectionQuote(@RequestParam Long id) {
+        return R.ok(wallet.collectionQuote(actor(), id));
+    }
+    @PostMapping("/bills/collect")
+    public R<?> collect(@RequestBody WalletPaymentCodeService.Collection input) {
+        return R.ok(paymentCodes.collect(actor(), input));
+    }
+    @PostMapping("/bills/confirm-zero")
+    public R<?> confirmZero(@RequestBody WalletPaymentCodeService.BillVersion input) {
+        return R.ok(wallet.confirmZeroCoupon(actor(), input.id(), input.version()));
     }
 }

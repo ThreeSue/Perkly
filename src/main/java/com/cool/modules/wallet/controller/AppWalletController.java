@@ -21,6 +21,23 @@ import org.springframework.web.bind.annotation.*;
 public class AppWalletController {
     private final PlatformWalletService wallet;
     private final WalletActivityService activities;
+    private final WalletPaymentCodeService paymentCodes;
+
+    @PostMapping("/payment-code/issue")
+    public R<?> issuePaymentCode() {
+        return R.ok(paymentCodes.issue(AppOrderController.customer()));
+    }
+
+    @PostMapping("/payment-code/status")
+    public R<?> paymentCodeStatus(@RequestBody WalletPaymentCodeService.CodeInput input) {
+        return R.ok(paymentCodes.status(AppOrderController.customer(), input.code()));
+    }
+
+    @PostMapping("/payment-code/revoke")
+    public R<?> revokePaymentCode(@RequestBody WalletPaymentCodeService.CodeInput input) {
+        paymentCodes.revoke(AppOrderController.customer(), input.code());
+        return R.ok(true);
+    }
 
     @GetMapping("/balance")
     public R<?> balance() {

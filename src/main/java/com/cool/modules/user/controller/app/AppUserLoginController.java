@@ -189,7 +189,7 @@ public class AppUserLoginController {
         CoolPreconditions.checkEmpty(phone);
         CoolPreconditions.checkEmpty(captchaId);
         CoolPreconditions.checkEmpty(code);
-        userLoginService.smsCode(phone, captchaId, code);
+        userLoginService.smsCode(phone, captchaId, code, com.cool.modules.user.sms.SmsScene.fromApp(param.getScene()));
         return R.ok();
     }
 

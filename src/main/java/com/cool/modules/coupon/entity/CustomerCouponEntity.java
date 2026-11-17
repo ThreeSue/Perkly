@@ -18,6 +18,7 @@ import lombok.Setter;
 @org.dromara.autotable.annotation.Ignore
 public class CustomerCouponEntity {
     @Id private Long id;
+    private Long merchantId;
     private Long customerId;
     private Long couponTemplateId;
     private String code;

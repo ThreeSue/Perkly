@@ -22,7 +22,7 @@ public class StoreChatSettingsService {
  public Settings read(Long store,boolean lock){
   var q=QueryWrapper.create().eq(StoreChatSettingsEntity::getStoreId,store);if(lock)q.forUpdate();var row=rows.selectOneByQuery(q);
   if(row==null)return new Settings(0,false,List.of());
-  try{return new Settings(row.getVersion(),Boolean.TRUE.equals(row.getAiEnabled()),row.getFaqs()==null?List.of():json.readValue(row.getFaqs(),json.getTypeFactory().constructCollectionType(List.class,Faq.class)));}
+  try{return new Settings(row.getVersion(),Boolean.TRUE.equals(row.getAiEnabled()),row.getFaqs()==null?List.of():json.readValue(row.getFaqs(),json.getTypeFactory().constructCollectionType(List.class,Faq.class)),!Boolean.FALSE.equals(row.getAutoTakeoverEnabled()));}
   catch(Exception e){throw new CoolException("门店客服知识配置无法读取",500);}
  }
  @Transactional(rollbackFor=Exception.class)
@@ -36,6 +36,8 @@ public class StoreChatSettingsService {
   var row=rows.selectOneByQuery(QueryWrapper.create().eq(StoreChatSettingsEntity::getStoreId,store));
   boolean create=row==null;if(create){row=new StoreChatSettingsEntity();row.setStoreId(store);}
   row.setVersion(current.version()+1);row.setAiEnabled(input.aiEnabled());
+  // Older mobile clients omit the new switch: preserve the store's saved choice.
+  row.setAutoTakeoverEnabled(input.autoTakeoverEnabled()==null?current.autoTakeoverEnabled():input.autoTakeoverEnabled());
   try{row.setFaqs(json.writeValueAsString(input.faqs()));}catch(Exception e){throw new CoolException("FAQ格式无效",400);}
   if(create)rows.insert(row);else rows.update(row);return read(store,false);
  }

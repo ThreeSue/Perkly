@@ -198,19 +198,22 @@ public class WorkspaceManagementService {
         if(p.id()==null){
             if(p.username()==null||!p.username().matches("1[0-9]{10}"))throw new CoolException("新账号请输入11位登录手机号");
             if(users.selectCountByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getUsername,p.username()))>0)throw new CoolException("登录账号已存在");
-            u.setUsername(p.username());u.setPhone(p.username());u.setPassword(hash(p.password()));u.setPasswordV(1);
+            u.setUsername(p.username());u.setPhone(p.username());u.setPassword(hash(p.password(), p.username()));u.setPasswordV(1);
         }else{
             if(!Objects.equals(u.getUsername(),p.username()))throw new CoolException("登录账号不可修改");
             if(p.password()!=null&&!p.password().isBlank()) {
-                u.setPassword(hash(p.password()));
+                u.setPassword(hash(p.password(), p.username()));
                 u.setPasswordV(u.getPasswordV()==null?1:u.getPasswordV()+1);
             } else if (!Objects.equals(u.getAccountType(),p.accountType()) || !Objects.equals(u.getMerchantId(),m) || !Objects.equals(u.getStatus(),p.status())) {
                 u.setPasswordV(u.getPasswordV()==null?1:u.getPasswordV()+1);
             }
         }
-        risk.checkContent(p.name(),"PROFILE","WORKSPACE_NICKNAME",u.getId());
+        String previousName=u.getNickName();
+        risk.checkChangedContent(previousName,p.name(),"PROFILE","WORKSPACE_NICKNAME",u.getId());
         u.setName(p.name().trim());u.setNickName(p.name().trim());u.setMerchantId(m);u.setMerchantRole(legacy);u.setAccountType(p.accountType());u.setStatus(state(p.status()));u.setStoreScope("OWNER".equals(legacy)?"ALL":p.storeScope());
         if(p.id()==null)users.insert(u);else users.update(u);
+        risk.recordSavedContent(previousName,u.getNickName(),"WORKSPACE_NICKNAME",u.getId());
+        if(p.id()==null)risk.bind("PROFILE",u.getId());
         userRoles.deleteByQuery(QueryWrapper.create().eq(BaseSysUserRoleEntity::getUserId,u.getId()));var link=new BaseSysUserRoleEntity();link.setUserId(u.getId());link.setRoleId(p.roleId());userRoles.insert(link);
         memberships.deleteByQuery(QueryWrapper.create().eq(MerchantUserStoreEntity::getUserId,u.getId()));
         if("STORE".equals(p.accountType())){var b=new MerchantUserStoreEntity();b.setUserId(u.getId());b.setMerchantId(m);b.setStoreId(p.storeId());memberships.insert(b);}
@@ -230,7 +233,10 @@ public class WorkspaceManagementService {
         if(a!=null)assignable.retainAll(auth.grantable(a));
         return new AccountPreview(role.name(),catalog.stream().filter(m->ceiling.contains(m.getId())).toList(),catalog.stream().filter(m->!ceiling.contains(m.getId())).toList(),assignable.stream().sorted().toList());
     }
-    private String hash(String password){if(password==null||password.length()<6||password.length()>64||password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>72)throw new CoolException("初始密码需6至64位且不超过72字节");return passwords.encode(password);}
+    private String hash(String password, String username) {
+        com.cool.core.util.PasswordPolicy.validate(password, username);
+        return passwords.encode(password);
+    }
     private int state(Integer s){if(s==null||s!=0&&s!=1)throw new CoolException("请选择启用或停用");return s;}
     public void accountState(Long actorId,StateInput p){var a=actor(actorId,"account:manage");var target=users.selectOneByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getId,p.id()).forUpdate());if(target==null||target.getMerchantId()==null||!accessible(a,target)||Objects.equals(actorId,p.id()))throw new CoolException("无权调整此账号",403);target.setStatus(state(p.status()));target.setPasswordV(target.getPasswordV()==null?1:target.getPasswordV()+1);users.update(target);history.record("WORKSPACE_ACCOUNT",target.getId(),target.getMerchantId(),1,"STATUS",null,cn.hutool.json.JSONUtil.toJsonStr(accountView(target)));}
     private void putGrant(String type,Long subject,Long menu,boolean allowed){var g=new WorkspaceGrantEntity();g.setSubjectType(type);g.setSubjectId(subject);g.setMenuId(menu);g.setAllowed(allowed);grants.insert(g);}
@@ -261,7 +267,19 @@ public class WorkspaceManagementService {
         history.record("WORKSPACE_GRANT",p.subjectId(),mid,1,p.subjectType(),null,cn.hutool.json.JSONUtil.toJsonStr(p));
     }
     public MerchantSettings settings(Long actorId,Long merchantId){var a=actor(actorId,"profile:view");var m=merchants.selectOneById(merchant(a,merchantId));return new MerchantSettings(m.getDefaultStoreId(),m.getLicenseNumber());}
-    public void personal(Long actorId,PersonalInput p){if(actorId==null)throw new CoolException("请使用运营个人信息入口",403);auth.context(actorId);var u=auth.user(actorId);if(p.name()==null||p.name().isBlank()||p.name().trim().length()>50)throw new CoolException("姓名必填且不超过50字");risk.checkContent(p.name(),"PROFILE","WORKSPACE_NICKNAME",actorId);var change=new BaseSysUserEntity();change.setId(actorId);change.setName(p.name().trim());change.setNickName(p.name().trim());users.update(change);history.record("WORKSPACE_ACCOUNT",actorId,u.getMerchantId(),1,"PROFILE",null,cn.hutool.json.JSONUtil.toJsonStr(p));}
+    public void personal(Long actorId, PersonalInput p) {
+        if(actorId==null)throw new CoolException("请使用运营个人信息入口",403);
+        auth.context(actorId);
+        var u=users.selectOneByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getId,actorId).forUpdate());
+        if(u==null)throw new CoolException("账号不存在",404);
+        if(p.name()==null||p.name().isBlank()||p.name().trim().length()>50)throw new CoolException("姓名必填且不超过50字");
+        String name=p.name().trim();
+        risk.checkChangedContent(u.getNickName(),name,"PROFILE","WORKSPACE_NICKNAME",actorId);
+        var change=new BaseSysUserEntity();
+        change.setId(actorId);change.setName(name);change.setNickName(name);
+        if(users.update(change)>0)risk.recordSavedContent(u.getNickName(),name,"WORKSPACE_NICKNAME",actorId);
+        history.record("WORKSPACE_ACCOUNT",actorId,u.getMerchantId(),1,"PROFILE",null,cn.hutool.json.JSONUtil.toJsonStr(p));
+    }
     public void saveSettings(Long actorId,Long merchantId,MerchantSettings p){var a=actor(actorId,"profile:edit");Long mid=merchant(a,merchantId);var m=merchants.selectOneByQuery(QueryWrapper.create().eq(MerchantInfoEntity::getId,mid).forUpdate());
         if(p.defaultStoreId()!=null){validStores(a,mid,List.of(p.defaultStoreId()));var s=stores.selectOneById(p.defaultStoreId());if(s==null||!Integer.valueOf(1).equals(s.getStatus()))throw new CoolException("默认门店必须属于本商家且正在营业");}
         String license=p.licenseNumber()==null?null:p.licenseNumber().trim().toUpperCase(Locale.ROOT);

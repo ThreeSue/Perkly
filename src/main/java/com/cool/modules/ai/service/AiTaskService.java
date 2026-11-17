@@ -1,4 +1,5 @@
 package com.cool.modules.ai.service;
+import com.cool.modules.ai.usage.AiUsageMeter;
 import com.cool.core.exception.CoolException;
 import com.cool.modules.ai.config.AiProperties;
 import com.cool.modules.ai.entity.*;
@@ -27,6 +28,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service @RequiredArgsConstructor
 public class AiTaskService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiUsageMeter usageMeter;
+
     private final AiImageTaskMapper tasks;
     private final AiDailyUsageMapper usages;
     private final AiMerchantPolicyMapper policies;
@@ -39,6 +43,7 @@ public class AiTaskService {
     private final SupportAccess security;
     private final AiProperties properties;
     private final ObjectMapper json;
+    private final com.cool.modules.searchrisk.SearchRiskService risk;
     @io.swagger.v3.oas.annotations.media.Schema(name="AiImageCreate")
     public record Create(String requestId,String mode,String model,String prompt,Long parentTaskId,AiAccessService.Draft draft) {}
     @io.swagger.v3.oas.annotations.media.Schema(name="AiImageQuota")
@@ -50,6 +55,10 @@ public class AiTaskService {
     public static String day(){return LocalDate.now(ZoneId.of("Asia/Shanghai")).toString();}
     public String encode(Object value) {
         try{return json.writeValueAsString(value);}catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new CoolException("AI任务无法保存");}
+    }
+    static String addedPromptText(String prompt,String suggested) {
+        if(prompt.equals(suggested))return "";
+        return prompt.replace(AiAccessService.COVER_SAFETY_TEXT," ");
     }
     public Quota quota(Long actor,boolean platform,Long merchant) {
         access.libraryContext(actor,platform,merchant);
@@ -83,6 +92,7 @@ public class AiTaskService {
             if(!hash.equals(existing.getRequestHash()))throw new CoolException("同一requestId不能用于不同AI请求",409);
             return view(existing);
         }
+        risk.checkContent(addedPromptText(prompt,prepared.suggestedPrompt()),"AI_INPUT","AiImageController:prompt",null);
         var s=settings.current();
         if(!Boolean.TRUE.equals(s.getEnabled()))throw new CoolException("AI图片功能已关闭",409);
         if(!properties.configured())throw new CoolException("尚未配置AI服务密钥，请联系运营",503);
@@ -113,6 +123,9 @@ public class AiTaskService {
         row.setPrompt(prompt);row.setDraftSnapshot(encode(prepared));row.setStatus("QUEUED");row.setQuotaDay(usage.getDayKey());
         row.setImageCount(0);row.setEstimatedCost(s.getEstimatedUnitPrice());row.setNextAttemptAt(new Date());tasks.insert(row);
         row.setImageKey("ai-"+UUID.randomUUID().toString().replace("-","")+".png");tasks.update(row);
+        if (usageMeter != null) {
+            usageMeter.accepted("image", new AiUsageMeter.Actor(context.actorKind(), actor), row.getModel());
+        }
         settings.audit(actor,context.merchantId(),row.getId(),"CREATE",input.mode()+" "+input.model());
         return view(row);
     }

@@ -85,7 +85,11 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
             entity.setCover(materials.resolveCover(entity.getMerchantId(), entity.getCoverMaterialId(), entity.getCover()));
         }
         validate(entity, null);
-        Long id=super.add(entity);risk.bind("STORE",id);return id;
+        checkChangedContent(entity, null);
+        Long id=super.add(entity);
+        recordSavedContent(entity,null);
+        risk.bind("STORE",id);
+        return id;
     }
 
     @Override
@@ -100,7 +104,9 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
             entity.setCover(materials.resolveCover(entity.getMerchantId(), entity.getCoverMaterialId(), cover));
         }
         validate(entity, existing);
+        checkChangedContent(entity, existing);
         boolean result=super.update(entity);
+        if(result)recordSavedContent(entity,existing);
         if(result&&!Objects.equals(existing.getStatus(),entity.getStatus()))history.record("STORE_STATE",entity.getId(),entity.getMerchantId(),1,"STATUS",StoreStatus.text(existing.getStatus())+" → "+StoreStatus.text(entity.getStatus()),null);
         return result;
     }
@@ -144,9 +150,25 @@ public class MerchantStoreServiceImpl extends BaseServiceImpl<MerchantStoreMappe
         if ((entity.getLongitude() == null) != (entity.getLatitude() == null)) throw new CoolException("经度和纬度需要同时填写或同时留空");
         validateCoordinate(entity.getLongitude(), "经度", new BigDecimal("-180"), new BigDecimal("180"));
         validateCoordinate(entity.getLatitude(), "纬度", new BigDecimal("-90"), new BigDecimal("90"));
-        risk.checkContent(entity.getName(),"STORE","STORE_NAME",entity.getId());
-        risk.checkContent(entity.getBusinessHours(),"STORE","STORE_HOURS",entity.getId());
-        risk.checkContent(entity.getAddress(),"STORE","STORE_ADDRESS",entity.getId());
+    }
+
+    private void checkChangedContent(MerchantStoreEntity entity, MerchantStoreEntity existing) {
+        risk.checkChangedContent(existing == null ? null : existing.getName(),
+                entity.getName(), "STORE", "STORE_NAME", entity.getId());
+        risk.checkChangedContent(existing == null ? null : existing.getBusinessHours(),
+                entity.getBusinessHours(), "STORE", "STORE_HOURS", entity.getId());
+        risk.checkChangedContent(existing == null ? null : existing.getAddress(),
+                entity.getAddress(), "STORE", "STORE_ADDRESS", entity.getId());
+    }
+
+    private void recordSavedContent(MerchantStoreEntity entity, MerchantStoreEntity existing) {
+        risk.recordSavedContent(existing == null ? null : existing.getName(),
+                entity.getName(), "STORE_NAME", entity.getId());
+        risk.recordSavedContent(existing == null ? null : existing.getAddress(),
+                entity.getAddress(), "STORE_ADDRESS", entity.getId());
+        if (entity.getBusinessHours() != null)
+            risk.recordSavedContent(existing == null ? null : existing.getBusinessHours(),
+                    entity.getBusinessHours(), "STORE_HOURS", entity.getId());
     }
 
     private void validateCoordinate(BigDecimal value, String label, BigDecimal min, BigDecimal max) {

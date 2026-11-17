@@ -28,7 +28,7 @@ public class GuestMerchantOnboardingController {
 
     @PostMapping("/smsCode")
     public R<?> sms(@Valid @RequestBody Sms input) {
-        login.smsCode(input.phone(), input.captchaId(), input.verifyCode());
+        login.smsCode(input.phone(), input.captchaId(), input.verifyCode(), com.cool.modules.user.sms.SmsScene.MERCHANT_ONBOARDING);
         return R.ok();
     }
 

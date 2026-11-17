@@ -30,5 +30,5 @@ public class AdminMerchantBackendAccountController {
     @GetMapping("/groups") public R<?> groups() { authorize(); return R.ok(service.groups()); }
     @PostMapping("/page") public R<?> page(@RequestBody PageInput input) { authorize(); return R.ok(service.page(input)); }
     @PostMapping("/saveOwner") public R<?> save(@RequestBody OwnerInput input) { authorize(); service.saveOwner(input); return R.ok(); }
-    @PostMapping("/resetOwner") public R<?> reset(@RequestBody OwnerInput input) { authorize(); service.resetOwner(input.id()); return R.ok(); }
+    @PostMapping("/resetOwner") public R<?> reset(@RequestBody OwnerInput input) { authorize(); service.resetOwner(input.id(), input.password()); return R.ok(); }
 }

@@ -51,6 +51,8 @@ public class WalletTransactionEntity extends BaseEntity<WalletTransactionEntity>
     private Long amount;
     @ColumnDefine(notNull = true, comment = "活动优惠金额，分")
     private Long discountAmount;
+    @ColumnDefine(length = 24, comment = "扫码收款渠道")
+    private String paymentChannel;
     @ColumnDefine(comment = "命中活动")
     private Long activityId;
     @ColumnDefine(comment = "活动名称快照")

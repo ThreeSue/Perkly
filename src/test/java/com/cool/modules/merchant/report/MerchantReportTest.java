@@ -22,12 +22,39 @@ class MerchantReportTest {
  final MerchantReportAccess access=mock(MerchantReportAccess.class);
  final CouponRedemptionMapper records=mock(CouponRedemptionMapper.class);
  final ConsumptionOrderMapper orders=mock(ConsumptionOrderMapper.class);
- final MerchantReportService service=new MerchantReportService(access,records,orders,mock(BaseSysUserMapper.class),mock(MerchantUserStoreMapper.class));
+ final CustomerCouponMapper customerCoupons=mock(CustomerCouponMapper.class);
+ final MerchantReportService service=new MerchantReportService(access,records,orders,customerCoupons,mock(BaseSysUserMapper.class),mock(MerchantUserStoreMapper.class));
  MerchantReportTest(){when(access.require(1L,null)).thenReturn(new MerchantReportAccess.Scope(1L,2L,3L,null));}
  MerchantReportModels.Filter filter(String keyword){return new MerchantReportModels.Filter("TODAY",null,null,null,null,keyword,1,1);}
  @Test void noAiDependencyAndEmptyBuckets(){when(records.selectListByQuery(any())).thenReturn(List.of());var r=service.query(1L,filter(null));assertEquals(24,r.trend().size());assertEquals(0,r.total());assertEquals(BigDecimal.ZERO,r.summary().knownConsumptionYuan());assertNull(r.summary().failedAttempts());}
  CouponRedemptionEntity row(long id){var r=new CouponRedemptionEntity();r.setId(id);r.setConsumptionOrderId(7L);r.setConsumptionAmount(new BigDecimal("150"));r.setDiscountAmount(new BigDecimal("10"));r.setRedeemedAt(new Date());return r;}
- @Test void duplicateOrdersStablePageAndHistoricalType(){var o=new ConsumptionOrderEntity();o.setId(7L);o.setCouponType("VOUCHER");o.setCouponName("历史券");when(orders.selectListByQuery(any())).thenReturn(List.of(o));when(records.selectListByQuery(any())).thenReturn(List.of(row(2),row(1)),List.of());var r=service.query(1L,filter(null));assertEquals(2,r.total());assertEquals(1,r.summary().linkedOrders());assertEquals(new BigDecimal("150"),r.summary().knownConsumptionYuan());assertEquals(2L,r.list().get(0).id());assertEquals("VOUCHER",r.types().get(0).type());}
+ @Test void duplicateOrdersStablePageAndHistoricalType(){var o=new ConsumptionOrderEntity();o.setId(7L);o.setCouponType("VOUCHER");o.setCouponName("历史券");o.setCouponSnapshot("{\"type\":\"CASH\"}");when(orders.selectListByQuery(any())).thenReturn(List.of(o));when(records.selectListByQuery(any())).thenReturn(List.of(row(2),row(1)),List.of());var r=service.query(1L,filter(null));assertEquals(2,r.total());assertEquals(1,r.summary().linkedOrders());assertEquals(new BigDecimal("150"),r.summary().knownConsumptionYuan());assertEquals(2L,r.list().get(0).id());assertEquals("CASH",r.types().get(0).type());verifyNoInteractions(customerCoupons);}
+
+ @Test void readsIssuedCouponTypeWhenTheHistoricalRedemptionHasNoOrder() {
+  var historical = row(2);
+  historical.setConsumptionOrderId(null);
+  historical.setCustomerCouponId(12L);
+  var withoutSnapshot = row(1);
+  withoutSnapshot.setConsumptionOrderId(null);
+  withoutSnapshot.setCustomerCouponId(13L);
+  var issued = new CustomerCouponEntity();
+  issued.setId(12L);
+  issued.setRuleSnapshot("{\"type\":\"EXPERIENCE\",\"name\":\"历史体验券\"}");
+  var invalid = new CustomerCouponEntity();
+  invalid.setId(13L);
+  invalid.setRuleSnapshot("not json");
+  when(records.selectListByQuery(any())).thenReturn(List.of(historical, withoutSnapshot), List.of());
+  when(customerCoupons.selectListByQuery(any())).thenReturn(List.of(issued, invalid));
+
+  var result = service.query(1L, filter(null));
+  assertEquals(2, result.total());
+  assertEquals(List.of("EXPERIENCE", "UNKNOWN"), result.types().stream().map(MerchantReportModels.TypeCount::type).toList());
+  assertEquals("历史体验券", result.list().get(0).couponName());
+  assertEquals("EXPERIENCE", result.list().get(0).couponType());
+  var query = org.mockito.ArgumentCaptor.forClass(com.mybatisflex.core.query.QueryWrapper.class);
+  verify(customerCoupons).selectListByQuery(query.capture());
+  assertTrue(query.getValue().toSQL().contains("merchant_id"));
+ }
  @Test void searchFiltersSummaryAndDetailsTogether(){when(records.selectListByQuery(any())).thenReturn(List.of(row(1)),List.of());when(orders.selectListByQuery(any())).thenReturn(List.of());var r=service.query(1L,filter("不存在"));assertEquals(0,r.total());assertTrue(r.list().isEmpty());assertEquals(0,r.summary().successfulRedemptions());}
  @Test void deniedBeforeQuery(){when(access.require(1L,null)).thenThrow(new com.cool.core.exception.CoolException("拒绝",403));assertThrows(com.cool.core.exception.CoolException.class,()->service.query(1L,filter(null)));verifyNoInteractions(records,orders);}
  @Test void customDatesAndUnknownAmounts(){assertThrows(com.cool.core.exception.CoolException.class,()->MerchantReportService.range(new MerchantReportModels.Filter("CUSTOM",LocalDate.now(),LocalDate.now().minusDays(1),null,null,null,null,null),LocalDate.now()));var a=new MerchantReportService.Amount();a.add(null);a.add(BigDecimal.TEN);assertTrue(a.unknown);}

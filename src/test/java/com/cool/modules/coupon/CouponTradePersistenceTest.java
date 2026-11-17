@@ -317,6 +317,12 @@ class CouponTradePersistenceTest {
         assertThrows(CoolException.class,()->trade.redemptions(operator,1,20,null,"store"));
         assertEquals(0,trade.redemptions(managerId,1,20,null,"self").getList().size());
         assertEquals(1,trade.redemptions(managerId,1,20,null,"store").getList().size());
+        assertEquals(1, trade.redemptions(managerId, 1, 20, null, "staff", operator).getList().size());
+        assertEquals(0, trade.redemptions(managerId, 1, 20, null, "staff", managerId).getList().size());
+        assertThrows(CoolException.class, () -> trade.redemptions(managerId, 1, 20, null, "staff", null));
+        assertThrows(CoolException.class, () -> trade.redemptions(operator, 1, 20, null, "staff", managerId));
+        assertThrows(CoolException.class, () -> trade.redemptions(operator, 1, 20, null, "self", managerId));
+        assertThrows(CoolException.class, () -> trade.redemptions(managerId, 1, 20, otherStore, "staff", operator));
         jdbc.update("DELETE FROM base_sys_user_store WHERE user_id=?",operator);
         session.clearCache();
         assertThrows(CoolException.class,()->trade.redemptions(operator,1,20,null,"self"));

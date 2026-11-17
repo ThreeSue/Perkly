@@ -3,6 +3,7 @@ package com.cool.modules.user.service;
 import com.aliyun.dypnsapi20170525.Client;
 import com.aliyun.dypnsapi20170525.models.CheckSmsVerifyCodeRequest;
 import com.aliyun.dypnsapi20170525.models.SendSmsVerifyCodeRequest;
+import com.aliyun.teautil.models.RuntimeOptions;
 import com.cool.core.exception.CoolException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,30 +33,49 @@ public class AliyunSmsAuthService {
     public long getValidTime() { return validTime; }
     public long getInterval() { return interval; }
 
-    public void send(String phone) {
+    public record Accepted(String bizId,String requestId) {}
+    public static final class SendFailure extends CoolException {
+        private final boolean rejected;
+        private final String providerCode;
+        private final String requestId;
+        SendFailure(String message,boolean rejected,String providerCode,String requestId) {
+            super(message,503);
+            this.rejected = rejected;
+            this.providerCode = providerCode;
+            this.requestId = requestId;
+        }
+        public boolean rejected() { return rejected; }
+        public String providerCode() { return providerCode; }
+        public String requestId() { return requestId; }
+    }
+
+    public Accepted send(String phone,String outId) {
         if (signName.isBlank() || templateCode.isBlank() || validTime < 60
                 || validTime % 60 != 0 || interval < 60) {
-            throw new CoolException("请检查短信认证的签名、模板、有效期和发送间隔配置");
+            throw new SendFailure("短信服务配置未就绪，请稍后重试",true,"LOCAL_CONFIG",null);
         }
         SendSmsVerifyCodeRequest request = new SendSmsVerifyCodeRequest()
                 .setPhoneNumber(phone).setCountryCode("86")
                 .setSignName(signName).setTemplateCode(templateCode)
                 .setSchemeName(schemeName)
+                .setOutId(outId)
                 .setTemplateParam("{\"code\":\"##code##\",\"min\":\"" + validTime / 60 + "\"}")
                 .setCodeType(1L).setCodeLength(6L)
                 .setValidTime(validTime).setInterval(interval)
                 .setDuplicatePolicy(1L).setReturnVerifyCode(false);
         try {
-            var response = client.sendSmsVerifyCode(request);
+            var response = client.sendSmsVerifyCodeWithOptions(request,
+                new RuntimeOptions().setAutoretry(false).setConnectTimeout(5000).setReadTimeout(10000));
             var body = response == null ? null : response.getBody();
-            if (body == null || !Boolean.TRUE.equals(body.getSuccess()) || !"OK".equals(body.getCode())) {
-                throw new CoolException("短信发送请求未成功，请检查阿里云配置和发送记录");
-            }
-        } catch (CoolException e) {
+            if (body == null) throw new SendFailure("短信发送结果暂时无法确认，请稍后查看",false,null,null);
+            if (!Boolean.TRUE.equals(body.getSuccess()) || !"OK".equals(body.getCode()))
+                throw new SendFailure("短信发送请求未成功，请稍后重试",true,body.getCode(),body.getRequestId());
+            return new Accepted(body.getModel()==null ? null : body.getModel().getBizId(),body.getRequestId());
+        } catch (SendFailure e) {
             throw e;
         } catch (Exception e) {
             // 不将 SDK 的原始异常返回前端，避免带出手机号或请求参数。
-            throw new CoolException("短信服务调用失败，请检查权限、余额和网络连接");
+            throw new SendFailure("短信发送结果暂时无法确认，请稍后查看",false,null,null);
         }
     }
 

@@ -111,8 +111,6 @@ public class WorkspaceNoticeService {
         String type=noticeType(input.noticeType());
         users.selectOneByQuery(QueryWrapper.create().eq(BaseSysUserEntity::getId,id).forUpdate());
         var sender=sender(id);
-        risk.checkContent(input.title(),"NOTICE","NOTICE_TITLE",null);
-        risk.checkContent(input.content(),"NOTICE","NOTICE_CONTENT",null);
         var ids=new TreeSet<>(input.recipientIds());
         if(ids.stream().anyMatch(target->allowed(sender,target)==null)) throw new CoolException("包含无权通知或已失效的接收账号",403);
         var existing=notices.selectOneByQuery(QueryWrapper.create().eq(WorkspaceNoticeEntity::getSenderId,id).eq(WorkspaceNoticeEntity::getRequestId,input.requestId()));
@@ -123,6 +121,8 @@ public class WorkspaceNoticeService {
                 throw new CoolException("该请求标识已用于其他通知",409);
             return existing.getId();
         }
+        risk.checkContent(input.title(),"NOTICE","NOTICE_TITLE",null);
+        risk.checkContent(input.content(),"NOTICE","NOTICE_CONTENT",null);
         var notice=new WorkspaceNoticeEntity();notice.setSenderId(id);notice.setRequestId(input.requestId());
         notice.setTitle(input.title().trim());notice.setContent(input.content().trim());notice.setNoticeType(type);notices.insert(notice);
         risk.bind("NOTICE",notice.getId());
